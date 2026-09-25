@@ -47,6 +47,11 @@ export async function loadMyAvatar() {
   setMine(current?.data ?? null, current?.mime);
 }
 
+/** Imagem trocada em outra janela: atualiza aqui também. */
+export function watchMyAvatar() {
+  chat().onMyAvatarChanged((a) => setMine(a?.data ?? null, a?.mime));
+}
+
 export const peerAvatarUrl = (id: string) => peerUrls.get(id) ?? null;
 
 export function onPeerAvatarsChange(fn: () => void) {

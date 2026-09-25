@@ -89,6 +89,11 @@ export async function loadFont() {
   }
 }
 
+/** Fonte trocada em outra janela: aplica aqui também. */
+export function watchFontChanges() {
+  chat().onFontChanged(setCurrent);
+}
+
 // ---------------------------------------------------------------- diálogo
 
 const els = {

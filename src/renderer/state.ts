@@ -7,14 +7,15 @@ export type ViewName = 'login' | 'home' | 'chat';
 const TITLES: Record<ViewName, string> = {
   login: 'Chat Live Messenger',
   home: 'Chat Live Messenger',
-  chat: 'Conversa em grupo - Chat Live Messenger',
+  chat: 'Conversa - Chat Live Messenger',
 };
 
 export const state = {
   self: null as SelfInfo | null,
   peers: new Map<string, PeerInfo>(),
   view: 'login' as ViewName,
-  unread: 0,
+  /** Contato desta janela de conversa (null na janela principal). */
+  peerId: null as string | null,
 };
 
 type Listener = () => void;
@@ -57,6 +58,5 @@ export const onlinePeers = () =>
 export function resetSession() {
   state.self = null;
   state.peers.clear();
-  state.unread = 0;
   peerListeners.forEach((fn) => fn());
 }
