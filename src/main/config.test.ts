@@ -58,22 +58,42 @@ describe('SettingsStore', () => {
   it('salva e carrega; arquivo ausente ou corrompido vira padrão', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlan-'));
     const store = new SettingsStore(dir);
-    expect(store.load()).toEqual({ manualPeers: [], profile: null, font: null, giphyKey: null });
+    expect(store.load()).toEqual({ manualPeers: [], profile: null, font: null, giphyKey: null, sounds: true });
 
     const font = { family: 'Georgia', size: 14, bold: false, italic: true, underline: false, color: '#004080' } as const;
-    store.save({ manualPeers: [{ host: '10.0.0.2', port: 47800 }], profile: null, font, giphyKey: 'abcDEF1234567890abcd' });
+    store.save({
+      manualPeers: [{ host: '10.0.0.2', port: 47800 }],
+      profile: null,
+      font,
+      giphyKey: 'abcDEF1234567890abcd',
+      sounds: false,
+    });
     expect(store.load()).toEqual({
       manualPeers: [{ host: '10.0.0.2', port: 47800 }],
       profile: null,
       font,
       giphyKey: 'abcDEF1234567890abcd',
+      sounds: false,
     });
 
     fs.writeFileSync(path.join(dir, 'settings.json'), '{ lixo');
-    expect(store.load()).toEqual({ manualPeers: [], profile: null, font: null, giphyKey: null });
+    expect(store.load()).toEqual({ manualPeers: [], profile: null, font: null, giphyKey: null, sounds: true });
 
     fs.writeFileSync(path.join(dir, 'settings.json'), JSON.stringify({ manualPeers: [{ host: 1 }, { host: 'x', port: 2 }] }));
-    expect(store.load()).toEqual({ manualPeers: [{ host: 'x', port: 2 }], profile: null, font: null, giphyKey: null });
+    expect(store.load()).toEqual({
+      manualPeers: [{ host: 'x', port: 2 }],
+      profile: null,
+      font: null,
+      giphyKey: null,
+      sounds: true,
+    });
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('sons ficam ligados por padrão em arquivo antigo', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlan-'));
+    fs.writeFileSync(path.join(dir, 'settings.json'), JSON.stringify({ manualPeers: [] }));
+    expect(new SettingsStore(dir).load().sounds).toBe(true);
     fs.rmSync(dir, { recursive: true, force: true });
   });
 });

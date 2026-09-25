@@ -31,6 +31,8 @@ export interface Settings {
   font: MessageFont | null;
   /** Chave de API do GIPHY (opcional). */
   giphyKey: string | null;
+  /** Som de nova mensagem (menu ☰ da home). Padrão: ligado. */
+  sounds: boolean;
 }
 
 const isPort = (n: unknown): n is number => typeof n === 'number' && Number.isInteger(n) && n >= 1 && n <= 65535;
@@ -115,9 +117,15 @@ export class SettingsStore {
             .slice(0, MAX_SAVED_PEERS)
         : [];
       const giphyKey = typeof raw?.giphyKey === 'string' && /^[A-Za-z0-9]{16,64}$/.test(raw.giphyKey) ? raw.giphyKey : null;
-      return { manualPeers, profile: parseProfile(raw?.profile), font: validateFont(raw?.font), giphyKey };
+      return {
+        manualPeers,
+        profile: parseProfile(raw?.profile),
+        font: validateFont(raw?.font),
+        giphyKey,
+        sounds: raw?.sounds !== false,
+      };
     } catch {
-      return { manualPeers: [], profile: null, font: null, giphyKey: null };
+      return { manualPeers: [], profile: null, font: null, giphyKey: null, sounds: true };
     }
   }
 
