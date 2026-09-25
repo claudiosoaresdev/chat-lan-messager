@@ -95,6 +95,26 @@ describe('PeerManager', () => {
     expect(await update).toMatchObject({ status: 'away', message: 'volto já', online: true });
   });
 
+  it('troca o nome e avisa os contatos; nome vazio é ignorado', async () => {
+    const a = await create('aaa');
+    const b = await create('bbb');
+    const bSeesA = next(b, 'peer', onlineWith('aaa'));
+    await a.connect(HOST, b.port);
+    await bSeesA;
+
+    const renamed = next(b, 'peer', (p) => p.id === 'aaa' && p.name === 'Novo nome');
+    a.setPresence({ name: '  Novo nome  ' });
+    expect(await renamed).toMatchObject({ name: 'Novo nome', online: true });
+    expect(a.name).toBe('Novo nome');
+
+    a.setPresence({ name: '   ' });
+    expect(a.name).toBe('Novo nome');
+
+    const text = next(b, 'message');
+    a.sendText('oi');
+    expect(await text).toMatchObject({ fromName: 'Novo nome' });
+  });
+
   it('envia a imagem de exibição ao conectar, ao trocar e ao remover', async () => {
     const a = new PeerManager({ id: 'aaa', name: 'A', host: HOST, avatar: new Uint8Array(PNG) });
     await a.start();

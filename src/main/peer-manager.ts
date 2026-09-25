@@ -6,6 +6,7 @@ import { WebSocket, WebSocketServer, type RawData } from 'ws';
 import {
   MAX_IMAGE_BYTES,
   MAX_AVATAR_BYTES,
+  MAX_NAME_LENGTH,
   MAX_PERSONAL_MESSAGE_LENGTH,
   MAX_TEXT_LENGTH,
   detectImageMime,
@@ -188,8 +189,10 @@ export class PeerManager extends EventEmitter<PeerManagerEvents> {
     return this._message;
   }
 
-  /** Atualiza status/mensagem pessoal e avisa todos os peers conectados. */
+  /** Atualiza nome/status/mensagem pessoal e avisa todos os peers conectados. Nome vazio é ignorado. */
   setPresence(update: PresenceUpdate) {
+    const name = update.name?.trim().slice(0, MAX_NAME_LENGTH);
+    if (name) this._name = name;
     if (update.status !== undefined) this._status = update.status;
     if (update.message !== undefined) this._message = update.message.trim().slice(0, MAX_PERSONAL_MESSAGE_LENGTH);
     const frame = encodeMessage({

@@ -658,11 +658,29 @@ button {
 }
 
 .me-name {
-  overflow: hidden;
+  field-sizing: content;
+  min-width: 3ch;
+  max-width: 100%;
+  padding: 0 3px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: transparent;
   color: #1e1e1e;
+  font: inherit;
   font-size: 15px;
-  white-space: nowrap;
   text-overflow: ellipsis;
+  outline: none;
+  cursor: text;
+}
+
+.me-name:hover {
+  border-color: #7da2ce;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.me-name:focus {
+  border-color: var(--btn-focus);
+  background: #fff;
 }
 
 .me-status {

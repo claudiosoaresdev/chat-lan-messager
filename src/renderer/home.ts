@@ -9,7 +9,7 @@ import { onPeersChange, onlinePeers, state } from './state';
 
 const els = {
   avatar: $('me-avatar'),
-  name: $('me-name'),
+  name: $<HTMLInputElement>('me-name'),
   statusBtn: $<HTMLButtonElement>('me-status'),
   statusLabel: $('me-status-label'),
   message: $<HTMLInputElement>('me-message'),
@@ -50,7 +50,7 @@ let selectedId: string | null = null;
 
 export function renderSelf(self: SelfInfo) {
   els.avatar.dataset.status = self.status;
-  els.name.textContent = self.name;
+  if (document.activeElement !== els.name) els.name.value = self.name;
   els.statusLabel.textContent = STATUS_LABEL[self.status];
   if (document.activeElement !== els.message) els.message.value = self.message;
   const ip = self.addresses[0];
@@ -60,7 +60,7 @@ export function renderSelf(self: SelfInfo) {
     : '';
 }
 
-async function updatePresence(update: { status?: PresenceStatus; message?: string }) {
+async function updatePresence(update: { name?: string; status?: PresenceStatus; message?: string }) {
   try {
     state.self = await chat().setPresence(update);
     renderSelf(state.self);
@@ -74,6 +74,27 @@ els.statusBtn.addEventListener('click', () =>
     { label: 'Sair', onSelect: () => handlers.logout() },
   ]),
 );
+
+// Nome: clique para editar, Enter salva, Esc desfaz. Vazio volta ao nome atual.
+function commitName() {
+  const name = els.name.value.trim();
+  if (!state.self) return;
+  if (!name || name === state.self.name) {
+    els.name.value = state.self.name;
+    return;
+  }
+  void updatePresence({ name });
+}
+
+els.name.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') els.name.blur();
+  if (e.key === 'Escape') {
+    els.name.value = state.self?.name ?? '';
+    els.name.blur();
+  }
+});
+els.name.addEventListener('focus', () => els.name.select());
+els.name.addEventListener('blur', commitName);
 
 function commitMessage() {
   const message = els.message.value.trim();

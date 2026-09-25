@@ -49,6 +49,7 @@ export interface PeerInfo {
 }
 
 export interface PresenceUpdate {
+  name?: string;
   status?: PresenceStatus;
   message?: string;
 }

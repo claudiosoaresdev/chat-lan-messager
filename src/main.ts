@@ -333,11 +333,15 @@ function registerIpc() {
   handle(IPC.setPresence, (update: PresenceUpdate) => {
     const s = requireSession();
     const clean: PresenceUpdate = {};
+    if (typeof update?.name === 'string') clean.name = update.name;
     if (isPresenceStatus(update?.status)) clean.status = update.status;
     if (typeof update?.message === 'string') clean.message = update.message.slice(0, MAX_PERSONAL_MESSAGE_LENGTH);
     s.peers.setPresence(clean);
     if (settings.profile) {
-      saveSettings({ ...settings, profile: { ...settings.profile, status: s.peers.status, message: s.peers.message } });
+      saveSettings({
+        ...settings,
+        profile: { ...settings.profile, name: s.peers.name, status: s.peers.status, message: s.peers.message },
+      });
     }
     return selfInfo(s);
   });
