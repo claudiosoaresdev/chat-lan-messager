@@ -1,12 +1,12 @@
-// Som do "chamar atenção".
-// Se existir um arquivo em public/sounds/ (nudge.wav, .mp3 ou .ogg), ele é tocado — é onde
-// entra o som original do MSN, que não vem com o projeto por ser da Microsoft.
-// Sem arquivo, um chacoalhar é sintetizado com Web Audio.
+// Sons: "chamar atenção" e nova mensagem.
+// Se existir um arquivo em public/sounds/ (nudge.* / message.*, em .wav, .mp3 ou .ogg), ele é tocado —
+// é onde entram os sons originais do MSN, que não vêm com o projeto por serem da Microsoft.
+// Sem arquivo, o som é sintetizado com Web Audio.
 
-const CANDIDATES = ['sounds/nudge.wav', 'sounds/nudge.mp3', 'sounds/nudge.ogg'];
+type SoundName = 'nudge' | 'message';
 
-/** undefined = ainda não procurou; null = nenhum arquivo encontrado. */
-let fileUrl: string | null | undefined;
+/** Por nome: undefined = ainda não procurou; null = nenhum arquivo encontrado. */
+const fileUrls = new Map<SoundName, string | null>();
 let ctx: AudioContext | null = null;
 
 function canLoad(url: string): Promise<boolean> {
@@ -22,19 +22,26 @@ function canLoad(url: string): Promise<boolean> {
   });
 }
 
-async function findSoundFile(): Promise<string | null> {
-  if (fileUrl !== undefined) return fileUrl;
-  for (const url of CANDIDATES) {
-    if (await canLoad(url)) return (fileUrl = url);
+async function findSoundFile(name: SoundName): Promise<string | null> {
+  const known = fileUrls.get(name);
+  if (known !== undefined) return known;
+  for (const ext of ['wav', 'mp3', 'ogg']) {
+    const url = `sounds/${name}.${ext}`;
+    if (await canLoad(url)) {
+      fileUrls.set(name, url);
+      return url;
+    }
   }
-  return (fileUrl = null);
+  fileUrls.set(name, null);
+  return null;
 }
 
-// Procura já na carga da página, para o primeiro "chamar atenção" não atrasar.
-void findSoundFile();
+// Procura já na carga da página, para o primeiro som não atrasar.
+void findSoundFile('nudge');
+void findSoundFile('message');
 
 /** Chacoalhar sintetizado: ruído filtrado, cortado em pulsos rápidos, com o tom descendo. */
-function playSynth() {
+function playNudgeSynth() {
   ctx ??= new AudioContext();
   const t = ctx.currentTime;
   const duration = 0.75;
@@ -78,9 +85,36 @@ function playSynth() {
   }
 }
 
-export async function playNudgeSound() {
+/** "Plim" de nova mensagem: duas notas curtas subindo, com um brilho de harmônico. */
+function playMessageSynth() {
+  ctx ??= new AudioContext();
+  const t = ctx.currentTime;
+  const notes: Array<[number, number]> = [
+    [880, 0], // lá
+    [1318.5, 0.11], // mi, uma quinta acima
+  ];
+  for (const [freq, start] of notes) {
+    for (const [mult, level] of [
+      [1, 0.28],
+      [2, 0.06],
+    ]) {
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = freq * mult;
+      const env = ctx.createGain();
+      env.gain.setValueAtTime(0.0001, t + start);
+      env.gain.exponentialRampToValueAtTime(level, t + start + 0.01);
+      env.gain.exponentialRampToValueAtTime(0.0001, t + start + 0.45);
+      osc.connect(env).connect(ctx.destination);
+      osc.start(t + start);
+      osc.stop(t + start + 0.5);
+    }
+  }
+}
+
+async function play(name: SoundName, synth: () => void) {
   try {
-    const url = await findSoundFile();
+    const url = await findSoundFile(name);
     if (url) {
       const audio = new Audio(url);
       audio.volume = 0.9;
@@ -91,8 +125,11 @@ export async function playNudgeSound() {
     // arquivo não tocou: cai no som sintetizado
   }
   try {
-    playSynth();
+    synth();
   } catch {
-    // sem áudio disponível: segue só com a tremida
+    // sem áudio disponível: segue em silêncio
   }
 }
+
+export const playNudgeSound = () => play('nudge', playNudgeSynth);
+export const playMessageSound = () => play('message', playMessageSynth);
