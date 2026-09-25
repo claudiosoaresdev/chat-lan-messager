@@ -6,6 +6,11 @@ const text = (t: string) => ({
   message: { from: 'bbb', fromName: 'Bia', text: t, ts: 1, self: false },
 });
 
+const image = (n: number) => ({
+  kind: 'image' as const,
+  image: { from: 'bbb', fromName: 'Bia', name: 'x.png', mime: 'image/png' as const, size: n, ts: 1, self: false, data: new Uint8Array(n) },
+});
+
 describe('Conversations', () => {
   it('guarda por contato com seq crescente e hora local', () => {
     let now = 100;
@@ -49,5 +54,24 @@ describe('Conversations', () => {
     c.clear();
     expect(c.has('bbb')).toBe(false);
     expect(c.get('bbb')).toEqual([]);
+  });
+
+  it('descarta os mais antigos quando as imagens passam do teto de bytes', () => {
+    const c = new Conversations(200, Date.now, 10);
+    c.add('bbb', text('oi'));
+    c.add('bbb', image(4));
+    c.add('bbb', image(4));
+    c.add('bbb', image(4));
+
+    const kinds = c.get('bbb').map((i) => i.kind);
+    expect(kinds).toEqual(['image', 'image']);
+  });
+
+  it('seq continua crescendo depois do clear', () => {
+    const c = new Conversations();
+    const a = c.add('bbb', text('oi'));
+    c.clear();
+    const b = c.add('bbb', text('oi de novo'));
+    expect(b.seq).toBeGreaterThan(a.seq);
   });
 });
