@@ -5,9 +5,21 @@ import { applyPeerAvatar, initAvatars, loadMyAvatar, loadPeerAvatars, watchMyAva
 import { loadFont, watchFontChanges } from './font';
 import { addImage, addNudge, addSystem, addText, addWink, enterChat, setPeer, setSelfStatus } from './chat';
 import { showView, state } from './state';
+import { shouldPlayMessageSound } from './message-alert';
+import { playMessageSound } from './sound';
 
 /** Wink ou nudge que chegou há menos disso toca ao abrir: foi ele que abriu a janela. */
 const REPLAY_MS = 10_000;
+
+let soundsOn = true;
+let lastSound = 0;
+
+function maybePlaySound(item: ConversationItem, fresh: boolean) {
+  const now = Date.now();
+  if (!shouldPlayMessageSound({ item, fresh, focused: document.hasFocus(), enabled: soundsOn, now, lastPlayed: lastSound })) return;
+  lastSound = now;
+  void playMessageSound();
+}
 
 function render(item: ConversationItem, live: boolean) {
   // Wink ou nudge meu não toca de novo ao reler o histórico.
@@ -30,6 +42,7 @@ function render(item: ConversationItem, live: boolean) {
       addSystem(item.text);
       break;
   }
+  maybePlaySound(item, fresh);
 }
 
 const unknownPeer = (id: string): PeerInfo => ({
@@ -55,6 +68,10 @@ export async function startChatWindow(peerId: string) {
     return;
   }
   chat().onPeerAvatar((a) => applyPeerAvatar(a));
+  chat().onSoundsChanged((on) => {
+    soundsOn = on;
+  });
+  soundsOn = await chat().getSounds();
   await Promise.all([loadMyAvatar(), loadFont(), loadPeerAvatars()]);
 
   // Assina antes de pedir o histórico; o que chegar no meio espera na fila e o seq evita repetidos.

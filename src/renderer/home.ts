@@ -42,6 +42,26 @@ interface HomeHandlers {
 
 let handlers: HomeHandlers = { openChat: () => undefined, logout: () => undefined, help: () => undefined };
 let selectedId: string | null = null;
+/** Contatos com mensagem não vista: piscam em laranja, como no MSN. */
+const unread = new Set<string>();
+let soundsOn = true;
+
+export function setUnread(peerId: string, isUnread: boolean) {
+  if (isUnread) unread.add(peerId);
+  else unread.delete(peerId);
+  renderContacts();
+}
+
+/** Estado inicial ao entrar: descarta o que sobrou de uma sessão anterior (o main limpa sem avisar ao sair). */
+export function resetUnread(ids: string[]) {
+  unread.clear();
+  for (const id of ids) unread.add(id);
+  renderContacts();
+}
+
+export function setSoundsOn(on: boolean) {
+  soundsOn = on;
+}
 
 // ---------------------------------------------------------------- eu
 
@@ -121,6 +141,7 @@ function contactRow(p: PeerInfo) {
   li.tabIndex = 0;
   li.title = `${p.name} — ${p.online ? STATUS_LABEL[p.status] : 'Offline'}\n${p.address}\nClique duas vezes para abrir a conversa`;
   if (p.id === selectedId) li.classList.add('is-selected');
+  if (unread.has(p.id)) li.classList.add('is-unread');
 
   const extra = [p.online && p.status !== 'available' ? `(${STATUS_LABEL[p.status]})` : '', p.message ? `- ${p.message}` : '']
     .filter(Boolean)
@@ -196,6 +217,10 @@ document.querySelectorAll<HTMLButtonElement>('.group-header').forEach((btn) =>
 els.menuBtn.addEventListener('click', () =>
   openMenu(els.menuBtn, [
     { label: 'Adicionar contato por IP...', onSelect: () => void openAddDialog() },
+    {
+      label: `${soundsOn ? '✓ ' : ''}Sons de mensagem`,
+      onSelect: () => void chat().setSounds(!soundsOn).then(setSoundsOn),
+    },
     { label: 'Ajuda de rede', onSelect: () => handlers.help() },
     'separator',
     { label: 'Sair', onSelect: () => handlers.logout() },

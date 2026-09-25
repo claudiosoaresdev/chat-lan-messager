@@ -3,7 +3,7 @@ import type { SelfInfo } from '../shared/api';
 import { $, chat } from './dom';
 import { applyPeerAvatar, clearPeerAvatars, initAvatars, loadMyAvatar, loadPeerAvatars, watchMyAvatar } from './avatar';
 import { loadFont, watchFontChanges } from './font';
-import { enterHome, initHome, renderSelf } from './home';
+import { enterHome, initHome, renderSelf, resetUnread, setSoundsOn, setUnread } from './home';
 import { initLogin, prepareLogin } from './login';
 import { closeMenu } from './status';
 import { resetSession, setPeers, showView, state, upsertPeer } from './state';
@@ -13,6 +13,7 @@ async function afterLogin(self: SelfInfo) {
   state.self = self;
   setPeers(await chat().getPeers());
   await loadPeerAvatars();
+  resetUnread(await chat().getUnread());
   enterHome(self);
   showView('home');
 }
@@ -45,6 +46,9 @@ export async function startMainWindow(help: () => void) {
     state.self = self;
     renderSelf(self);
   });
+  chat().onUnreadChanged(({ peerId, unread }) => setUnread(peerId, unread));
+  chat().onSoundsChanged(setSoundsOn);
+  setSoundsOn(await chat().getSounds());
 
   await Promise.all([loadMyAvatar(), loadFont()]);
   // Janela recarregada com a sessão ainda ativa: volta direto para os contatos.

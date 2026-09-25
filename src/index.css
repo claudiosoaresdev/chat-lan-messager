@@ -908,6 +908,32 @@ button {
   color: #8f8f8f;
 }
 
+/* Mensagem não vista: pisca em laranja, como a janela do MSN na barra de tarefas. */
+.contact.is-unread {
+  border-color: #e8a13a;
+  animation: contact-unread 1s ease-in-out infinite alternate;
+}
+
+.contact.is-unread .contact-name {
+  font-weight: 700;
+}
+
+@keyframes contact-unread {
+  from {
+    background: #fff4e0;
+  }
+  to {
+    background: #ffc76b;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .contact.is-unread {
+    animation: none;
+    background: #ffd999;
+  }
+}
+
 .badge {
   flex: none;
   min-width: 18px;
@@ -1070,7 +1096,8 @@ button {
 .conversation {
   flex: 1;
   margin: 0;
-  padding: 8px 10px;
+  /* Margem lateral que cresce com a janela: o conteúdo fica mais centralizado. */
+  padding: 10px clamp(16px, 6vw, 56px);
   list-style: none;
   overflow-y: auto;
   user-select: text;
