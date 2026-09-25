@@ -5,7 +5,7 @@ import { $, chat, copyWithFeedback, el, errorMessage, formatTarget, icon } from 
 import { onPeerAvatarsChange, peerAvatarUrl } from './avatar';
 import { renderRichText } from './emoticons';
 import { STATUS_LABEL, openMenu, openStatusMenu } from './status';
-import { onPeersChange, onlinePeers, state } from './state';
+import { onPeersChange, state } from './state';
 
 const els = {
   avatar: $('me-avatar'),
@@ -17,9 +17,6 @@ const els = {
   search: $<HTMLInputElement>('contact-search'),
   addBtn: $<HTMLButtonElement>('add-contact'),
   emptyAdd: $<HTMLButtonElement>('empty-add'),
-  openGroup: $<HTMLButtonElement>('open-group'),
-  groupSub: $('group-sub'),
-  unread: $('group-unread'),
   listOnline: $<HTMLUListElement>('list-online'),
   listOffline: $<HTMLUListElement>('list-offline'),
   countOnline: $('count-online'),
@@ -38,7 +35,7 @@ const els = {
 };
 
 interface HomeHandlers {
-  openChat(): void;
+  openChat(peerId: string): void;
   logout(): void;
   help(): void;
 }
@@ -122,7 +119,7 @@ function contactRow(p: PeerInfo) {
   li.dataset.status = p.online ? p.status : 'offline';
   li.dataset.id = p.id;
   li.tabIndex = 0;
-  li.title = `${p.name} — ${p.online ? STATUS_LABEL[p.status] : 'Offline'}\n${p.address}\nClique duas vezes para abrir a conversa em grupo`;
+  li.title = `${p.name} — ${p.online ? STATUS_LABEL[p.status] : 'Offline'}\n${p.address}\nClique duas vezes para abrir a conversa`;
   if (p.id === selectedId) li.classList.add('is-selected');
 
   const extra = [p.online && p.status !== 'available' ? `(${STATUS_LABEL[p.status]})` : '', p.message ? `- ${p.message}` : '']
@@ -166,11 +163,6 @@ export function renderContacts() {
   els.countOffline.textContent = String(offline.length);
   els.groupOffline.hidden = offline.length === 0;
   els.empty.hidden = all.length > 0;
-
-  const names = onlinePeers().map((p) => p.name);
-  els.groupSub.textContent = names.length
-    ? `- Você e ${names.length === 1 ? names[0] : `${names.length} contatos`}`
-    : '- Ninguém online ainda';
 }
 
 onPeersChange(renderContacts);
@@ -185,10 +177,12 @@ for (const list of [els.listOnline, els.listOffline]) {
     row?.classList.add('is-selected');
   });
   list.addEventListener('dblclick', (e) => {
-    if ((e.target as HTMLElement).closest('.contact')) handlers.openChat();
+    const id = (e.target as HTMLElement).closest<HTMLElement>('.contact')?.dataset.id;
+    if (id) handlers.openChat(id);
   });
   list.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && (e.target as HTMLElement).closest('.contact')) handlers.openChat();
+    const id = (e.target as HTMLElement).closest<HTMLElement>('.contact')?.dataset.id;
+    if (e.key === 'Enter' && id) handlers.openChat(id);
   });
 }
 
@@ -199,21 +193,14 @@ document.querySelectorAll<HTMLButtonElement>('.group-header').forEach((btn) =>
   }),
 );
 
-els.openGroup.addEventListener('click', () => handlers.openChat());
 els.menuBtn.addEventListener('click', () =>
   openMenu(els.menuBtn, [
     { label: 'Adicionar contato por IP...', onSelect: () => void openAddDialog() },
-    { label: 'Abrir conversa em grupo', onSelect: () => handlers.openChat() },
     { label: 'Ajuda de rede', onSelect: () => handlers.help() },
     'separator',
     { label: 'Sair', onSelect: () => handlers.logout() },
   ]),
 );
-
-export function setUnread(count: number) {
-  els.unread.hidden = count === 0;
-  els.unread.textContent = count > 99 ? '99+' : String(count);
-}
 
 // ---------------------------------------------------------------- adicionar contato por IP
 
