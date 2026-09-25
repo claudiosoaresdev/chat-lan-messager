@@ -28,6 +28,19 @@ const config: ForgeConfig = {
     new MakerRpm({}),
     new MakerDeb({}),
   ],
+  // `npm run publish` (feito pelo CI a cada push na main) cria o release no GitHub;
+  // o app instalado busca a versão nova em update.electronjs.org, que lê esses releases.
+  publishers: [
+    {
+      name: '@electron-forge/publisher-github',
+      config: {
+        repository: { owner: 'claudiosoaresdev', name: 'chat-lan-messager' },
+        draft: false,
+        prerelease: false,
+        generateReleaseNotes: true,
+      },
+    },
+  ],
   plugins: [
     new VitePlugin({
       // `build` can specify multiple entry builds, which can be Main process, Preload scripts, Worker process, etc.

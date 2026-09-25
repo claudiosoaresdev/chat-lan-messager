@@ -98,6 +98,13 @@
         </div>
       </header>
 
+      <!-- Aviso fixo de atualização: só some quando o app atualiza. -->
+      <button type="button" class="update-bar" id="update-bar" aria-live="polite" hidden>
+        <svg class="update-bar-icon" aria-hidden="true"><use href="#i-butterfly" /></svg>
+        <span class="update-bar-text" id="update-bar-text"></span>
+        <span class="update-bar-action" id="update-bar-action"></span>
+      </button>
+
       <!-- ============================================================ LOGIN -->
       <section class="view view-login" id="view-login">
         <button type="button" class="help-badge" id="login-help" title="Ajuda de rede">?</button>

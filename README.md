@@ -77,6 +77,21 @@ open -a "Chat LAN" --args --connect=192.168.0.10:47800
 
 No Windows, crie um atalho e acrescente no **Destino**: `"...\chat-lan.exe" --connect=192.168.0.10:47800`.
 
+## Versões e atualização automática
+
+Cada push na `main` dispara o workflow [Release](.github/workflows/release.yml): ele roda os testes,
+gera o instalador do Windows e publica um release no GitHub. A versão é `MAJOR.MINOR` do
+`package.json` mais o número da execução (ex.: `1.0.42`). Para subir `MAJOR` ou `MINOR`, altere o
+`package.json`; o terceiro número o CI preenche.
+
+O app instalado pelo `ChatLAN-Setup.exe` procura versão nova ao abrir e a cada 30 minutos (via
+[update.electronjs.org](https://update.electronjs.org)). Ele baixa em segundo plano e mostra uma barra
+fixa **"Nova versão disponível · Atualizar"**. Ao clicar, o app reinicia já na versão nova. Sem
+internet, a checagem falha em silêncio.
+
+Limites: só funciona no Windows instalado pelo Setup (o `.zip` não atualiza sozinho). No macOS a
+atualização exige o app assinado com um certificado da Apple.
+
 ## Arquitetura
 
 ```

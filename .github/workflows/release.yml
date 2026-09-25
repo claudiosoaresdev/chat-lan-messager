@@ -1,0 +1,42 @@
+# A cada push na main: testa, gera o instalador do Windows e publica um release no GitHub.
+# A versão é MAJOR.MINOR do package.json + o número da execução (ex.: 1.0.42), sempre crescente.
+# Os apps instalados encontram o release via update.electronjs.org e oferecem "Atualizar".
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+      - name: Definir versão
+        shell: bash
+        run: |
+          base=$(node -p "require('./package.json').version.split('.').slice(0, 2).join('.')")
+          npm version "$base.${{ github.run_number }}" --no-git-tag-version
+
+      - name: Publicar release
+        run: npm run publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

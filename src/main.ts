@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Notification, screen, shell, type IpcMainInvokeEvent } from 'electron';
+import { app, autoUpdater, BrowserWindow, ipcMain, Notification, screen, shell, type IpcMainInvokeEvent } from 'electron';
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import os from 'node:os';
@@ -8,6 +8,7 @@ import { PeerManager, SELF_CONNECTION } from './main/peer-manager';
 import { Discovery } from './main/discovery';
 import { AvatarStore } from './main/avatar-store';
 import { GiphyClient, isGiphyKey } from './main/giphy';
+import { Updater, feedUrl } from './main/updater';
 import {
   DEFAULT_PORT,
   SettingsStore,
@@ -71,6 +72,7 @@ let avatars: AvatarStore;
 let settings: Settings = { manualPeers: [], profile: null, font: null, giphyKey: null };
 const giphy = new GiphyClient(() => settings.giphyKey);
 let mainWindow: BrowserWindow | null = null;
+let updater: Updater | null = null;
 
 function localAddresses(): string[] {
   return Object.values(os.networkInterfaces())
@@ -381,6 +383,13 @@ function registerIpc() {
     return { meta, data: gif.data };
   });
 
+  handle(IPC.getUpdateStatus, () => updater?.getStatus() ?? { state: 'idle' });
+  handle(IPC.installUpdate, () => {
+    if (!updater) throw new Error('Atualização automática indisponível nesta versão.');
+    updater.install();
+  });
+  handle(IPC.checkForUpdates, () => updater?.check());
+
   handle(IPC.getPeers, () => session?.peers.getPeers() ?? []);
   handle(IPC.send, (text: unknown) => {
     if (typeof text !== 'string') throw new Error('Texto inválido');
@@ -414,6 +423,18 @@ function registerIpc() {
     saveSettings({ ...settings, manualPeers: settings.manualPeers.filter((t) => !sameTarget(t, target)) });
     return settings.manualPeers;
   });
+}
+
+/**
+ * Só no app instalado no Windows (Squirrel). No macOS o Squirrel.Mac exige app assinado,
+ * e no desenvolvimento não há o que atualizar.
+ */
+function startUpdater() {
+  if (!app.isPackaged || process.platform !== 'win32') return;
+  updater = new Updater(autoUpdater, (status) => sendToRenderer(IPC.updateStatus, status));
+  // Logo após instalar, o Squirrel ainda está mexendo nos arquivos: espera mais para a 1ª checagem.
+  const firstRun = process.argv.includes('--squirrel-firstrun');
+  updater.start(feedUrl(process.platform, process.arch, app.getVersion()), firstRun ? 60_000 : 10_000);
 }
 
 const createWindow = () => {
@@ -463,6 +484,7 @@ app.on('ready', () => {
   settings = store.load();
   registerIpc();
   createWindow();
+  startUpdater();
 });
 
 let shuttingDown = false;

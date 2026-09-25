@@ -60,6 +60,11 @@ const api: ChatApi = {
   onPeer: (cb) => subscribe(IPC.peer, cb),
   onNudge: (cb) => subscribe(IPC.nudge, cb),
   onWink: (cb) => subscribe(IPC.wink, cb),
+
+  getUpdateStatus: () => call(IPC.getUpdateStatus),
+  installUpdate: () => call(IPC.installUpdate),
+  checkForUpdates: () => call(IPC.checkForUpdates),
+  onUpdateStatus: (cb) => subscribe(IPC.updateStatus, cb),
 };
 
 contextBridge.exposeInMainWorld('chat', api);

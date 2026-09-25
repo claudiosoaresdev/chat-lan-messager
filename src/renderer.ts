@@ -11,6 +11,7 @@ import { initLogin, prepareLogin } from './renderer/login';
 import { closeMenu } from './renderer/status';
 import { resetSession, setPeers, showView, state, upsertPeer } from './renderer/state';
 import { clearToasts, showToast } from './renderer/toast';
+import { initUpdate } from './renderer/update';
 
 // ---------------------------------------------------------------- barra de título (janela sem moldura)
 
@@ -72,6 +73,7 @@ async function logout() {
 initLogin((self) => void afterLogin(self));
 initHome({ openChat, logout: () => void logout(), help: openHelp });
 initChat({ back: openHome, invite: () => void openAddDialog() });
+initUpdate();
 
 // ---------------------------------------------------------------- eventos da rede
 

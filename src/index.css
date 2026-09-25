@@ -84,6 +84,61 @@ button {
   height: 100vh;
 }
 
+/* ---------------------------------------------------------------- aviso de atualização */
+
+.update-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 28px;
+  padding: 4px 10px;
+  border: 0;
+  border-bottom: 1px solid #e0c65a;
+  background: linear-gradient(180deg, #fffbe0, #fff3b8);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.update-bar:hover:not(:disabled) {
+  background: linear-gradient(180deg, #fffdf0, #fff6c8);
+}
+
+.update-bar:disabled {
+  cursor: default;
+}
+
+.update-bar.is-error {
+  border-bottom-color: #e3a19c;
+  background: linear-gradient(180deg, #fff1f0, #fde0de);
+}
+
+.update-bar-icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.update-bar-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.update-bar-action {
+  flex: none;
+  color: var(--link);
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.update-bar-action:empty {
+  display: none;
+}
+
 .titlebar {
   flex: none;
   display: flex;

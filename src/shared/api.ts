@@ -132,6 +132,14 @@ export type Unsubscribe = () => void;
 
 export type WindowLayout = 'login' | 'app' | 'chat';
 
+/** Estado da atualização automática (só no app instalado no Windows). */
+export type UpdateStatus =
+  | { state: 'idle' }
+  | { state: 'downloading' }
+  | { state: 'ready'; version: string | null }
+  | { state: 'installing' }
+  | { state: 'error'; message: string };
+
 export interface ChatApi {
   // janela (sem moldura nativa: a barra de título é desenhada pela interface)
   minimize(): void;
@@ -186,6 +194,14 @@ export interface ChatApi {
   onPeer(cb: (peer: PeerInfo) => void): Unsubscribe;
   onNudge(cb: (nudge: UiNudge) => void): Unsubscribe;
   onWink(cb: (wink: UiWink) => void): Unsubscribe;
+
+  // atualização automática
+  getUpdateStatus(): Promise<UpdateStatus>;
+  /** Fecha o app e abre a versão nova já baixada. */
+  installUpdate(): Promise<void>;
+  /** Procura versão nova de novo (depois de uma falha). */
+  checkForUpdates(): Promise<void>;
+  onUpdateStatus(cb: (status: UpdateStatus) => void): Unsubscribe;
 }
 
 export const IPC = {
@@ -225,4 +241,8 @@ export const IPC = {
   message: 'chat:message',
   image: 'chat:image',
   peer: 'chat:peer',
+  getUpdateStatus: 'update:status',
+  installUpdate: 'update:install',
+  checkForUpdates: 'update:check',
+  updateStatus: 'update:changed',
 } as const;
