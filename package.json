@@ -1,0 +1,55 @@
+{
+  "name": "chat-lan",
+  "productName": "Chat LAN",
+  "version": "1.0.0",
+  "description": "Chat peer-to-peer pela rede local (LAN), sem internet e sem servidor",
+  "main": ".vite/build/main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron-forge start",
+    "package": "electron-forge package",
+    "make": "electron-forge make",
+    "publish": "electron-forge publish",
+    "lint": "eslint --ext .ts,.tsx .",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "make:win": "electron-forge make --platform=win32 --arch=x64 --targets=@electron-forge/maker-zip"
+  },
+  "keywords": [],
+  "author": "claudiosoares",
+  "license": "MIT",
+  "devDependencies": {
+    "@electron-forge/cli": "^7.11.2",
+    "@electron-forge/maker-deb": "^7.11.2",
+    "@electron-forge/maker-dmg": "^7.11.2",
+    "@electron-forge/maker-rpm": "^7.11.2",
+    "@electron-forge/maker-squirrel": "^7.11.2",
+    "@electron-forge/maker-zip": "^7.11.2",
+    "@electron-forge/plugin-auto-unpack-natives": "^7.11.2",
+    "@electron-forge/plugin-fuses": "^7.11.2",
+    "@electron-forge/plugin-vite": "^7.11.2",
+    "@electron/fuses": "^1.8.0",
+    "@types/electron-squirrel-startup": "^1.0.2",
+    "@types/ws": "^8.18.1",
+    "@typescript-eslint/eslint-plugin": "^5.62.0",
+    "@typescript-eslint/parser": "^5.62.0",
+    "electron": "44.4.5",
+    "eslint": "^8.57.1",
+    "eslint-plugin-import": "^2.32.0",
+    "typescript": "~5.9",
+    "vite": "^5.4.21",
+    "vitest": "^2.1.9"
+  },
+  "dependencies": {
+    "bonjour-service": "^1.4.4",
+    "electron-squirrel-startup": "^1.0.1",
+    "ws": "^8.21.3"
+  },
+  "allowScripts": {
+    "esbuild@0.21.5": true,
+    "fsevents@2.3.3": true,
+    "macos-alias@0.2.12": true,
+    "fs-xattr@0.3.1": true,
+    "electron-winstaller@5.4.4": true
+  }
+}

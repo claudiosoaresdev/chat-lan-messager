@@ -1,0 +1,189 @@
+import { describe, expect, it } from 'vitest';
+import {
+  MAX_IMAGE_BYTES,
+  MAX_TEXT_LENGTH,
+  detectImageMime,
+  parseMessage,
+  shouldInitiate,
+  validateImageBytes,
+} from './protocol';
+
+const PNG = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0]);
+const JPEG = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 0, 0]);
+const GIF = new TextEncoder().encode('GIF89a....');
+const WEBP = new TextEncoder().encode('RIFF\0\0\0\0WEBPVP8 ');
+const SVG = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"></svg>');
+
+describe('parseMessage', () => {
+  it('aceita hello, chat e image válidos', () => {
+    expect(parseMessage(JSON.stringify({ type: 'hello', id: 'a', name: 'Mac', status: 'busy', message: 'oi' }))).toEqual({
+      type: 'hello',
+      id: 'a',
+      name: 'Mac',
+      status: 'busy',
+      message: 'oi',
+    });
+    expect(
+      parseMessage(JSON.stringify({ type: 'presence', from: 'a', name: 'Mac', status: 'away', message: '' })),
+    ).toEqual({ type: 'presence', from: 'a', name: 'Mac', status: 'away', message: '' });
+    expect(parseMessage(JSON.stringify({ type: 'chat', from: 'a', text: 'oi', ts: 1 }))).toEqual({
+      type: 'chat',
+      from: 'a',
+      text: 'oi',
+      ts: 1,
+    });
+    expect(
+      parseMessage(JSON.stringify({ type: 'image', from: 'a', name: 'x.png', mime: 'image/png', size: 10, ts: 1 })),
+    ).toMatchObject({ type: 'image', size: 10 });
+  });
+
+  it('descarta JSON inválido e tipos desconhecidos', () => {
+    expect(parseMessage('{')).toBeNull();
+    expect(parseMessage('null')).toBeNull();
+    expect(parseMessage('[]')).toBeNull();
+    expect(parseMessage('"hello"')).toBeNull();
+    expect(parseMessage(JSON.stringify({ type: 'nope' }))).toBeNull();
+  });
+
+  it('descarta campos ausentes ou com tipo errado', () => {
+    expect(parseMessage(JSON.stringify({ type: 'hello', id: 'a' }))).toBeNull();
+    expect(parseMessage(JSON.stringify({ type: 'hello', id: '', name: 'x' }))).toBeNull();
+    expect(parseMessage(JSON.stringify({ type: 'chat', from: 'a', text: 5, ts: 1 }))).toBeNull();
+    expect(parseMessage(JSON.stringify({ type: 'chat', from: 'a', text: 'oi', ts: 'now' }))).toBeNull();
+    expect(parseMessage(JSON.stringify({ type: 'chat', from: 'a', text: '', ts: 1 }))).toBeNull();
+  });
+
+  it('aceita fonte na mensagem e descarta só a fonte inválida', () => {
+    const font = { family: 'Comic Sans MS', size: 16, bold: true, italic: false, underline: true, color: '#C00000' };
+    expect(parseMessage(JSON.stringify({ type: 'chat', from: 'a', text: 'oi', ts: 1, font }))).toEqual({
+      type: 'chat',
+      from: 'a',
+      text: 'oi',
+      ts: 1,
+      font: { ...font, color: '#c00000' },
+    });
+    for (const bad of [
+      { ...font, family: 'Papyrus; background:url(x)' },
+      { ...font, size: 200 },
+      { ...font, size: 12.5 },
+      { ...font, color: 'red' },
+      { ...font, color: '#fff' },
+      { ...font, bold: 'sim' },
+    ]) {
+      expect(parseMessage(JSON.stringify({ type: 'chat', from: 'a', text: 'oi', ts: 1, font: bad }))).toEqual({
+        type: 'chat',
+        from: 'a',
+        text: 'oi',
+        ts: 1,
+      });
+    }
+  });
+
+  it('aceita e valida imagem de exibição', () => {
+    expect(parseMessage(JSON.stringify({ type: 'avatar', from: 'a', mime: 'image/png', size: 100 }))).toEqual({
+      type: 'avatar',
+      from: 'a',
+      mime: 'image/png',
+      size: 100,
+    });
+    // size 0 = removeu a imagem
+    expect(parseMessage(JSON.stringify({ type: 'avatar', from: 'a', size: 0 }))).toEqual({
+      type: 'avatar',
+      from: 'a',
+      mime: null,
+      size: 0,
+    });
+    expect(parseMessage(JSON.stringify({ type: 'avatar', from: 'a', mime: 'image/svg+xml', size: 10 }))).toBeNull();
+    expect(parseMessage(JSON.stringify({ type: 'avatar', from: 'a', mime: 'image/png', size: 300 * 1024 }))).toBeNull();
+  });
+
+  it('aceita só winks conhecidos', () => {
+    expect(parseMessage(JSON.stringify({ type: 'wink', from: 'a', wink: 'beijo', ts: 1 }))).toEqual({
+      type: 'wink',
+      from: 'a',
+      wink: 'beijo',
+      ts: 1,
+    });
+    expect(parseMessage(JSON.stringify({ type: 'wink', from: 'a', wink: 'desconhecido', ts: 1 }))).toBeNull();
+    expect(parseMessage(JSON.stringify({ type: 'wink', from: 'a', wink: 'beijo' }))).toBeNull();
+  });
+
+  it('aceita e valida chamar atenção', () => {
+    expect(parseMessage(JSON.stringify({ type: 'nudge', from: 'a', ts: 5 }))).toEqual({ type: 'nudge', from: 'a', ts: 5 });
+    expect(parseMessage(JSON.stringify({ type: 'nudge', from: 'a' }))).toBeNull();
+    expect(parseMessage(JSON.stringify({ type: 'nudge', from: '', ts: 5 }))).toBeNull();
+  });
+
+  it('valida status e mensagem pessoal', () => {
+    expect(parseMessage(JSON.stringify({ type: 'hello', id: 'a', name: 'b', status: 'dormindo' }))).toBeNull();
+    expect(
+      parseMessage(JSON.stringify({ type: 'presence', from: 'a', name: 'b', status: 'available', message: 'x'.repeat(129) })),
+    ).toBeNull();
+    expect(parseMessage(JSON.stringify({ type: 'presence', from: 'a', name: 'b', status: 'available' }))).toBeNull();
+  });
+
+  it('descarta texto maior que o limite', () => {
+    const text = 'x'.repeat(MAX_TEXT_LENGTH + 1);
+    expect(parseMessage(JSON.stringify({ type: 'chat', from: 'a', text, ts: 1 }))).toBeNull();
+  });
+
+  it('descarta cabeçalho de imagem com mime não suportado ou tamanho inválido', () => {
+    const base = { type: 'image', from: 'a', name: 'x', ts: 1 };
+    expect(parseMessage(JSON.stringify({ ...base, mime: 'image/svg+xml', size: 10 }))).toBeNull();
+    expect(parseMessage(JSON.stringify({ ...base, mime: 'image/png', size: 0 }))).toBeNull();
+    expect(parseMessage(JSON.stringify({ ...base, mime: 'image/png', size: 1.5 }))).toBeNull();
+    expect(parseMessage(JSON.stringify({ ...base, mime: 'image/png', size: MAX_IMAGE_BYTES + 1 }))).toBeNull();
+  });
+
+  it('remove campos extras', () => {
+    expect(parseMessage(JSON.stringify({ type: 'hello', id: 'a', name: 'b', evil: '<script>' }))).toEqual({
+      type: 'hello',
+      id: 'a',
+      name: 'b',
+      status: 'available',
+      message: '',
+    });
+  });
+});
+
+describe('detectImageMime', () => {
+  it('reconhece as assinaturas suportadas', () => {
+    expect(detectImageMime(PNG)).toBe('image/png');
+    expect(detectImageMime(JPEG)).toBe('image/jpeg');
+    expect(detectImageMime(GIF)).toBe('image/gif');
+    expect(detectImageMime(WEBP)).toBe('image/webp');
+  });
+
+  it('rejeita SVG, vazio e lixo', () => {
+    expect(detectImageMime(SVG)).toBeNull();
+    expect(detectImageMime(new Uint8Array())).toBeNull();
+    expect(detectImageMime(Uint8Array.from([1, 2, 3]))).toBeNull();
+    expect(detectImageMime(new TextEncoder().encode('RIFF\0\0\0\0WAVE'))).toBeNull();
+  });
+});
+
+describe('validateImageBytes', () => {
+  it('confere mime declarado contra a assinatura', () => {
+    expect(validateImageBytes(PNG, 'image/png')).toBe(true);
+    expect(validateImageBytes(PNG, 'image/jpeg')).toBe(false);
+  });
+
+  it('confere tamanho declarado', () => {
+    expect(validateImageBytes(PNG, 'image/png', PNG.length)).toBe(true);
+    expect(validateImageBytes(PNG, 'image/png', PNG.length + 1)).toBe(false);
+  });
+
+  it('rejeita acima de 10 MB', () => {
+    const big = new Uint8Array(MAX_IMAGE_BYTES + 1);
+    big.set(PNG);
+    expect(validateImageBytes(big, 'image/png')).toBe(false);
+  });
+});
+
+describe('shouldInitiate', () => {
+  it('só o ID menor inicia', () => {
+    expect(shouldInitiate('a', 'b')).toBe(true);
+    expect(shouldInitiate('b', 'a')).toBe(false);
+    expect(shouldInitiate('a', 'a')).toBe(false);
+  });
+});

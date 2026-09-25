@@ -1,0 +1,279 @@
+// Protocolo de mensagens entre peers do Chat LAN.
+// Frames de texto carregam JSON; o conteúdo de uma imagem vai no frame
+// binário logo após o cabeçalho `image`.
+
+export const SERVICE_TYPE = 'chatlan';
+export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+/** Imagem de exibição: pequena, vai para todos ao conectar. */
+export const MAX_AVATAR_BYTES = 256 * 1024;
+export const MAX_TEXT_LENGTH = 5000;
+export const MAX_NAME_LENGTH = 64;
+export const MAX_FILE_NAME_LENGTH = 255;
+export const MAX_ID_LENGTH = 64;
+export const MAX_PERSONAL_MESSAGE_LENGTH = 128;
+
+export const PRESENCE_STATUSES = ['available', 'away', 'busy'] as const;
+export type PresenceStatus = (typeof PRESENCE_STATUSES)[number];
+
+export const IMAGE_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'] as const;
+export type ImageMime = (typeof IMAGE_MIME_TYPES)[number];
+
+export interface HelloMessage {
+  type: 'hello';
+  id: string;
+  name: string;
+  status: PresenceStatus;
+  message: string;
+}
+
+/** Mudança de nome, status ou mensagem pessoal depois do hello. */
+export interface PresenceMessage {
+  type: 'presence';
+  from: string;
+  name: string;
+  status: PresenceStatus;
+  message: string;
+}
+
+/** Fontes permitidas nas mensagens (as que existem ou têm equivalente no Windows e no Mac). */
+export const FONT_FAMILIES = [
+  'Segoe UI',
+  'Arial',
+  'Calibri',
+  'Comic Sans MS',
+  'Courier New',
+  'Georgia',
+  'Impact',
+  'Lucida Console',
+  'Tahoma',
+  'Times New Roman',
+  'Trebuchet MS',
+  'Verdana',
+] as const;
+export type FontFamily = (typeof FONT_FAMILIES)[number];
+export const MIN_FONT_SIZE = 8;
+export const MAX_FONT_SIZE = 24;
+
+/** Fonte das mensagens, como no "Alterar fonte" do MSN. Tamanho em px. */
+export interface MessageFont {
+  family: FontFamily;
+  size: number;
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+  /** #rrggbb */
+  color: string;
+}
+
+export const DEFAULT_FONT: MessageFont = {
+  family: 'Segoe UI',
+  size: 13,
+  bold: false,
+  italic: false,
+  underline: false,
+  color: '#000000',
+};
+
+export interface ChatMessage {
+  type: 'chat';
+  from: string;
+  text: string;
+  ts: number;
+  /** Opcional: fonte de quem enviou. */
+  font?: MessageFont;
+}
+
+export interface ImageHeader {
+  type: 'image';
+  from: string;
+  name: string;
+  mime: ImageMime;
+  size: number;
+  ts: number;
+}
+
+/** Winks (animações) disponíveis; o id viaja na mensagem e é validado contra esta lista. */
+export const WINK_IDS = ['beijo', 'coracoes', 'risada', 'fogos', 'parabens', 'estrelas'] as const;
+export type WinkId = (typeof WINK_IDS)[number];
+
+export const isWinkId = (v: unknown): v is WinkId => typeof v === 'string' && (WINK_IDS as readonly string[]).includes(v);
+
+/** Wink: animação que toca por cima da conversa de quem recebe. */
+export interface WinkMessage {
+  type: 'wink';
+  from: string;
+  wink: WinkId;
+  ts: number;
+}
+
+/** "Chamar atenção": faz a janela de quem recebe tremer. */
+export interface NudgeMessage {
+  type: 'nudge';
+  from: string;
+  ts: number;
+}
+
+/**
+ * Imagem de exibição. Com `size` > 0, o próximo frame binário é a imagem;
+ * com `size` 0, o contato removeu a imagem (sem frame binário).
+ */
+export interface AvatarHeader {
+  type: 'avatar';
+  from: string;
+  mime: ImageMime | null;
+  size: number;
+}
+
+export type WireMessage =
+  | HelloMessage
+  | PresenceMessage
+  | ChatMessage
+  | ImageHeader
+  | NudgeMessage
+  | AvatarHeader
+  | WinkMessage;
+
+type Json = Record<string, unknown>;
+
+const isObject = (v: unknown): v is Json => typeof v === 'object' && v !== null && !Array.isArray(v);
+
+const isBoundedString = (v: unknown, max: number, min = 1): v is string =>
+  typeof v === 'string' && v.length >= min && v.length <= max;
+
+const isTimestamp = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v > 0;
+
+/** Valida a fonte; qualquer campo fora do permitido invalida a fonte inteira. */
+export function validateFont(v: unknown): MessageFont | null {
+  if (!isObject(v)) return null;
+  if (typeof v.family !== 'string' || !(FONT_FAMILIES as readonly string[]).includes(v.family)) return null;
+  if (typeof v.size !== 'number' || !Number.isInteger(v.size) || v.size < MIN_FONT_SIZE || v.size > MAX_FONT_SIZE) return null;
+  if (typeof v.bold !== 'boolean' || typeof v.italic !== 'boolean' || typeof v.underline !== 'boolean') return null;
+  if (typeof v.color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(v.color)) return null;
+  return {
+    family: v.family as FontFamily,
+    size: v.size,
+    bold: v.bold,
+    italic: v.italic,
+    underline: v.underline,
+    color: v.color.toLowerCase(),
+  };
+}
+
+export const isPresenceStatus = (v: unknown): v is PresenceStatus =>
+  typeof v === 'string' && (PRESENCE_STATUSES as readonly string[]).includes(v);
+
+const isPersonalMessage = (v: unknown): v is string => isBoundedString(v, MAX_PERSONAL_MESSAGE_LENGTH, 0);
+
+export const isImageMime = (v: unknown): v is ImageMime =>
+  typeof v === 'string' && (IMAGE_MIME_TYPES as readonly string[]).includes(v);
+
+export function validateMessage(value: unknown): WireMessage | null {
+  if (!isObject(value)) return null;
+
+  switch (value.type) {
+    case 'hello':
+      if (!isBoundedString(value.id, MAX_ID_LENGTH) || !isBoundedString(value.name, MAX_NAME_LENGTH)) return null;
+      // status e message são opcionais no hello (compatível com versões sem presença).
+      if (value.status !== undefined && !isPresenceStatus(value.status)) return null;
+      if (value.message !== undefined && !isPersonalMessage(value.message)) return null;
+      return {
+        type: 'hello',
+        id: value.id,
+        name: value.name,
+        status: (value.status as PresenceStatus | undefined) ?? 'available',
+        message: (value.message as string | undefined) ?? '',
+      };
+
+    case 'presence':
+      if (
+        !isBoundedString(value.from, MAX_ID_LENGTH) ||
+        !isBoundedString(value.name, MAX_NAME_LENGTH) ||
+        !isPresenceStatus(value.status) ||
+        !isPersonalMessage(value.message)
+      )
+        return null;
+      return { type: 'presence', from: value.from, name: value.name, status: value.status, message: value.message };
+
+    case 'chat': {
+      if (
+        !isBoundedString(value.from, MAX_ID_LENGTH) ||
+        !isBoundedString(value.text, MAX_TEXT_LENGTH) ||
+        !isTimestamp(value.ts)
+      )
+        return null;
+      // Fonte inválida não derruba a mensagem: ela chega sem formatação.
+      const font = validateFont(value.font);
+      return font
+        ? { type: 'chat', from: value.from, text: value.text, ts: value.ts, font }
+        : { type: 'chat', from: value.from, text: value.text, ts: value.ts };
+    }
+
+    case 'avatar': {
+      if (!isBoundedString(value.from, MAX_ID_LENGTH)) return null;
+      if (typeof value.size !== 'number' || !Number.isInteger(value.size)) return null;
+      if (value.size === 0) return { type: 'avatar', from: value.from, mime: null, size: 0 };
+      if (value.size < 0 || value.size > MAX_AVATAR_BYTES || !isImageMime(value.mime)) return null;
+      return { type: 'avatar', from: value.from, mime: value.mime, size: value.size };
+    }
+
+    case 'wink':
+      if (!isBoundedString(value.from, MAX_ID_LENGTH) || !isWinkId(value.wink) || !isTimestamp(value.ts)) return null;
+      return { type: 'wink', from: value.from, wink: value.wink, ts: value.ts };
+
+    case 'nudge':
+      if (!isBoundedString(value.from, MAX_ID_LENGTH) || !isTimestamp(value.ts)) return null;
+      return { type: 'nudge', from: value.from, ts: value.ts };
+
+    case 'image':
+      if (
+        !isBoundedString(value.from, MAX_ID_LENGTH) ||
+        !isBoundedString(value.name, MAX_FILE_NAME_LENGTH) ||
+        !isImageMime(value.mime) ||
+        typeof value.size !== 'number' ||
+        !Number.isInteger(value.size) ||
+        value.size <= 0 ||
+        value.size > MAX_IMAGE_BYTES ||
+        !isTimestamp(value.ts)
+      )
+        return null;
+      return { type: 'image', from: value.from, name: value.name, mime: value.mime, size: value.size, ts: value.ts };
+
+    default:
+      return null;
+  }
+}
+
+/** Faz JSON.parse + validação. Qualquer frame inválido vira `null` e deve ser descartado. */
+export function parseMessage(raw: string): WireMessage | null {
+  try {
+    return validateMessage(JSON.parse(raw));
+  } catch {
+    return null;
+  }
+}
+
+export const encodeMessage = (msg: WireMessage): string => JSON.stringify(msg);
+
+const startsWith = (bytes: Uint8Array, sig: number[], offset = 0) =>
+  bytes.length >= offset + sig.length && sig.every((b, i) => bytes[offset + i] === b);
+
+const ascii = (s: string) => Array.from(s, (c) => c.charCodeAt(0));
+
+/** Detecta o tipo da imagem pelos primeiros bytes (assinatura). SVG e outros formatos retornam `null`. */
+export function detectImageMime(bytes: Uint8Array): ImageMime | null {
+  if (startsWith(bytes, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) return 'image/png';
+  if (startsWith(bytes, [0xff, 0xd8, 0xff])) return 'image/jpeg';
+  if (startsWith(bytes, ascii('GIF87a')) || startsWith(bytes, ascii('GIF89a'))) return 'image/gif';
+  if (startsWith(bytes, ascii('RIFF')) && startsWith(bytes, ascii('WEBP'), 8)) return 'image/webp';
+  return null;
+}
+
+/** Confere tamanho e assinatura do conteúdo contra o mime declarado. */
+export function validateImageBytes(bytes: Uint8Array, declaredMime: ImageMime, declaredSize?: number): boolean {
+  if (bytes.length === 0 || bytes.length > MAX_IMAGE_BYTES) return false;
+  if (declaredSize !== undefined && bytes.length !== declaredSize) return false;
+  return detectImageMime(bytes) === declaredMime;
+}
+
+/** Regra anti-duplicação: só o lado com o ID menor inicia a conexão. */
+export const shouldInitiate = (localId: string, remoteId: string): boolean => localId < remoteId;

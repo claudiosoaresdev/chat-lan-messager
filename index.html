@@ -1,0 +1,504 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'"
+    />
+    <title>Chat Live Messenger</title>
+    <link rel="stylesheet" href="/src/index.css" />
+  </head>
+  <body>
+    <!-- Ícones: desenho próprio, no clima do MSN clássico (sem o logotipo original). -->
+    <svg class="sprite" aria-hidden="true">
+      <symbol id="i-butterfly" viewBox="0 0 56 56">
+        <ellipse cx="15.7" cy="17.9" rx="14" ry="11.2" fill="#2e7fe0" />
+        <ellipse cx="40.3" cy="17.9" rx="14" ry="11.2" fill="#2e7fe0" />
+        <ellipse cx="19" cy="39.2" rx="10" ry="8.4" fill="#6b3fa0" />
+        <ellipse cx="37" cy="39.2" rx="10" ry="8.4" fill="#6b3fa0" />
+        <rect x="25.8" y="10.6" width="4.4" height="34.8" rx="2.2" fill="#1a2b45" />
+      </symbol>
+      <symbol id="i-buddy" viewBox="0 0 16 16">
+        <path d="M1.8 15.2c0-3.9 2.8-6.3 6.2-6.3s6.2 2.4 6.2 6.3z" fill="currentColor" stroke="rgba(0,0,0,.3)" stroke-width=".7" />
+        <circle cx="8" cy="4.8" r="3.5" fill="currentColor" stroke="rgba(0,0,0,.3)" stroke-width=".7" />
+        <ellipse cx="6.9" cy="3.7" rx="1.6" ry="1.1" fill="#fff" opacity=".65" />
+        <ellipse cx="6" cy="11.3" rx="2.2" ry="1" fill="#fff" opacity=".4" />
+      </symbol>
+      <symbol id="i-group" viewBox="0 0 20 16">
+        <circle cx="13.5" cy="4.4" r="3" fill="#6b3fa0" />
+        <path d="M8 15c0-3.4 2.4-5.6 5.5-5.6S19 11.6 19 15z" fill="#6b3fa0" />
+        <circle cx="7" cy="5" r="3.3" fill="#4cb122" />
+        <path d="M.8 15.5c0-3.7 2.7-6 6.2-6s6.2 2.3 6.2 6z" fill="#4cb122" />
+      </symbol>
+      <symbol id="i-person" viewBox="0 0 24 24">
+        <circle cx="12" cy="8" r="4.6" fill="currentColor" />
+        <path d="M3.5 21.5c0-4.9 3.8-8 8.5-8s8.5 3.1 8.5 8z" fill="currentColor" />
+      </symbol>
+      <!-- Boneco "vidro" do avatar grande, com volume como o do Messenger -->
+      <defs>
+        <linearGradient id="g-person-head" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#ffffff" />
+          <stop offset=".55" stop-color="#d9dde2" />
+          <stop offset="1" stop-color="#9ea5ae" />
+        </linearGradient>
+        <linearGradient id="g-person-body" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#f4f5f7" />
+          <stop offset=".5" stop-color="#cfd4da" />
+          <stop offset="1" stop-color="#98a0a9" />
+        </linearGradient>
+      </defs>
+      <symbol id="i-person-3d" viewBox="0 0 100 100">
+        <path d="M22 97c0-16 4-30 12-37 5 4 10 6 16 6s11-2 16-6c8 7 12 21 12 37z" fill="url(#g-person-body)" stroke="#8d949c" stroke-width=".8" />
+        <circle cx="50" cy="37" r="20" fill="url(#g-person-head)" stroke="#8d949c" stroke-width=".8" />
+        <ellipse cx="44" cy="28" rx="9" ry="6" fill="#fff" opacity=".7" />
+      </symbol>
+      <symbol id="i-search" viewBox="0 0 16 16">
+        <circle cx="6.5" cy="6.5" r="4.6" fill="none" stroke="#5a6f8c" stroke-width="1.6" />
+        <path d="M10 10l4.2 4.2" stroke="#5a6f8c" stroke-width="2" stroke-linecap="round" />
+      </symbol>
+      <symbol id="i-menu" viewBox="0 0 20 16">
+        <path d="M4 4.5h12M4 8h12M4 11.5h12" stroke="#3d5a80" stroke-width="1.6" stroke-linecap="round" />
+      </symbol>
+      <symbol id="i-back" viewBox="0 0 16 16">
+        <circle cx="8" cy="8" r="7" fill="#2e7fe0" stroke="#0b3f92" stroke-width=".8" />
+        <path d="M9.5 4.5L6 8l3.5 3.5" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+      </symbol>
+      <symbol id="i-nudge" viewBox="0 0 20 16">
+        <rect x="5.5" y="2.5" width="9" height="11" rx="1.5" fill="#fff" stroke="#3c7fb1" stroke-width="1.3" />
+        <rect x="5.5" y="2.5" width="9" height="3" rx="1.2" fill="#2e7fe0" />
+        <path d="M3 4.5l-1.6 3.5L3 11.5M17 4.5l1.6 3.5-1.6 3.5" fill="none" stroke="#f2b50d" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      </symbol>
+      <symbol id="i-image" viewBox="0 0 20 16">
+        <rect x=".75" y=".75" width="18.5" height="14.5" rx="1.5" fill="#fff" stroke="#3c7fb1" stroke-width="1.5" />
+        <circle cx="6" cy="5.5" r="1.8" fill="#f2b50d" />
+        <path d="M2 14l5-5.5 3.2 3.2L13.5 7 18 14z" fill="#6fbe44" />
+      </symbol>
+      <symbol id="i-add" viewBox="0 0 20 16">
+        <circle cx="7" cy="4.6" r="3.4" fill="#4cb122" />
+        <path d="M.6 15c0-3.9 2.9-6.4 6.4-6.4s6.4 2.5 6.4 6.4z" fill="#4cb122" />
+        <path d="M15.5 4v8M11.5 8h8" stroke="#0b4fa5" stroke-width="2.2" stroke-linecap="round" />
+      </symbol>
+    </svg>
+
+    <div class="window">
+      <header class="titlebar" id="titlebar">
+        <svg class="titlebar-logo" aria-hidden="true"><use href="#i-butterfly" /></svg>
+        <span class="titlebar-title" id="titlebar-title">Chat Live Messenger</span>
+        <div class="titlebar-buttons">
+          <button type="button" class="tb-btn" id="win-min" title="Minimizar" aria-label="Minimizar">
+            <svg viewBox="0 0 10 10"><path d="M1.5 7.5h7" /></svg>
+          </button>
+          <button type="button" class="tb-btn" id="win-max" title="Maximizar" aria-label="Maximizar">
+            <svg viewBox="0 0 10 10"><rect x="1.5" y="1.5" width="7" height="7" /></svg>
+          </button>
+          <button type="button" class="tb-btn tb-close" id="win-close" title="Fechar" aria-label="Fechar">
+            <svg viewBox="0 0 10 10"><path d="M2 2l6 6M8 2l-6 6" /></svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- ============================================================ LOGIN -->
+      <section class="view view-login" id="view-login">
+        <button type="button" class="help-badge" id="login-help" title="Ajuda de rede">?</button>
+        <div class="login-scroll">
+          <div class="login-content">
+            <h1 class="login-heading">Entrar no<br />Chat Live <b>Messenger</b></h1>
+
+            <div class="login-row">
+              <div class="avatar avatar-glass avatar-xl" id="login-avatar" role="button" tabindex="0" title="Alterar imagem de exibição" data-status="available">
+                <div class="avatar-inner"><svg><use href="#i-person-3d" /></svg></div>
+              </div>
+
+              <form class="login-fields" id="login-form" autocomplete="off" novalidate>
+                <input class="msn-input" id="login-name" maxlength="64" placeholder="Seu nome" aria-label="Seu nome" />
+                <input
+                  class="msn-input"
+                  id="login-connect"
+                  placeholder="Conectar a IP:porta (opcional)"
+                  aria-label="Conectar a IP e porta (opcional)"
+                />
+                <p class="hint">Em branco, os contatos da rede são encontrados sozinhos.</p>
+
+                <p class="self-addr">
+                  Seu endereço:
+                  <button type="button" class="link mono" id="login-addr" title="Clique para copiar">…</button>
+                </p>
+
+                <div class="status-row">
+                  <span>Entrar como:</span>
+                  <span class="status-dot" id="login-status-dot" data-status="available"></span>
+                  <button type="button" class="link status-picker" id="login-status" aria-haspopup="menu">
+                    <span id="login-status-label">Disponível</span><span class="caret">▾</span>
+                  </button>
+                </div>
+
+                <label class="check">
+                  <input type="checkbox" id="login-remember" />
+                  <span>Lembrar minhas informações</span>
+                </label>
+                <div class="check-row">
+                  <label class="check">
+                    <input type="checkbox" id="login-auto" />
+                    <span>Entrar automaticamente</span>
+                  </label>
+                  <button type="button" class="link" id="login-options" aria-expanded="false">Opções</button>
+                </div>
+
+                <div class="login-options" id="login-options-panel" hidden>
+                  <label for="login-port">Porta deste computador</label>
+                  <input class="msn-input msn-input-sm mono" id="login-port" inputmode="numeric" maxlength="5" />
+                </div>
+
+                <p class="form-error" id="login-error" role="alert"></p>
+
+                <div class="button-row">
+                  <button type="submit" class="win-btn win-btn-default" id="login-submit">Entrar</button>
+                  <button type="button" class="win-btn" id="login-cancel" disabled>Cancelar</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <footer class="login-footer">
+          <button type="button" class="footer-link" id="login-footer-help">Ajuda de rede</button>
+          <span class="footer-text">Sem internet</span>
+          <span class="footer-text">Sem servidor</span>
+          <span class="footer-text">Só a sua rede local</span>
+        </footer>
+      </section>
+
+      <!-- ============================================================ HOME -->
+      <section class="view view-home" id="view-home" hidden>
+        <div class="home-header">
+          <div class="avatar avatar-glass avatar-md" id="me-avatar" role="button" tabindex="0" title="Alterar imagem de exibição" data-status="available">
+            <div class="avatar-inner"><svg><use href="#i-person-3d" /></svg></div>
+          </div>
+          <div class="me-info">
+            <div class="me-line">
+              <span class="me-name" id="me-name"></span>
+              <button type="button" class="status-picker me-status" id="me-status" aria-haspopup="menu">
+                (<span id="me-status-label">Disponível</span>)<span class="caret">▾</span>
+              </button>
+            </div>
+            <input
+              class="personal-msg"
+              id="me-message"
+              maxlength="128"
+              placeholder="<Compartilhe uma mensagem pessoal>"
+              aria-label="Mensagem pessoal"
+            />
+            <button type="button" class="link mono me-addr" id="me-addr" title="Clique para copiar"></button>
+          </div>
+        </div>
+
+        <div class="home-toolbar">
+          <div class="search-box">
+            <input class="search" id="contact-search" placeholder="Pesquisar contatos..." aria-label="Pesquisar contatos" />
+            <svg class="search-icon" aria-hidden="true"><use href="#i-search" /></svg>
+          </div>
+          <button type="button" class="tool-btn" id="add-contact" title="Adicionar contato por IP">
+            <svg><use href="#i-add" /></svg>
+          </button>
+          <button type="button" class="tool-btn" id="home-menu" title="Menu" aria-haspopup="menu">
+            <svg><use href="#i-menu" /></svg>
+          </button>
+        </div>
+
+        <div class="contact-list" id="contact-list">
+          <div class="contact-group">
+            <button type="button" class="group-header" aria-expanded="true">
+              <span class="group-arrow">▾</span><span>Conversas</span>
+            </button>
+            <ul class="contacts">
+              <li>
+                <button type="button" class="contact group-entry" id="open-group" title="Abrir a conversa em grupo">
+                  <svg class="group-icon" aria-hidden="true"><use href="#i-group" /></svg>
+                  <span class="contact-name">Conversa em grupo</span>
+                  <span class="contact-extra" id="group-sub">- Ninguém online ainda</span>
+                  <span class="badge" id="group-unread" hidden>0</span>
+                </button>
+              </li>
+            </ul>
+          </div>
+
+          <div class="contact-group" id="group-online">
+            <button type="button" class="group-header" aria-expanded="true">
+              <span class="group-arrow">▾</span><span>Online (<span id="count-online">0</span>)</span>
+            </button>
+            <ul class="contacts" id="list-online"></ul>
+          </div>
+          <div class="contact-group" id="group-offline">
+            <button type="button" class="group-header" aria-expanded="true">
+              <span class="group-arrow">▾</span><span>Offline (<span id="count-offline">0</span>)</span>
+            </button>
+            <ul class="contacts" id="list-offline"></ul>
+          </div>
+
+          <p class="contacts-empty" id="contacts-empty">
+            Procurando contatos na rede…<br />
+            <button type="button" class="link" id="empty-add">Adicionar contato por IP</button>
+          </p>
+        </div>
+      </section>
+
+      <!-- ============================================================ CONVERSA -->
+      <section class="view view-chat" id="view-chat" hidden>
+        <div class="chat-header">
+          <svg class="chat-header-icon" aria-hidden="true"><use href="#i-group" /></svg>
+          <div class="chat-header-text">
+            <div class="chat-title">Conversa em grupo <span class="chat-count" id="chat-count"></span></div>
+            <div class="chat-to">Para: <span id="chat-to">ninguém online</span></div>
+          </div>
+        </div>
+
+        <div class="chat-toolbar">
+          <button type="button" class="chat-tool" id="chat-back" title="Voltar para a lista de contatos">
+            <svg><use href="#i-back" /></svg><span>Contatos</span>
+          </button>
+          <label class="chat-tool" title="Enviar imagem (PNG, JPEG, WebP, GIF até 10 MB)">
+            <input type="file" id="file-input" accept="image/png,image/jpeg,image/webp,image/gif" hidden />
+            <svg><use href="#i-image" /></svg><span>Enviar imagem</span>
+          </label>
+          <button type="button" class="chat-tool" id="chat-nudge" title="Chamar a atenção de todos na conversa">
+            <svg><use href="#i-nudge" /></svg><span>Chamar atenção</span>
+          </button>
+          <button type="button" class="chat-tool" id="chat-invite" title="Adicionar contato por IP">
+            <svg><use href="#i-add" /></svg><span>Convidar</span>
+          </button>
+        </div>
+
+        <div class="chat-main">
+          <aside class="chat-pictures">
+            <div class="avatar avatar-glass avatar-chat" id="chat-group-avatar" data-status="available">
+              <div class="avatar-inner avatar-inner-group"><svg><use href="#i-group" /></svg></div>
+            </div>
+            <div class="avatar avatar-glass avatar-chat" id="chat-me-avatar" role="button" tabindex="0" title="Alterar imagem de exibição" data-status="available">
+              <div class="avatar-inner"><svg><use href="#i-person-3d" /></svg></div>
+            </div>
+          </aside>
+
+          <div class="chat-panel">
+            <div class="chat-body">
+              <ol class="conversation" id="messages" aria-live="polite"></ol>
+            </div>
+
+            <div
+              class="chat-splitter"
+              id="chat-splitter"
+              role="separator"
+              aria-orientation="horizontal"
+              aria-label="Ajustar o tamanho da conversa e da caixa de texto"
+              tabindex="0"
+              title="Arraste para ajustar · clique duplo volta ao padrão"
+            ></div>
+
+            <div class="compose">
+              <div class="emoticon-picker" id="emoticon-picker" role="dialog" aria-label="Emoticons" hidden>
+                <div class="emoticon-picker-title">Emoticons</div>
+                <div class="emoticon-grid" id="emoticon-grid"></div>
+              </div>
+              <div class="wink-picker" id="wink-picker" role="dialog" aria-label="Winks" hidden>
+                <div class="emoticon-picker-title">Winks</div>
+                <div class="wink-grid" id="wink-grid"></div>
+              </div>
+              <div class="gif-picker" id="gif-picker" role="dialog" aria-label="GIFs do GIPHY" hidden>
+                <div class="emoticon-picker-title gif-title">
+                  <span>GIFs</span>
+                  <span class="gif-powered">Powered by GIPHY</span>
+                </div>
+                <div class="gif-setup" id="gif-setup" hidden>
+                  <p>
+                    Para buscar GIFs, crie uma chave gratuita em
+                    <a href="https://developers.giphy.com/dashboard/" target="_blank" rel="noopener noreferrer">developers.giphy.com</a>
+                    (tipo "API") e cole a <b>API Key</b> aqui:
+                  </p>
+                  <form class="gif-key-form" id="gif-key-form" autocomplete="off">
+                    <input class="search mono" id="gif-key" placeholder="API Key do GIPHY" aria-label="API Key do GIPHY" spellcheck="false" />
+                    <button type="submit" class="win-btn gif-key-save">Salvar</button>
+                  </form>
+                  <p class="hint">A busca usa a internet. Quem recebe o GIF não precisa: ele vai pela rede local.</p>
+                  <p class="form-error" id="gif-key-error" role="alert"></p>
+                </div>
+                <div class="gif-browser" id="gif-browser" hidden>
+                  <form id="gif-search-form" autocomplete="off">
+                    <input class="search" id="gif-query" placeholder="Pesquisar GIFs..." aria-label="Pesquisar GIFs" />
+                  </form>
+                  <div class="gif-grid" id="gif-grid" role="listbox" aria-label="GIFs"></div>
+                  <p class="gif-status" id="gif-status" role="status"></p>
+                  <div class="gif-footer">
+                    <button type="button" class="link" id="gif-more" hidden>Mais GIFs</button>
+                    <span class="button-spacer"></span>
+                    <button type="button" class="link" id="gif-change-key">Trocar chave</button>
+                  </div>
+                </div>
+              </div>
+              <div class="compose-toolbar">
+                <button type="button" class="fmt-btn" id="fmt-emoticon" title="Emoticons" aria-haspopup="dialog">
+                  <svg class="emoticon"><use href="#emo-sorriso" /></svg>
+                </button>
+                <button type="button" class="fmt-btn fmt-wink" id="fmt-wink" title="Winks (animações)" aria-haspopup="dialog">
+                  <svg class="emoticon"><use href="#emo-estrela" /></svg><span class="fmt-wink-label">Winks</span>
+                </button>
+                <button type="button" class="fmt-btn fmt-gif" id="fmt-gif" title="GIFs do GIPHY" aria-haspopup="dialog">
+                  <span class="fmt-gif-label">GIF</span>
+                </button>
+                <button type="button" class="fmt-btn fmt-font" id="fmt-font" title="Alterar fonte">
+                  <span class="fmt-font-a">A</span><span class="fmt-font-bar" id="fmt-font-bar"></span>
+                </button>
+                <button type="button" class="fmt-btn" id="fmt-image" title="Enviar imagem">
+                  <svg><use href="#i-image" /></svg>
+                </button>
+                <button type="button" class="fmt-btn" id="fmt-nudge" title="Chamar atenção">
+                  <svg><use href="#i-nudge" /></svg>
+                </button>
+                <span class="fmt-hint">Enter envia · Shift+Enter quebra linha · arraste uma imagem para enviar</span>
+              </div>
+              <form class="compose-row" id="composer" autocomplete="off">
+                <textarea id="text-input" rows="3" maxlength="5000" aria-label="Mensagem"></textarea>
+                <button type="submit" class="win-btn send-btn" id="send-btn">Enviar</button>
+              </form>
+              <p class="form-error composer-error" id="composer-error" role="alert"></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="chat-statusbar" id="chat-statusbar">&nbsp;</div>
+      </section>
+    </div>
+
+    <!-- Menu de status (compartilhado entre login e home) -->
+    <div class="menu" id="status-menu" role="menu" hidden></div>
+
+    <!-- Adicionar contato por IP -->
+    <dialog class="msn-dialog" id="add-dialog">
+      <div class="dialog-titlebar">
+        <svg class="titlebar-logo" aria-hidden="true"><use href="#i-butterfly" /></svg>
+        <span>Adicionar um contato</span>
+      </div>
+      <form class="dialog-body" id="add-form" autocomplete="off">
+        <p>Digite o endereço que aparece no Chat LAN do outro computador:</p>
+        <input class="msn-input mono" id="add-address" placeholder="192.168.0.10:47800" aria-label="IP e porta" />
+        <p class="form-status" id="add-status" role="status"></p>
+        <div class="saved" id="saved-wrap" hidden>
+          <p class="saved-title">Endereços salvos</p>
+          <ul class="saved-list" id="saved-list"></ul>
+        </div>
+        <div class="button-row button-row-end">
+          <button type="submit" class="win-btn win-btn-default" id="add-submit">Conectar</button>
+          <button type="button" class="win-btn" id="add-close">Fechar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Ajuda de rede -->
+    <dialog class="msn-dialog" id="help-dialog">
+      <div class="dialog-titlebar">
+        <svg class="titlebar-logo" aria-hidden="true"><use href="#i-butterfly" /></svg>
+        <span>Ajuda de rede</span>
+      </div>
+      <div class="dialog-body help-body">
+        <p><b>Os computadores precisam estar na mesma rede Wi-Fi/cabo.</b> O Chat LAN não usa internet.</p>
+        <ul>
+          <li><b>Windows:</b> deixe a rede como <i>Privada</i> e permita o Chat LAN no Firewall quando ele perguntar.</li>
+          <li><b>Mac:</b> permita o acesso à <i>Rede Local</i> (Ajustes do Sistema → Privacidade e Segurança).</li>
+          <li>Não se encontram sozinhos? Use <i>Conectar a</i> com o endereço mostrado no outro computador.</li>
+          <li>Redes de convidados ou corporativas costumam bloquear a comunicação entre computadores: use outra rede ou o hotspot do celular.</li>
+          <li>Libere a porta TCP do Chat LAN (padrão 47800) e UDP 5353.</li>
+        </ul>
+        <div class="button-row button-row-end">
+          <button type="button" class="win-btn win-btn-default" id="help-close">OK</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Alterar fonte (como no MSN / diálogo de fonte do Windows) -->
+    <dialog class="msn-dialog font-dialog" id="font-dialog">
+      <div class="dialog-titlebar">
+        <svg class="titlebar-logo" aria-hidden="true"><use href="#i-butterfly" /></svg>
+        <span>Alterar fonte</span>
+      </div>
+      <div class="dialog-body">
+        <div class="font-columns">
+          <div class="font-col font-col-family">
+            <span class="font-label" id="font-family-label">Fonte:</span>
+            <div class="font-current" id="font-family-current"></div>
+            <ul class="font-list" id="font-family-list" role="listbox" aria-labelledby="font-family-label" tabindex="0"></ul>
+          </div>
+          <div class="font-col">
+            <span class="font-label" id="font-style-label">Estilo da fonte:</span>
+            <div class="font-current" id="font-style-current"></div>
+            <ul class="font-list" id="font-style-list" role="listbox" aria-labelledby="font-style-label" tabindex="0"></ul>
+          </div>
+          <div class="font-col font-col-size">
+            <span class="font-label" id="font-size-label">Tamanho:</span>
+            <div class="font-current" id="font-size-current"></div>
+            <ul class="font-list" id="font-size-list" role="listbox" aria-labelledby="font-size-label" tabindex="0"></ul>
+          </div>
+        </div>
+        <div class="font-bottom">
+          <fieldset class="font-box font-effects">
+            <legend>Efeitos</legend>
+            <label class="check"><input type="checkbox" id="font-underline" /><span>Sublinhado</span></label>
+            <span class="font-label">Cor:</span>
+            <div class="color-swatches" id="font-colors" role="radiogroup" aria-label="Cor"></div>
+          </fieldset>
+          <fieldset class="font-box font-sample-box">
+            <legend>Exemplo</legend>
+            <div class="font-sample" id="font-sample">AaBbYyZz</div>
+          </fieldset>
+        </div>
+        <p class="hint">Seus contatos verão as suas mensagens com esta fonte.</p>
+        <div class="button-row">
+          <button type="button" class="win-btn" id="font-default">Padrão</button>
+          <span class="button-spacer"></span>
+          <button type="button" class="win-btn win-btn-default" id="font-ok">OK</button>
+          <button type="button" class="win-btn" id="font-cancel">Cancelar</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Imagem de exibição (como no MSN) -->
+    <dialog class="msn-dialog avatar-dialog" id="avatar-dialog">
+      <div class="dialog-titlebar">
+        <svg class="titlebar-logo" aria-hidden="true"><use href="#i-butterfly" /></svg>
+        <span>Imagem de exibição</span>
+      </div>
+      <div class="dialog-body">
+        <p class="avatar-heading">Selecione uma imagem de exibição</p>
+        <p class="hint">Escolha como você quer aparecer para os seus contatos.</p>
+        <div class="avatar-picker">
+          <div class="avatar-grid-wrap" id="avatar-grid-wrap">
+            <p class="avatar-section">Imagens normais</p>
+            <div class="avatar-grid" id="avatar-grid-builtin" role="listbox" aria-label="Imagens normais"></div>
+            <p class="avatar-section" id="avatar-uploads-title">Minhas imagens</p>
+            <div class="avatar-grid" id="avatar-grid-uploads" role="listbox" aria-label="Minhas imagens"></div>
+          </div>
+          <div class="avatar-side">
+            <div class="avatar avatar-glass avatar-preview" id="avatar-preview" data-status="available">
+              <div class="avatar-inner"><svg><use href="#i-person-3d" /></svg></div>
+            </div>
+            <p class="avatar-preview-name" id="avatar-preview-name">Sem imagem</p>
+            <label class="win-btn avatar-side-btn" id="avatar-browse" title="Enviar uma imagem do computador">
+              <input type="file" id="avatar-file" accept="image/png,image/jpeg,image/webp,image/gif" hidden />
+              Procurar...
+            </label>
+            <button type="button" class="win-btn avatar-side-btn" id="avatar-remove" disabled>Remover</button>
+            <button type="button" class="win-btn avatar-side-btn" id="avatar-none">Sem imagem</button>
+          </div>
+        </div>
+        <p class="form-error" id="avatar-error" role="alert"></p>
+        <div class="button-row button-row-end">
+          <button type="button" class="win-btn win-btn-default" id="avatar-ok">OK</button>
+          <button type="button" class="win-btn" id="avatar-cancel">Cancelar</button>
+        </div>
+      </div>
+    </dialog>
+
+    <div class="toasts" id="toasts" aria-live="polite"></div>
+    <div class="drop-overlay" id="drop-overlay" hidden>Solte a imagem para enviar</div>
+
+    <script type="module" src="/src/renderer.ts"></script>
+  </body>
+</html>

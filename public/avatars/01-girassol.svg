@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6ec6f5"/><stop offset="1" stop-color="#d7f1fd"/></linearGradient>
+    <radialGradient id="core" cx=".4" cy=".35" r=".7"><stop offset="0" stop-color="#8a5a2b"/><stop offset="1" stop-color="#4a2a10"/></radialGradient>
+  </defs>
+  <rect width="128" height="128" fill="url(#sky)"/>
+  <path d="M64 128V78" stroke="#3f8f2a" stroke-width="7"/>
+  <path d="M64 108c-14-2-24-12-26-22 12 0 22 8 26 22z" fill="#57b23a"/>
+  <path d="M64 100c12-2 22-10 24-20-12 0-20 8-24 20z" fill="#4ea233"/>
+  <g transform="translate(64 54)" fill="#ffc81e" stroke="#e7a100" stroke-width="1.2">
+    <ellipse rx="9" ry="22" transform="rotate(0) translate(0 -24)"/>
+    <ellipse rx="9" ry="22" transform="rotate(30) translate(0 -24)"/>
+    <ellipse rx="9" ry="22" transform="rotate(60) translate(0 -24)"/>
+    <ellipse rx="9" ry="22" transform="rotate(90) translate(0 -24)"/>
+    <ellipse rx="9" ry="22" transform="rotate(120) translate(0 -24)"/>
+    <ellipse rx="9" ry="22" transform="rotate(150) translate(0 -24)"/>
+    <ellipse rx="9" ry="22" transform="rotate(180) translate(0 -24)"/>
+    <ellipse rx="9" ry="22" transform="rotate(210) translate(0 -24)"/>
+    <ellipse rx="9" ry="22" transform="rotate(240) translate(0 -24)"/>
+    <ellipse rx="9" ry="22" transform="rotate(270) translate(0 -24)"/>
+    <ellipse rx="9" ry="22" transform="rotate(300) translate(0 -24)"/>
+    <ellipse rx="9" ry="22" transform="rotate(330) translate(0 -24)"/>
+  </g>
+  <circle cx="64" cy="54" r="19" fill="url(#core)"/>
+  <g fill="#c48a4a" opacity=".7"><circle cx="58" cy="48" r="1.8"/><circle cx="66" cy="46" r="1.8"/><circle cx="71" cy="53" r="1.8"/><circle cx="62" cy="57" r="1.8"/><circle cx="55" cy="56" r="1.8"/><circle cx="68" cy="61" r="1.8"/></g>
+</svg>

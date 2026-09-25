@@ -1,0 +1,106 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { describe, expect, it } from 'vitest';
+import { DEFAULT_PORT, SettingsStore, parseArgs, parseHostPort, parseProfile, rememberPeer } from './config';
+
+describe('parseHostPort', () => {
+  it('lê host e porta', () => {
+    expect(parseHostPort('192.168.0.10:5001')).toEqual({ host: '192.168.0.10', port: 5001 });
+    expect(parseHostPort(' meu-pc.local:80 ')).toEqual({ host: 'meu-pc.local', port: 80 });
+    expect(parseHostPort('[fe80::1]:9000')).toEqual({ host: 'fe80::1', port: 9000 });
+  });
+
+  it('usa a porta padrão quando omitida', () => {
+    expect(parseHostPort('192.168.0.10')).toEqual({ host: '192.168.0.10', port: DEFAULT_PORT });
+  });
+
+  it('rejeita entradas inválidas', () => {
+    expect(parseHostPort('')).toBeNull();
+    expect(parseHostPort('1.2.3.4:0')).toBeNull();
+    expect(parseHostPort('1.2.3.4:70000')).toBeNull();
+    expect(parseHostPort('1.2.3.4:abc')).toBeNull();
+  });
+});
+
+describe('parseArgs', () => {
+  it('lê --port e --connect nas duas formas', () => {
+    expect(parseArgs(['electron', '.', '--port=5001', '--connect', '10.0.0.2:5001'])).toEqual({
+      port: 5001,
+      connect: [{ host: '10.0.0.2', port: 5001 }],
+    });
+  });
+
+  it('aceita vários --connect e lista separada por vírgula', () => {
+    expect(parseArgs(['--connect=10.0.0.2,10.0.0.3:6000', '--connect=10.0.0.4']).connect).toEqual([
+      { host: '10.0.0.2', port: DEFAULT_PORT },
+      { host: '10.0.0.3', port: 6000 },
+      { host: '10.0.0.4', port: DEFAULT_PORT },
+    ]);
+  });
+
+  it('ignora flags desconhecidas e porta inválida', () => {
+    expect(parseArgs(['--inspect', '--port=abc', '--portx=1'])).toEqual({ connect: [] });
+  });
+});
+
+describe('rememberPeer', () => {
+  it('coloca no topo sem duplicar e limita a 10', () => {
+    const a = { host: 'a', port: 1 };
+    const b = { host: 'b', port: 1 };
+    expect(rememberPeer([a, b], b)).toEqual([b, a]);
+    const many = Array.from({ length: 12 }, (_, i) => ({ host: `h${i}`, port: 1 }));
+    expect(rememberPeer(many, a)).toHaveLength(10);
+  });
+});
+
+describe('SettingsStore', () => {
+  it('salva e carrega; arquivo ausente ou corrompido vira padrão', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlan-'));
+    const store = new SettingsStore(dir);
+    expect(store.load()).toEqual({ manualPeers: [], profile: null, font: null, giphyKey: null });
+
+    const font = { family: 'Georgia', size: 14, bold: false, italic: true, underline: false, color: '#004080' } as const;
+    store.save({ manualPeers: [{ host: '10.0.0.2', port: 47800 }], profile: null, font, giphyKey: 'abcDEF1234567890abcd' });
+    expect(store.load()).toEqual({
+      manualPeers: [{ host: '10.0.0.2', port: 47800 }],
+      profile: null,
+      font,
+      giphyKey: 'abcDEF1234567890abcd',
+    });
+
+    fs.writeFileSync(path.join(dir, 'settings.json'), '{ lixo');
+    expect(store.load()).toEqual({ manualPeers: [], profile: null, font: null, giphyKey: null });
+
+    fs.writeFileSync(path.join(dir, 'settings.json'), JSON.stringify({ manualPeers: [{ host: 1 }, { host: 'x', port: 2 }] }));
+    expect(store.load()).toEqual({ manualPeers: [{ host: 'x', port: 2 }], profile: null, font: null, giphyKey: null });
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+});
+
+describe('parseProfile', () => {
+  const valid = {
+    name: 'Claudio',
+    status: 'away',
+    message: 'oi',
+    port: 47800,
+    connectTo: '',
+    remember: true,
+    autoLogin: true,
+  };
+
+  it('aceita perfil válido', () => {
+    expect(parseProfile(valid)).toEqual(valid);
+  });
+
+  it('entrar automaticamente exige lembrar', () => {
+    expect(parseProfile({ ...valid, remember: false })).toMatchObject({ remember: false, autoLogin: false });
+  });
+
+  it('descarta perfil inválido', () => {
+    expect(parseProfile(null)).toBeNull();
+    expect(parseProfile({ ...valid, status: 'x' })).toBeNull();
+    expect(parseProfile({ ...valid, port: 0 })).toBeNull();
+    expect(parseProfile({ ...valid, name: 5 })).toBeNull();
+  });
+});
