@@ -13,16 +13,25 @@ export interface ChatWindowHandle {
   shake(): void;
 }
 
-export type CreateChatWindow = (peerId: string, onClosed: () => void) => ChatWindowHandle;
+export interface ChatWindowEvents {
+  onClosed(): void;
+  /** A janela ganhou o foco (o usuário viu a conversa). */
+  onFocused(): void;
+}
+
+export type CreateChatWindow = (peerId: string, events: ChatWindowEvents) => ChatWindowHandle;
 
 export class ChatWindows {
   private readonly windows = new Map<string, ChatWindowHandle>();
   private readonly lastOnline = new Map<string, boolean>();
+  private readonly unread = new Set<string>();
 
   constructor(
     private readonly create: CreateChatWindow,
     private readonly conversations: Conversations,
     private readonly isKnownPeer: (peerId: string) => boolean,
+    /** Avisa a home para piscar (true) ou parar (false) o contato na lista. */
+    private readonly onUnreadChanged: (peerId: string, unread: boolean) => void = () => undefined,
   ) {}
 
   get(peerId: string): ChatWindowHandle | undefined {
@@ -35,8 +44,12 @@ export class ChatWindows {
     if (!this.isKnownPeer(peerId)) return null;
     let w = this.get(peerId);
     if (!w) {
-      const created: ChatWindowHandle = this.create(peerId, () => {
-        if (this.windows.get(peerId) === created) this.windows.delete(peerId);
+      const created: ChatWindowHandle = this.create(peerId, {
+        onClosed: () => {
+          if (this.windows.get(peerId) === created) this.windows.delete(peerId);
+          this.setUnread(peerId, false);
+        },
+        onFocused: () => this.setUnread(peerId, false),
       });
       this.windows.set(peerId, created);
       w = created;
@@ -55,6 +68,8 @@ export class ChatWindows {
     const w = this.open(peerId, false);
     w?.send(IPC.chatItem, saved);
     if (item.kind === 'nudge') w?.shake();
+    // Fora de foco: pisca o contato na lista até a conversa ser vista.
+    if (!w?.focused) this.setUnread(peerId, true);
   }
 
   /** Item que eu enviei: só histórico; a janela que enviou já mostrou. */
@@ -77,7 +92,20 @@ export class ChatWindows {
     w?.send(IPC.chatItem, saved);
   }
 
+  /** Contatos com item não visto (estado inicial da home). */
+  unreadIds(): string[] {
+    return [...this.unread];
+  }
+
+  private setUnread(peerId: string, unread: boolean) {
+    if (this.unread.has(peerId) === unread) return;
+    if (unread) this.unread.add(peerId);
+    else this.unread.delete(peerId);
+    this.onUnreadChanged(peerId, unread);
+  }
+
   closeAll(): void {
+    this.unread.clear();
     for (const w of this.windows.values()) if (!w.destroyed) w.close();
     this.windows.clear();
     this.lastOnline.clear();

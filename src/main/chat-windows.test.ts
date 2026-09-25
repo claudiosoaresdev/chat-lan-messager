@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PeerInfo } from '../shared/api';
 import { IPC } from '../shared/api';
-import { ChatWindows, type ChatWindowHandle } from './chat-windows';
+import { ChatWindows, type ChatWindowEvents, type ChatWindowHandle } from './chat-windows';
 import { Conversations } from './conversations';
 
 class FakeWindow implements ChatWindowHandle {
@@ -12,20 +12,30 @@ class FakeWindow implements ChatWindowHandle {
   shakes = 0;
   constructor(
     readonly peerId: string,
-    private readonly onClosed: () => void,
+    private readonly events: ChatWindowEvents,
   ) {}
   show(focus: boolean) {
     this.shown.push(focus);
+    if (focus) this.focus();
   }
   send(channel: string, payload: unknown) {
     this.sent.push([channel, payload]);
   }
   close() {
     this.destroyed = true;
-    this.onClosed();
+    this.focused = false;
+    this.events.onClosed();
   }
   shake() {
     this.shakes++;
+  }
+  /** Simula o usuário clicando na janela. */
+  focus() {
+    this.focused = true;
+    this.events.onFocused();
+  }
+  blur() {
+    this.focused = false;
   }
 }
 
@@ -33,17 +43,19 @@ const KNOWN = new Set(['bbb', 'ccc']);
 
 function setup() {
   const created: FakeWindow[] = [];
+  const unreadEvents: Array<[string, boolean]> = [];
   const conversations = new Conversations();
   const chats = new ChatWindows(
-    (peerId, onClosed) => {
-      const w = new FakeWindow(peerId, onClosed);
+    (peerId, events) => {
+      const w = new FakeWindow(peerId, events);
       created.push(w);
       return w;
     },
     conversations,
     (id) => KNOWN.has(id),
+    (peerId, unread) => unreadEvents.push([peerId, unread]),
   );
-  return { chats, created, conversations };
+  return { chats, created, conversations, unreadEvents };
 }
 
 const text = (t: string) => ({
@@ -141,5 +153,49 @@ describe('ChatWindows', () => {
     chats.closeAll();
     expect(created.every((w) => w.destroyed)).toBe(true);
     expect(chats.get('bbb')).toBeUndefined();
+  });
+
+  it('item recebido fora de foco marca o contato como não visto', () => {
+    const { chats, unreadEvents } = setup();
+    chats.receive('bbb', text('oi'));
+    expect(chats.unreadIds()).toEqual(['bbb']);
+    expect(unreadEvents).toEqual([['bbb', true]]);
+  });
+
+  it('item recebido com a conversa em foco não marca', () => {
+    const { chats, unreadEvents } = setup();
+    chats.open('bbb', true);
+    chats.receive('bbb', text('oi'));
+    expect(chats.unreadIds()).toEqual([]);
+    expect(unreadEvents).toEqual([]);
+  });
+
+  it('focar a conversa limpa a marca; avisa só quando muda', () => {
+    const { chats, created, unreadEvents } = setup();
+    chats.receive('bbb', text('1'));
+    chats.receive('bbb', text('2'));
+    created[0].focus();
+    created[0].focus();
+    expect(chats.unreadIds()).toEqual([]);
+    expect(unreadEvents).toEqual([
+      ['bbb', true],
+      ['bbb', false],
+    ]);
+  });
+
+  it('fechar a conversa limpa a marca', () => {
+    const { chats, created } = setup();
+    chats.receive('bbb', text('oi'));
+    created[0].close();
+    expect(chats.unreadIds()).toEqual([]);
+  });
+
+  it('closeAll limpa as marcas sem avisar', () => {
+    const { chats, unreadEvents } = setup();
+    chats.receive('bbb', text('oi'));
+    unreadEvents.length = 0;
+    chats.closeAll();
+    expect(chats.unreadIds()).toEqual([]);
+    expect(unreadEvents).toEqual([]);
   });
 });
