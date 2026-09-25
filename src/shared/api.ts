@@ -92,6 +92,29 @@ export interface UiImageMessage extends UiImageMeta {
   data: Uint8Array;
 }
 
+/**
+ * Um item da conversa com um contato, guardado pelo main durante a sessão.
+ * `seq` cresce sempre (evita repetir itens); `at` é a hora local em que o item entrou.
+ */
+export type ConversationItem =
+  | { seq: number; at: number; kind: 'text'; message: UiChatMessage }
+  | { seq: number; at: number; kind: 'image'; image: UiImageMessage }
+  | { seq: number; at: number; kind: 'wink'; wink: UiWink }
+  | { seq: number; at: number; kind: 'nudge'; nudge: UiNudge }
+  | { seq: number; at: number; kind: 'system'; text: string };
+
+/** Item antes de entrar no histórico (o main preenche `seq` e `at`). */
+export type NewConversationItem = {
+  [K in ConversationItem['kind']]: Omit<Extract<ConversationItem, { kind: K }>, 'seq' | 'at'>;
+}[ConversationItem['kind']];
+
+/** O que a janela de conversa recebe ao abrir. */
+export interface ChatInit {
+  /** null se o contato não é conhecido (ex.: sessão encerrada). */
+  peer: PeerInfo | null;
+  history: ConversationItem[];
+}
+
 /** Imagem de exibição (bytes + tipo). */
 export interface AvatarImage {
   mime: string;
