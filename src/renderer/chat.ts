@@ -1,5 +1,5 @@
-// Janela de conversa em grupo, no formato do MSN: "Fulano diz:" e a mensagem recuada embaixo.
-import type { UiChatMessage, UiImageMeta, UiNudge, UiWink } from '../shared/api';
+// Janela de conversa com um contato, no formato do MSN: "Fulano diz:" e a mensagem recuada embaixo.
+import type { PeerInfo, UiChatMessage, UiImageMeta, UiNudge, UiWink } from '../shared/api';
 import type { WinkId } from '../shared/protocol';
 import { IMAGE_MIME_TYPES, MAX_IMAGE_BYTES } from '../shared/protocol';
 import { $, chat, el, errorMessage, timeFmt } from './dom';
@@ -9,18 +9,19 @@ import { buildWinkGrid, playWink, winkInfo } from './winks';
 import { initGiphy, onGifPickerOpened } from './giphy';
 import { applyFont, onFontChange, openFontDialog } from './font';
 import { playNudgeSound } from './sound';
-import { onPeersChange, onlinePeers, state } from './state';
+import { state } from './state';
+import { STATUS_LABEL } from './status';
 
 const MAX_RENDERED_ITEMS = 300;
 /** Mensagens seguidas do mesmo remetente dentro deste intervalo não repetem o "diz:". */
 const GROUP_WINDOW_MS = 2 * 60 * 1000;
 
 const els = {
-  back: $<HTMLButtonElement>('chat-back'),
-  invite: $<HTMLButtonElement>('chat-invite'),
-  to: $('chat-to'),
-  count: $('chat-count'),
-  groupAvatar: $('chat-group-avatar'),
+  peerName: $('chat-peer-name'),
+  peerStatus: $('chat-peer-status'),
+  peerMessage: $('chat-peer-message'),
+  peerAvatar: $('chat-peer-avatar'),
+  sendBtn: $<HTMLButtonElement>('send-btn'),
   meAvatar: $('chat-me-avatar'),
   statusbar: $('chat-statusbar'),
   fmtImage: $<HTMLButtonElement>('fmt-image'),
@@ -48,8 +49,16 @@ const els = {
   dropOverlay: $('drop-overlay'),
 };
 
+const TEXT_PLACEHOLDER = els.text.placeholder;
+
+/** Contato desta janela; erro se a janela não é de conversa. */
+function to(): string {
+  if (!state.peerId) throw new Error('Conversa sem contato');
+  return state.peerId;
+}
+
 let last: { from: string; ts: number } | null = null;
-let handlers = { back: (): void => undefined, invite: (): void => undefined };
+let peer: PeerInfo | null = null;
 
 const dateFmt = new Intl.DateTimeFormat(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' });
 
@@ -135,18 +144,19 @@ function shake() {
 
 els.window.addEventListener('animationend', () => els.window.classList.remove('is-shaking'));
 
-export function addNudge(n: UiNudge) {
+/** `shakeNow: false` ao reler o histórico: só registra, sem tremer nem tocar o som. */
+export function addNudge(n: UiNudge, shakeNow = true) {
   if (!n.self) noteReceived(n.ts);
   last = null;
   const li = el('li', 'nudge-line', n.self ? 'Você chamou a atenção.' : `${n.fromName} chamou a sua atenção!`);
   li.title = timeFmt.format(n.ts);
   append(li, true);
-  shake();
+  if (shakeNow) shake();
 }
 
 async function sendNudge() {
   try {
-    addNudge(await chat().nudge());
+    addNudge(await chat().nudge(to()));
   } catch (err) {
     showError(errorMessage(err));
   }
@@ -163,49 +173,33 @@ export function clearChat() {
   els.text.value = '';
   els.error.textContent = '';
   els.statusbar.textContent = '\u00a0';
-  pendingWink = null;
   last = null;
 }
 
-function renderTo() {
-  const names = onlinePeers().map((p) => p.name);
-  els.to.textContent = names.length ? names.join(', ') : 'ninguém online';
-  els.to.title = els.to.textContent;
-  els.count.textContent = names.length ? `(${names.length + 1} participantes)` : '';
-  els.groupAvatar.dataset.status = names.length ? 'available' : 'offline';
-  renderGroupPicture();
+/** Cabeçalho, título da janela (aparece na barra de tarefas) e caixa de texto conforme o contato. */
+export function setPeer(p: PeerInfo) {
+  peer = p;
+  els.peerName.textContent = p.name;
+  els.peerStatus.textContent = `(${p.online ? STATUS_LABEL[p.status] : 'Offline'})`;
+  els.peerMessage.replaceChildren();
+  renderRichText(els.peerMessage, p.message);
+  els.peerAvatar.dataset.status = p.online ? p.status : 'offline';
+  paintAvatar(els.peerAvatar, peerAvatarUrl(p.id));
+  const title = `${p.name} – Conversa`;
+  document.title = title;
+  $('titlebar-title').textContent = title;
+
+  // Offline: dá para ler a conversa, mas não enviar.
+  els.text.disabled = !p.online;
+  els.sendBtn.disabled = !p.online;
+  els.nudge.disabled = !p.online;
+  els.fmtNudge.disabled = !p.online;
+  els.text.placeholder = p.online ? TEXT_PLACEHOLDER : `${p.name} está offline.`;
 }
 
-/** Foto do grupo: mosaico com as imagens de até 4 participantes online; sem imagens, o ícone de grupo. */
-function renderGroupPicture() {
-  const urls = onlinePeers()
-    .map((p) => peerAvatarUrl(p.id))
-    .filter((u): u is string => !!u)
-    .slice(0, 4);
-  const inner = els.groupAvatar.querySelector('.avatar-inner');
-  if (!inner) return;
-  if (urls.length === 0) {
-    paintAvatar(els.groupAvatar, null, 'group');
-    return;
-  }
-  if (urls.length === 1) {
-    paintAvatar(els.groupAvatar, urls[0]);
-    return;
-  }
-  const mosaic = el('div', `avatar-mosaic n${urls.length}`);
-  for (const url of urls) {
-    const img = el('img');
-    img.alt = '';
-    img.src = url;
-    mosaic.append(img);
-  }
-  inner.replaceChildren(mosaic);
-  inner.classList.add('has-image');
-}
-
-onPeerAvatarsChange(renderGroupPicture);
-
-onPeersChange(renderTo);
+onPeerAvatarsChange(() => {
+  if (peer) paintAvatar(els.peerAvatar, peerAvatarUrl(peer.id));
+});
 
 // ---------------------------------------------------------------- envio
 
@@ -220,7 +214,7 @@ async function sendText() {
   const text = els.text.value.trim();
   if (!text) return;
   try {
-    const msg = await chat().send(text);
+    const msg = await chat().send(to(), text);
     els.text.value = '';
     addText(msg);
   } catch (err) {
@@ -239,7 +233,7 @@ async function sendFile(file: File) {
   }
   try {
     const data = new Uint8Array(await file.arrayBuffer());
-    const meta = await chat().sendImage({ name: file.name, data });
+    const meta = await chat().sendImage(to(), { name: file.name, data });
     addImage(meta, new Blob([data], { type: meta.mime }));
   } catch (err) {
     showError(errorMessage(err));
@@ -296,8 +290,6 @@ window.addEventListener('drop', (e) => {
   [...(e.dataTransfer?.files ?? [])].forEach((f) => void sendFile(f));
 });
 
-els.back.addEventListener('click', () => handlers.back());
-els.invite.addEventListener('click', () => handlers.invite());
 els.fmtImage.addEventListener('click', () => els.file.click());
 els.nudge.addEventListener('click', () => void sendNudge());
 els.fmtNudge.addEventListener('click', () => void sendNudge());
@@ -310,9 +302,6 @@ onFontChange((font) => {
 });
 
 // ---------------------------------------------------------------- winks
-
-/** Wink recebido fora da conversa: toca quando a conversa for aberta. */
-let pendingWink: WinkId | null = null;
 
 export function addWink(w: UiWink, play: boolean) {
   if (!w.self) noteReceived(w.ts);
@@ -327,13 +316,12 @@ export function addWink(w: UiWink, play: boolean) {
   li.append(replay);
   append(li, true);
   if (play) playWink(w.wink, els.main);
-  else pendingWink = w.wink;
 }
 
 async function sendWink(id: WinkId) {
   closePickers();
   try {
-    addWink(await chat().sendWink(id), true);
+    addWink(await chat().sendWink(to(), id), true);
   } catch (err) {
     showError(errorMessage(err));
   }
@@ -483,20 +471,9 @@ window.addEventListener('resize', () => {
 
 // ---------------------------------------------------------------- init
 
-export function initChat(h: { back(): void; invite(): void }) {
-  handlers = h;
-}
-
 export function enterChat() {
-  renderTo();
   restoreComposeHeight();
-  if (pendingWink) {
-    const id = pendingWink;
-    pendingWink = null;
-    // Espera a troca de tamanho da janela antes de tocar.
-    window.setTimeout(() => playWink(id, els.main), 250);
-  }
   els.meAvatar.dataset.status = state.self?.status ?? 'available';
   els.messages.scrollTop = els.messages.scrollHeight;
-  els.text.focus();
+  if (!els.text.disabled) els.text.focus();
 }

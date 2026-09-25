@@ -260,33 +260,27 @@
       <!-- ============================================================ CONVERSA -->
       <section class="view view-chat" id="view-chat" hidden>
         <div class="chat-header">
-          <svg class="chat-header-icon" aria-hidden="true"><use href="#i-group" /></svg>
+          <svg class="chat-header-icon" aria-hidden="true"><use href="#i-buddy" /></svg>
           <div class="chat-header-text">
-            <div class="chat-title">Conversa em grupo <span class="chat-count" id="chat-count"></span></div>
-            <div class="chat-to">Para: <span id="chat-to">ninguém online</span></div>
+            <div class="chat-title"><span id="chat-peer-name"></span> <span class="chat-count" id="chat-peer-status"></span></div>
+            <div class="chat-to" id="chat-peer-message"></div>
           </div>
         </div>
 
         <div class="chat-toolbar">
-          <button type="button" class="chat-tool" id="chat-back" title="Voltar para a lista de contatos">
-            <svg><use href="#i-back" /></svg><span>Contatos</span>
-          </button>
           <label class="chat-tool" title="Enviar imagem (PNG, JPEG, WebP, GIF até 10 MB)">
             <input type="file" id="file-input" accept="image/png,image/jpeg,image/webp,image/gif" hidden />
             <svg><use href="#i-image" /></svg><span>Enviar imagem</span>
           </label>
-          <button type="button" class="chat-tool" id="chat-nudge" title="Chamar a atenção de todos na conversa">
+          <button type="button" class="chat-tool" id="chat-nudge" title="Chamar a atenção do contato">
             <svg><use href="#i-nudge" /></svg><span>Chamar atenção</span>
-          </button>
-          <button type="button" class="chat-tool" id="chat-invite" title="Adicionar contato por IP">
-            <svg><use href="#i-add" /></svg><span>Convidar</span>
           </button>
         </div>
 
         <div class="chat-main">
           <aside class="chat-pictures">
-            <div class="avatar avatar-glass avatar-chat" id="chat-group-avatar" data-status="available">
-              <div class="avatar-inner avatar-inner-group"><svg><use href="#i-group" /></svg></div>
+            <div class="avatar avatar-glass avatar-chat" id="chat-peer-avatar" data-status="available">
+              <div class="avatar-inner"><svg><use href="#i-person-3d" /></svg></div>
             </div>
             <div class="avatar avatar-glass avatar-chat" id="chat-me-avatar" role="button" tabindex="0" title="Alterar imagem de exibição" data-status="available">
               <div class="avatar-inner"><svg><use href="#i-person-3d" /></svg></div>
