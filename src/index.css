@@ -1011,6 +1011,15 @@ button {
   height: 15px;
 }
 
+/* Contato offline: ferramentas de envio (barra de cima e de formatação) ficam apagadas. */
+.chat-tool:disabled,
+.chat-tool:has(input:disabled),
+.fmt-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+  pointer-events: none;
+}
+
 .chat-main {
   flex: 1;
   display: flex;
