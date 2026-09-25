@@ -131,9 +131,9 @@ export class PeerManager extends EventEmitter<PeerManagerEvents> {
   private readonly targets = new Map<string, DialTarget>();
   private readonly dialing = new Set<string>();
   private timers: NodeJS.Timeout[] = [];
-  private lastNudgeSent = 0;
+  private readonly lastNudgeSent = new Map<string, number>();
   private readonly lastNudgeFrom = new Map<string, number>();
-  private lastWinkSent = 0;
+  private readonly lastWinkSent = new Map<string, number>();
   private readonly lastWinkFrom = new Map<string, number>();
   private _port = 0;
 
@@ -301,56 +301,63 @@ export class PeerManager extends EventEmitter<PeerManagerEvents> {
     this.removeTarget(`mdns:${remoteId}`);
   }
 
-  sendText(text: string, font?: MessageFont): UiChatMessage {
+  sendText(to: string, text: string, font?: MessageFont): UiChatMessage {
     const trimmed = text.trim();
     if (!trimmed) throw new Error('Mensagem vazia');
     if (trimmed.length > MAX_TEXT_LENGTH) throw new Error(`Mensagem maior que ${MAX_TEXT_LENGTH} caracteres`);
+    const ws = this.socketFor(to);
     const ts = Date.now();
-    const frame = encodeMessage({ type: 'chat', from: this.id, text: trimmed, ts, ...(font ? { font } : {}) });
-    for (const ws of this.openSockets()) ws.send(frame);
+    ws.send(encodeMessage({ type: 'chat', from: this.id, text: trimmed, ts, ...(font ? { font } : {}) }));
     return { from: this.id, fromName: this._name, text: trimmed, ts, self: true, ...(font ? { font } : {}) };
   }
 
-  /** Chamar atenção de todos. Limitado a um a cada NUDGE_COOLDOWN_MS. */
-  sendNudge(now = Date.now()): UiNudge {
-    if (now - this.lastNudgeSent < NUDGE_COOLDOWN_MS) {
+  /** Chama a atenção do contato. Limitado a um a cada NUDGE_COOLDOWN_MS por contato. */
+  sendNudge(to: string, now = Date.now()): UiNudge {
+    const ws = this.socketFor(to);
+    if (now - (this.lastNudgeSent.get(to) ?? 0) < NUDGE_COOLDOWN_MS) {
       throw new Error('Aguarde alguns segundos para chamar a atenção de novo.');
     }
-    this.lastNudgeSent = now;
-    const frame = encodeMessage({ type: 'nudge', from: this.id, ts: now });
-    for (const ws of this.openSockets()) ws.send(frame);
+    this.lastNudgeSent.set(to, now);
+    ws.send(encodeMessage({ type: 'nudge', from: this.id, ts: now }));
     return { from: this.id, fromName: this._name, ts: now, self: true };
   }
 
-  /** Envia um wink para todos. Limitado a um a cada WINK_COOLDOWN_MS. */
-  sendWink(wink: WinkId, now = Date.now()): UiWink {
+  /** Envia um wink ao contato. Limitado a um a cada WINK_COOLDOWN_MS por contato. */
+  sendWink(to: string, wink: WinkId, now = Date.now()): UiWink {
     if (!isWinkId(wink)) throw new Error('Wink desconhecido');
-    if (now - this.lastWinkSent < WINK_COOLDOWN_MS) {
+    const ws = this.socketFor(to);
+    if (now - (this.lastWinkSent.get(to) ?? 0) < WINK_COOLDOWN_MS) {
       throw new Error('Aguarde a animação terminar para enviar outro wink.');
     }
-    this.lastWinkSent = now;
-    const frame = encodeMessage({ type: 'wink', from: this.id, wink, ts: now });
-    for (const ws of this.openSockets()) ws.send(frame);
+    this.lastWinkSent.set(to, now);
+    ws.send(encodeMessage({ type: 'wink', from: this.id, wink, ts: now }));
     return { from: this.id, fromName: this._name, wink, ts: now, self: true };
   }
 
-  sendImage(image: OutgoingImage): UiImageMeta {
+  sendImage(to: string, image: OutgoingImage): UiImageMeta {
     const data = Buffer.from(image.data.buffer, image.data.byteOffset, image.data.byteLength);
     if (data.length === 0) throw new Error('Imagem vazia');
     if (data.length > MAX_IMAGE_BYTES) throw new Error('Imagem maior que 10 MB');
     const mime = detectImageMime(data);
     if (!mime) throw new Error('Formato não suportado (use PNG, JPEG, WebP ou GIF)');
+    const ws = this.socketFor(to);
     const name = (image.name || 'imagem').slice(0, 255);
     const ts = Date.now();
-    const header = encodeMessage({ type: 'image', from: this.id, name, mime, size: data.length, ts });
-    for (const ws of this.openSockets()) {
-      ws.send(header);
-      ws.send(data, { binary: true });
-    }
+    ws.send(encodeMessage({ type: 'image', from: this.id, name, mime, size: data.length, ts }));
+    ws.send(data, { binary: true });
     return { from: this.id, fromName: this._name, name, mime, size: data.length, ts, self: true };
   }
 
   // ---------------------------------------------------------------------------
+
+  /** Conexão aberta com o contato. Erro visível quando ele está offline. */
+  private socketFor(to: string): WebSocket {
+    const peer = this.peers.get(to);
+    if (!peer) throw new Error('Contato desconhecido.');
+    const ws = peer.conn?.ws;
+    if (!ws || ws.readyState !== WebSocket.OPEN) throw new Error(`${peer.name} está offline.`);
+    return ws;
+  }
 
   private *openSockets() {
     for (const peer of this.peers.values()) {

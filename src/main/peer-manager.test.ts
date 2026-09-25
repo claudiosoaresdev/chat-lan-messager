@@ -65,18 +65,18 @@ describe('PeerManager', () => {
     await bReady;
 
     const atB = next(b, 'message');
-    const sent = a.sendText('  olá  ');
+    const sent = a.sendText('bbb', '  olá  ');
     expect(sent).toMatchObject({ from: 'aaa', text: 'olá', self: true });
     expect(await atB).toMatchObject({ from: 'aaa', fromName: 'aaa', text: 'olá', self: false });
 
     const atA = next(a, 'message');
-    b.sendText('oi');
+    b.sendText('aaa', 'oi');
     expect(await atA).toMatchObject({ from: 'bbb', text: 'oi' });
 
     // Com fonte: chega junto com a mensagem.
     const font = { family: 'Verdana', size: 16, bold: true, italic: false, underline: false, color: '#800080' } as const;
     const withFont = next(b, 'message');
-    expect(a.sendText('formatado', font)).toMatchObject({ font });
+    expect(a.sendText('bbb', 'formatado', font)).toMatchObject({ font });
     expect(await withFont).toMatchObject({ text: 'formatado', font });
   });
 
@@ -111,7 +111,7 @@ describe('PeerManager', () => {
     expect(a.name).toBe('Novo nome');
 
     const text = next(b, 'message');
-    a.sendText('oi');
+    a.sendText('bbb', 'oi');
     expect(await text).toMatchObject({ fromName: 'Novo nome' });
   });
 
@@ -158,11 +158,11 @@ describe('PeerManager', () => {
     await bReady;
 
     const atB = next(b, 'nudge');
-    expect(a.sendNudge(1_000_000)).toMatchObject({ from: 'aaa', self: true });
+    expect(a.sendNudge('bbb', 1_000_000)).toMatchObject({ from: 'aaa', self: true });
     expect(await atB).toMatchObject({ from: 'aaa', fromName: 'Ana', self: false });
 
     // Envio repetido dentro do intervalo é recusado.
-    expect(() => a.sendNudge(1_000_000 + 1000)).toThrow(/Aguarde/);
+    expect(() => a.sendNudge('bbb', 1_000_000 + 1000)).toThrow(/Aguarde/);
   });
 
   it('envia wink com limite e ignora repetido do mesmo contato', async () => {
@@ -173,10 +173,10 @@ describe('PeerManager', () => {
     await bReady;
 
     const atB = next(b, 'wink');
-    expect(a.sendWink('fogos', 2_000_000)).toMatchObject({ wink: 'fogos', self: true });
+    expect(a.sendWink('bbb', 'fogos', 2_000_000)).toMatchObject({ wink: 'fogos', self: true });
     expect(await atB).toMatchObject({ from: 'aaa', fromName: 'Ana', wink: 'fogos', self: false });
-    expect(() => a.sendWink('beijo', 2_000_000 + 500)).toThrow(/Aguarde/);
-    expect(() => a.sendWink('x' as never, 3_000_000)).toThrow(/desconhecido/);
+    expect(() => a.sendWink('bbb', 'beijo', 2_000_000 + 500)).toThrow(/Aguarde/);
+    expect(() => a.sendWink('bbb', 'x' as never, 3_000_000)).toThrow(/desconhecido/);
   });
 
   it('ignora chamar atenção repetido do mesmo contato', async () => {
@@ -200,7 +200,7 @@ describe('PeerManager', () => {
     await bReady;
 
     const atB = next(b, 'image');
-    const meta = a.sendImage({ name: 'foto.png', data: new Uint8Array(PNG) });
+    const meta = a.sendImage('bbb', { name: 'foto.png', data: new Uint8Array(PNG) });
     expect(meta).toMatchObject({ mime: 'image/png', size: PNG.length });
 
     const img = await atB;
@@ -218,7 +218,7 @@ describe('PeerManager', () => {
     const big = Buffer.alloc(5 * 1024 * 1024, 7);
     PNG.copy(big);
     const atB = next(b, 'image');
-    a.sendImage({ name: 'grande.png', data: new Uint8Array(big) });
+    a.sendImage('bbb', { name: 'grande.png', data: new Uint8Array(big) });
     const img = await atB;
     expect(img.size).toBe(big.length);
     expect(Buffer.from(img.data).equals(big)).toBe(true);
@@ -226,8 +226,8 @@ describe('PeerManager', () => {
 
   it('recusa enviar imagem com assinatura inválida', async () => {
     const a = await create('aaa');
-    expect(() => a.sendImage({ name: 'x.svg', data: new TextEncoder().encode('<svg/>') })).toThrow(/Formato/);
-    expect(() => a.sendImage({ name: 'x', data: new Uint8Array() })).toThrow(/vazia/);
+    expect(() => a.sendImage('bbb', { name: 'x.svg', data: new TextEncoder().encode('<svg/>') })).toThrow(/Formato/);
+    expect(() => a.sendImage('bbb', { name: 'x', data: new Uint8Array() })).toThrow(/vazia/);
   });
 
   it('descarta frames inválidos, binário sem cabeçalho e remetente falso', async () => {
@@ -294,9 +294,64 @@ describe('PeerManager', () => {
     // Cada mensagem chega uma única vez.
     const got: string[] = [];
     b.on('message', (m) => got.push(m.text));
-    a.sendText('uma vez');
+    a.sendText('bbb', 'uma vez');
     await sleep(100);
     expect(got).toEqual(['uma vez']);
+  });
+
+  it('envia só para o contato escolhido', async () => {
+    const a = await create('aaa');
+    const b = await create('bbb');
+    const c = await create('ccc');
+    const bReady = next(b, 'peer', onlineWith('aaa'));
+    const cReady = next(c, 'peer', onlineWith('aaa'));
+    await a.connect(HOST, b.port);
+    await a.connect(HOST, c.port);
+    await Promise.all([bReady, cReady]);
+
+    const atC: string[] = [];
+    c.on('message', (m) => atC.push(m.text));
+    const atB = next(b, 'message');
+    a.sendText('bbb', 'só pra você');
+    expect(await atB).toMatchObject({ from: 'aaa', text: 'só pra você' });
+    await sleep(100);
+    expect(atC).toEqual([]);
+  });
+
+  it('recusa enviar para contato offline ou desconhecido', async () => {
+    const a = await create('aaa');
+    const b = await create('bbb', 'Bia');
+    const bReady = next(a, 'peer', onlineWith('bbb'));
+    await a.connect(HOST, b.port);
+    await bReady;
+
+    const offline = next(a, 'peer', (p) => p.id === 'bbb' && !p.online);
+    await b.stop();
+    managers = managers.filter((m) => m !== b);
+    await offline;
+
+    expect(() => a.sendText('bbb', 'oi')).toThrow('Bia está offline.');
+    expect(() => a.sendNudge('bbb')).toThrow('Bia está offline.');
+    expect(() => a.sendText('nao-existe', 'oi')).toThrow('Contato desconhecido.');
+  });
+
+  it('limite de chamar atenção e de wink é por contato', async () => {
+    const a = await create('aaa');
+    const b = await create('bbb');
+    const c = await create('ccc');
+    const bReady = next(b, 'peer', onlineWith('aaa'));
+    const cReady = next(c, 'peer', onlineWith('aaa'));
+    await a.connect(HOST, b.port);
+    await a.connect(HOST, c.port);
+    await Promise.all([bReady, cReady]);
+
+    a.sendNudge('bbb', 1_000_000);
+    expect(() => a.sendNudge('bbb', 1_000_500)).toThrow(/Aguarde/);
+    expect(a.sendNudge('ccc', 1_000_500)).toMatchObject({ self: true });
+
+    a.sendWink('bbb', 'fogos', 2_000_000);
+    expect(() => a.sendWink('bbb', 'fogos', 2_000_500)).toThrow(/Aguarde/);
+    expect(a.sendWink('ccc', 'fogos', 2_000_500)).toMatchObject({ self: true });
   });
 
   it('via mDNS só o ID menor disca', async () => {
