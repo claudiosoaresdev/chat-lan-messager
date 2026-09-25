@@ -1,4 +1,4 @@
-import { app, autoUpdater, BrowserWindow, ipcMain, Notification, screen, shell, type IpcMainInvokeEvent } from 'electron';
+import { app, autoUpdater, BrowserWindow, ipcMain, Notification, screen, shell, type IpcMainInvokeEvent, type Tray } from 'electron';
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import os from 'node:os';
@@ -9,6 +9,10 @@ import { Discovery } from './main/discovery';
 import { AvatarStore } from './main/avatar-store';
 import { GiphyClient, isGiphyKey } from './main/giphy';
 import { Updater, feedUrl } from './main/updater';
+import { Conversations } from './main/conversations';
+import { ChatWindows, type ChatWindowHandle } from './main/chat-windows';
+import { createTray } from './main/tray';
+import { trayTooltip } from './main/tray-text';
 import {
   DEFAULT_PORT,
   SettingsStore,
@@ -21,6 +25,7 @@ import {
 } from './main/config';
 import {
   IPC,
+  type ChatInit,
   type LocalInfo,
   type LoginRequest,
   type OutgoingImage,
@@ -73,6 +78,12 @@ let settings: Settings = { manualPeers: [], profile: null, font: null, giphyKey:
 const giphy = new GiphyClient(() => settings.giphyKey);
 let mainWindow: BrowserWindow | null = null;
 let updater: Updater | null = null;
+const conversations = new Conversations();
+let chats: ChatWindows;
+let tray: Tray | null = null;
+/** Saindo de verdade: o "X" da home para de esconder na bandeja. */
+let quitting = false;
+let trayHintShown = false;
 
 function localAddresses(): string[] {
   return Object.values(os.networkInterfaces())
@@ -89,6 +100,16 @@ function isSelfTarget(t: HostPort, port = session?.peers.port): boolean {
 
 function sendToRenderer(channel: string, payload: unknown) {
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, payload);
+}
+
+/** Para todas as janelas (home e conversas): mudanças de perfil, fonte e avatares. */
+function broadcast(channel: string, payload: unknown) {
+  for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.webContents.send(channel, payload);
+}
+
+function refreshTray() {
+  const self = session ? { name: session.peers.name, status: session.peers.status } : null;
+  tray?.setToolTip(trayTooltip(self, updater?.getStatus().state === 'ready'));
 }
 
 function saveSettings(next: Settings) {
@@ -112,30 +133,24 @@ function selfInfo(s: Session): SelfInfo {
   };
 }
 
-/** Avisa de mensagem nova quando a janela não está em foco (estilo "Fulano diz:"). */
-function notifyIfUnfocused(title: string, body: string) {
-  if (!mainWindow || mainWindow.isDestroyed() || mainWindow.isFocused()) return;
-  mainWindow.flashFrame(true);
-  if (!Notification.isSupported()) return;
+/** Notificação do sistema quando a conversa do contato não está em foco; o clique traz a conversa. */
+function notifyChat(peerId: string, title: string, body: string) {
+  if (chats.get(peerId)?.focused || !Notification.isSupported()) return;
   const n = new Notification({ title, body: body.slice(0, 200), silent: false });
-  n.on('click', () => {
-    mainWindow?.show();
-    mainWindow?.focus();
-  });
+  n.on('click', () => chats.open(peerId, true));
   n.show();
 }
 
-let shaking = false;
+const shaking = new WeakSet<BrowserWindow>();
 
 /** Faz a janela tremer, como o "chamar atenção" do MSN. */
-function shakeWindow() {
-  const w = mainWindow;
-  if (!w || w.isDestroyed() || shaking) return;
+function shakeWindow(w: BrowserWindow) {
+  if (w.isDestroyed() || shaking.has(w)) return;
   // Minimizada: reaparece sem roubar o foco, como a janela de conversa do MSN.
   if (w.isMinimized()) w.showInactive();
   if (w.isMaximized() || w.isFullScreen()) return;
 
-  shaking = true;
+  shaking.add(w);
   const [x, y] = w.getPosition();
   const steps = [
     [-10, -4], [10, 4], [-9, 3], [9, -3], [-7, -2], [7, 2], [-5, 2], [5, -2], [-3, -1], [3, 1], [0, 0],
@@ -145,7 +160,7 @@ function shakeWindow() {
     if (w.isDestroyed() || i >= steps.length) {
       clearInterval(timer);
       if (!w.isDestroyed()) w.setPosition(x, y);
-      shaking = false;
+      shaking.delete(w);
       return;
     }
     w.setPosition(x + steps[i][0], y + steps[i][1]);
@@ -205,24 +220,26 @@ async function login(req: LoginRequest): Promise<SelfInfo> {
   }
   console.log(`[chat-lan] ${name} (${localId}) ouvindo na porta ${port}`);
 
-  peers.on('peer', (peer) => sendToRenderer(IPC.peer, peer));
-  peers.on('message', (msg) => {
-    sendToRenderer(IPC.message, msg);
-    notifyIfUnfocused(`${msg.fromName} diz:`, msg.text);
+  peers.on('peer', (peer) => {
+    sendToRenderer(IPC.peer, peer);
+    chats.peerChanged(peer);
   });
-  peers.on('avatar', (avatar) => sendToRenderer(IPC.peerAvatar, avatar));
+  peers.on('avatar', (avatar) => broadcast(IPC.peerAvatar, avatar));
+  peers.on('message', (msg) => {
+    chats.receive(msg.from, { kind: 'text', message: msg });
+    notifyChat(msg.from, `${msg.fromName} diz:`, msg.text);
+  });
   peers.on('wink', (wink) => {
-    sendToRenderer(IPC.wink, wink);
-    notifyIfUnfocused('Chat Live Messenger', `${wink.fromName} enviou um wink`);
+    chats.receive(wink.from, { kind: 'wink', wink });
+    notifyChat(wink.from, 'Chat Live Messenger', `${wink.fromName} enviou um wink`);
   });
   peers.on('nudge', (nudge) => {
-    sendToRenderer(IPC.nudge, nudge);
-    notifyIfUnfocused('Chat Live Messenger', `${nudge.fromName} chamou a sua atenção!`);
-    shakeWindow();
+    chats.receive(nudge.from, { kind: 'nudge', nudge });
+    notifyChat(nudge.from, 'Chat Live Messenger', `${nudge.fromName} chamou a sua atenção!`);
   });
   peers.on('image', (img) => {
-    sendToRenderer(IPC.image, img);
-    notifyIfUnfocused(`${img.fromName} enviou uma imagem`, img.name);
+    chats.receive(img.from, { kind: 'image', image: img });
+    notifyChat(img.from, `${img.fromName} enviou uma imagem`, img.name);
   });
 
   const discovery = new Discovery({
@@ -254,12 +271,16 @@ async function login(req: LoginRequest): Promise<SelfInfo> {
     .filter((t, i) => !isSelfTarget(t, port) && others.findIndex((o) => sameTarget(o, t)) === i)
     .forEach((t) => peers.connect(t.host, t.port).catch((): void => undefined));
 
+  refreshTray();
   return selfInfo(session);
 }
 
 async function logout() {
+  chats?.closeAll();
+  conversations.clear();
   const s = session;
   session = null;
+  refreshTray();
   if (!s) return;
   await Promise.allSettled([s.discovery.stop(), s.peers.stop()]);
 }
@@ -308,6 +329,11 @@ function applyLayout(w: BrowserWindow, layout: WindowLayout) {
   w.setBounds({ x, y, width, height }, true);
 }
 
+function requirePeerId(v: unknown): string {
+  if (typeof v !== 'string' || !v) throw new Error('Contato inválido');
+  return v;
+}
+
 function registerIpc() {
   const win = (e: Electron.IpcMainEvent) => BrowserWindow.fromWebContents(e.sender);
   ipcMain.on(IPC.minimize, (e) => win(e)?.minimize());
@@ -343,6 +369,8 @@ function registerIpc() {
         profile: { ...settings.profile, name: s.peers.name, status: s.peers.status, message: s.peers.message },
       });
     }
+    broadcast(IPC.selfChanged, selfInfo(s));
+    refreshTray();
     return selfInfo(s);
   });
 
@@ -352,6 +380,7 @@ function registerIpc() {
     if (data !== null && !image) throw new Error('Imagem inválida');
     avatars.setCurrent(image);
     session?.peers.setAvatar(image);
+    broadcast(IPC.myAvatarChanged, avatars.getCurrent());
   });
   handle(IPC.getAvatarLibrary, () => [...avatars.listBuiltin(), ...avatars.listUploads()]);
   handle(IPC.addAvatarUpload, (data: unknown) => {
@@ -366,6 +395,7 @@ function registerIpc() {
     const valid = validateFont(font);
     if (!valid) throw new Error('Fonte inválida');
     saveSettings({ ...settings, font: valid });
+    broadcast(IPC.fontChanged, valid);
     return valid;
   });
 
@@ -379,11 +409,13 @@ function registerIpc() {
   handle(IPC.giphySearch, (query: unknown, offset: unknown) =>
     giphy.search(typeof query === 'string' ? query : '', Number(offset) || 0),
   );
-  handle(IPC.giphySend, async (id: unknown) => {
+  handle(IPC.giphySend, async (to: unknown, id: unknown) => {
     const s = requireSession();
+    const peerId = requirePeerId(to);
     const gif = await giphy.fetchForSending(String(id));
     const name = `${gif.title.replace(/[^\p{L}\p{N} _-]/gu, '').trim().slice(0, 60) || 'giphy'}.gif`;
-    const meta = s.peers.sendImage({ name, data: gif.data });
+    const meta = s.peers.sendImage(peerId, { name, data: gif.data });
+    chats.record(peerId, { kind: 'image', image: { ...meta, data: gif.data } });
     return { meta, data: gif.data };
   });
 
@@ -395,23 +427,44 @@ function registerIpc() {
   handle(IPC.checkForUpdates, () => updater?.check());
 
   handle(IPC.getPeers, () => session?.peers.getPeers() ?? []);
-  handle(IPC.send, (text: unknown) => {
+  handle(IPC.send, (to: unknown, text: unknown) => {
     if (typeof text !== 'string') throw new Error('Texto inválido');
-    return requireSession().peers.sendText(text, settings.font ?? DEFAULT_FONT);
+    const peerId = requirePeerId(to);
+    const message = requireSession().peers.sendText(peerId, text, settings.font ?? DEFAULT_FONT);
+    chats.record(peerId, { kind: 'text', message });
+    return message;
   });
-  handle(IPC.sendImage, (image: OutgoingImage) => {
+  handle(IPC.sendImage, (to: unknown, image: OutgoingImage) => {
     if (!image || !(image.data instanceof Uint8Array)) throw new Error('Imagem inválida');
-    return requireSession().peers.sendImage({ name: String(image.name ?? ''), data: image.data });
+    const peerId = requirePeerId(to);
+    const meta = requireSession().peers.sendImage(peerId, { name: String(image.name ?? ''), data: image.data });
+    chats.record(peerId, { kind: 'image', image: { ...meta, data: image.data } });
+    return meta;
   });
-  handle(IPC.sendNudge, () => {
-    const nudge = requireSession().peers.sendNudge();
+  handle(IPC.sendNudge, (to: unknown) => {
+    const peerId = requirePeerId(to);
+    const nudge = requireSession().peers.sendNudge(peerId);
+    chats.record(peerId, { kind: 'nudge', nudge });
     // No MSN a janela de quem chama também treme.
-    shakeWindow();
+    chats.get(peerId)?.shake();
     return nudge;
   });
-  handle(IPC.sendWink, (wink: unknown) => {
+  handle(IPC.sendWink, (to: unknown, wink: unknown) => {
     if (!isWinkId(wink)) throw new Error('Wink desconhecido');
-    return requireSession().peers.sendWink(wink);
+    const peerId = requirePeerId(to);
+    const sent = requireSession().peers.sendWink(peerId, wink);
+    chats.record(peerId, { kind: 'wink', wink: sent });
+    return sent;
+  });
+  ipcMain.on(IPC.openChat, (_e, peerId: unknown) => {
+    if (typeof peerId === 'string') chats.open(peerId, true);
+  });
+  handle(IPC.getChatInit, (peerId: unknown): ChatInit => {
+    const id = requirePeerId(peerId);
+    return {
+      peer: session?.peers.getPeers().find((p) => p.id === id) ?? null,
+      history: conversations.get(id),
+    };
   });
   handle(IPC.connect, async (host: unknown, port: unknown) => {
     if (typeof host !== 'string' || !host.trim()) throw new Error('IP inválido');
@@ -435,10 +488,61 @@ function registerIpc() {
  */
 function startUpdater() {
   if (!app.isPackaged || process.platform !== 'win32') return;
-  updater = new Updater(autoUpdater, (status) => sendToRenderer(IPC.updateStatus, status));
+  updater = new Updater(autoUpdater, (status) => {
+    sendToRenderer(IPC.updateStatus, status);
+    refreshTray();
+  });
+  // O quitAndInstall fecha as janelas antes do before-quit: sem isso, o "X" da home esconderia em vez de fechar.
+  autoUpdater.on('before-quit-for-update', () => {
+    quitting = true;
+  });
   // Logo após instalar, o Squirrel ainda está mexendo nos arquivos: espera mais para a 1ª checagem.
   const firstRun = process.argv.includes('--squirrel-firstrun');
   updater.start(feedUrl(process.platform, process.arch, app.getVersion()), firstRun ? 60_000 : 10_000);
+}
+
+const WEB_PREFERENCES: Electron.WebPreferences = {
+  preload: path.join(__dirname, 'preload.js'),
+  contextIsolation: true,
+  nodeIntegration: false,
+  sandbox: true,
+};
+
+/** Mesmo index.html em todas as janelas; `query` (ex.: "chat=<id>") diz o papel da janela. */
+function loadRenderer(w: BrowserWindow, query = '') {
+  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+    w.loadURL(query ? `${MAIN_WINDOW_VITE_DEV_SERVER_URL}?${query}` : MAIN_WINDOW_VITE_DEV_SERVER_URL);
+  } else {
+    w.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`), query ? { search: query } : undefined);
+  }
+}
+
+/** Nada de navegação ou janelas novas a partir do conteúdo. */
+function harden(w: BrowserWindow) {
+  w.webContents.on('will-navigate', (e) => e.preventDefault());
+  w.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\//.test(url)) shell.openExternal(url);
+    return { action: 'deny' };
+  });
+  w.on('focus', () => w.flashFrame(false));
+}
+
+function showMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    createWindow();
+    return;
+  }
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+}
+
+/** Aviso único por execução: fechar a home não sai do app. */
+function showTrayHintOnce() {
+  if (trayHintShown || !Notification.isSupported()) return;
+  trayHintShown = true;
+  const where = process.platform === 'darwin' ? 'na barra de menus' : 'na bandeja';
+  new Notification({ title: 'Chat Live Messenger', body: `O Chat continua rodando ${where}.`, silent: true }).show();
 }
 
 const createWindow = () => {
@@ -452,31 +556,73 @@ const createWindow = () => {
     // Sem moldura nativa: a barra de título azul (estilo MSN) é desenhada pela interface.
     frame: false,
     backgroundColor: '#ffffff',
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: true,
-    },
+    webPreferences: WEB_PREFERENCES,
   });
-
-  // Nada de navegação ou janelas novas a partir do conteúdo.
-  mainWindow.webContents.on('will-navigate', (e) => e.preventDefault());
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^https?:\/\//.test(url)) shell.openExternal(url);
-    return { action: 'deny' };
-  });
+  harden(mainWindow);
   currentLayout.set(mainWindow, 'login');
-  mainWindow.on('focus', () => mainWindow?.flashFrame(false));
+  loadRenderer(mainWindow);
 
-  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
-  } else {
-    mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
-  }
-
+  // Logado: o "X" esconde na bandeja e o app continua online. Na tela de login: fecha o app.
+  mainWindow.on('close', (e) => {
+    if (quitting) return;
+    e.preventDefault();
+    if (session) {
+      mainWindow?.hide();
+      showTrayHintOnce();
+    } else {
+      app.quit();
+    }
+  });
   mainWindow.on('closed', () => (mainWindow = null));
 };
+
+function createChatWindow(peerId: string, onClosed: () => void): ChatWindowHandle {
+  const l = LAYOUTS.chat;
+  const w = new BrowserWindow({
+    width: l.width,
+    height: l.height,
+    minWidth: l.minWidth,
+    minHeight: l.minHeight,
+    show: false,
+    title: 'Conversa - Chat Live Messenger',
+    frame: false,
+    backgroundColor: '#ffffff',
+    webPreferences: WEB_PREFERENCES,
+  });
+  harden(w);
+  currentLayout.set(w, 'chat');
+  w.on('closed', onClosed);
+  loadRenderer(w, `chat=${encodeURIComponent(peerId)}`);
+  return {
+    get destroyed() {
+      return w.isDestroyed();
+    },
+    get focused() {
+      return !w.isDestroyed() && w.isFocused();
+    },
+    show(focus) {
+      if (w.isDestroyed()) return;
+      if (focus) {
+        if (w.isMinimized()) w.restore();
+        w.show();
+        w.focus();
+        return;
+      }
+      // Como no MSN: aparece atrás do que você está fazendo e pisca na barra de tarefas (minimizada continua minimizada).
+      if (!w.isVisible() && !w.isMinimized()) w.showInactive();
+      if (!w.isFocused()) w.flashFrame(true);
+    },
+    send(channel, payload) {
+      if (!w.isDestroyed()) w.webContents.send(channel, payload);
+    },
+    close() {
+      if (!w.isDestroyed()) w.close();
+    },
+    shake() {
+      shakeWindow(w);
+    },
+  };
+}
 
 app.on('ready', () => {
   store = new SettingsStore(app.getPath('userData'));
@@ -487,13 +633,22 @@ app.on('ready', () => {
   avatars = new AvatarStore(app.getPath('userData'), builtinAvatars);
   settings = store.load();
   registerIpc();
+  chats = new ChatWindows(createChatWindow, conversations, (id) =>
+    !!session?.peers.getPeers().some((p) => p.id === id),
+  );
   createWindow();
+  const trayIcons = MAIN_WINDOW_VITE_DEV_SERVER_URL
+    ? path.join(app.getAppPath(), 'public', 'tray')
+    : path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/tray`);
+  tray = createTray(trayIcons, { open: showMainWindow, quit: () => app.quit() });
+  refreshTray();
   startUpdater();
 });
 
 let shuttingDown = false;
 app.on('before-quit', (e) => {
   if (shuttingDown) return;
+  quitting = true;
   shuttingDown = true;
   e.preventDefault();
   // Limpa a rede (avisa a saída via mDNS) e encerra. app.exit direto: um segundo
@@ -511,9 +666,4 @@ app.on('window-all-closed', () => {
   }
 });
 
-app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
-  }
-});
-
+app.on('activate', () => showMainWindow());
