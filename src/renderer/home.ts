@@ -141,7 +141,12 @@ function contactRow(p: PeerInfo) {
   li.tabIndex = 0;
   li.title = `${p.name} — ${p.online ? STATUS_LABEL[p.status] : 'Offline'}\n${p.address}\nClique duas vezes para abrir a conversa`;
   if (p.id === selectedId) li.classList.add('is-selected');
-  if (unread.has(p.id)) li.classList.add('is-unread');
+  if (unread.has(p.id)) {
+    li.classList.add('is-unread');
+    // Ciclo de 2 s (1 s ida e volta): mesma fase em qualquer re-render, o pulso não recomeça.
+    li.style.animationDelay = `${-(Date.now() % 2000)}ms`;
+    li.title += '\nNova mensagem';
+  }
 
   const extra = [p.online && p.status !== 'available' ? `(${STATUS_LABEL[p.status]})` : '', p.message ? `- ${p.message}` : '']
     .filter(Boolean)
@@ -219,7 +224,11 @@ els.menuBtn.addEventListener('click', () =>
     { label: 'Adicionar contato por IP...', onSelect: () => void openAddDialog() },
     {
       label: `${soundsOn ? '✓ ' : ''}Sons de mensagem`,
-      onSelect: () => void chat().setSounds(!soundsOn).then(setSoundsOn),
+      onSelect: () =>
+        void chat()
+          .setSounds(!soundsOn)
+          .then(setSoundsOn)
+          .catch((err) => console.warn(errorMessage(err))),
     },
     { label: 'Ajuda de rede', onSelect: () => handlers.help() },
     'separator',

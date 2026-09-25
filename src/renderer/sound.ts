@@ -43,6 +43,7 @@ void findSoundFile('message');
 /** Chacoalhar sintetizado: ruído filtrado, cortado em pulsos rápidos, com o tom descendo. */
 function playNudgeSynth() {
   ctx ??= new AudioContext();
+  if (ctx.state === 'suspended') void ctx.resume();
   const t = ctx.currentTime;
   const duration = 0.75;
 
@@ -88,6 +89,7 @@ function playNudgeSynth() {
 /** "Plim" de nova mensagem: duas notas curtas subindo, com um brilho de harmônico. */
 function playMessageSynth() {
   ctx ??= new AudioContext();
+  if (ctx.state === 'suspended') void ctx.resume();
   const t = ctx.currentTime;
   const notes: Array<[number, number]> = [
     [880, 0], // lá

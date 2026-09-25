@@ -23,7 +23,7 @@ describe('shouldPlayMessageSound', () => {
     expect(shouldPlayMessageSound({ ...base, item: text(true) })).toBe(false);
   });
 
-  it('toca para imagem e wink; não para nudge (tem som próprio) nem aviso do sistema', () => {
+  it('toca para imagem; não para wink e nudge (têm som próprio) nem aviso do sistema', () => {
     const image: ConversationItem = {
       seq: 2,
       at: 1,
@@ -34,7 +34,7 @@ describe('shouldPlayMessageSound', () => {
     const nudge: ConversationItem = { seq: 4, at: 1, kind: 'nudge', nudge: { from: 'bbb', fromName: 'X', ts: 1, self: false } };
     const system: ConversationItem = { seq: 5, at: 1, kind: 'system', text: 'X saiu' };
     expect(shouldPlayMessageSound({ ...base, item: image })).toBe(true);
-    expect(shouldPlayMessageSound({ ...base, item: wink })).toBe(true);
+    expect(shouldPlayMessageSound({ ...base, item: wink })).toBe(false);
     expect(shouldPlayMessageSound({ ...base, item: nudge })).toBe(false);
     expect(shouldPlayMessageSound({ ...base, item: system })).toBe(false);
   });

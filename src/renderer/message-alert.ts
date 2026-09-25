@@ -23,6 +23,5 @@ export function shouldPlayMessageSound(i: MessageSoundInput): boolean {
   const { item } = i;
   if (item.kind === 'text') return !item.message.self;
   if (item.kind === 'image') return !item.image.self;
-  if (item.kind === 'wink') return !item.wink.self;
-  return false; // nudge tem som próprio; aviso do sistema não toca
+  return false; // nudge e wink têm som próprio; aviso do sistema não toca
 }
