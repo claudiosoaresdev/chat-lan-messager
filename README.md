@@ -66,6 +66,10 @@ A rede (servidor, mDNS e reconexões) só sobe depois de **Entrar** e é derruba
 - Fechar a lista de contatos não sai do app: ele continua online na bandeja (ou na barra de menus do
   mac). Para sair, use **Sair** no menu do ícone da borboleta.
 - O histórico da conversa vale enquanto o app estiver aberto; ao sair, ele some (como no MSN).
+- Mensagem nova com a conversa fora de foco: o botão da conversa pisca e fica laranja na barra de tarefas,
+  o contato pisca na lista e toca um som. Para desligar o som, use **Sons de mensagem** no menu ☰.
+- Para usar os sons originais do MSN, coloque `message.wav` (nova mensagem) e `nudge.wav` (chamar atenção)
+  em `public/sounds/` antes de gerar o app.
 
 ### Porta e conexão automática ao abrir
 
