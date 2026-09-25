@@ -200,24 +200,33 @@ export interface ChatApi {
   setGiphyKey(key: string | null): Promise<void>;
   giphySearch(query: string, offset?: number): Promise<{ items: GiphyItem[]; next: number | null }>;
   /** Baixa o GIF e envia como imagem pela rede local; devolve os bytes para mostrar na sua conversa. */
-  giphySend(id: string): Promise<{ meta: UiImageMeta; data: Uint8Array }>;
+  giphySend(to: string, id: string): Promise<{ meta: UiImageMeta; data: Uint8Array }>;
 
-  // contatos e mensagens
+  // contatos e mensagens (sempre para um contato)
   getPeers(): Promise<PeerInfo[]>;
-  send(text: string): Promise<UiChatMessage>;
-  sendImage(image: OutgoingImage): Promise<UiImageMeta>;
-  /** Chamar atenção de todos na conversa (a janela deles treme). */
-  nudge(): Promise<UiNudge>;
-  /** Envia um wink (animação) para todos na conversa. */
-  sendWink(wink: WinkId): Promise<UiWink>;
+  send(to: string, text: string): Promise<UiChatMessage>;
+  sendImage(to: string, image: OutgoingImage): Promise<UiImageMeta>;
+  /** Chamar atenção do contato (a janela dele treme). */
+  nudge(to: string): Promise<UiNudge>;
+  /** Envia um wink (animação) para o contato. */
+  sendWink(to: string, wink: WinkId): Promise<UiWink>;
   connect(host: string, port: number): Promise<void>;
   getSaved(): Promise<SavedPeer[]>;
   forget(host: string, port: number): Promise<SavedPeer[]>;
-  onMessage(cb: (msg: UiChatMessage) => void): Unsubscribe;
-  onImage(cb: (img: UiImageMessage) => void): Unsubscribe;
   onPeer(cb: (peer: PeerInfo) => void): Unsubscribe;
-  onNudge(cb: (nudge: UiNudge) => void): Unsubscribe;
-  onWink(cb: (wink: UiWink) => void): Unsubscribe;
+
+  // janelas de conversa
+  /** Abre (ou traz para frente) a janela de conversa com o contato. */
+  openChat(peerId: string): void;
+  /** Contato e histórico da sessão, pedidos pela janela de conversa ao abrir. */
+  getChatInit(peerId: string): Promise<ChatInit>;
+  /** Item novo na conversa desta janela (mensagem, imagem, wink, nudge ou aviso). */
+  onChatItem(cb: (item: ConversationItem) => void): Unsubscribe;
+
+  // mudanças feitas em outra janela
+  onSelfChanged(cb: (self: SelfInfo) => void): Unsubscribe;
+  onFontChanged(cb: (font: MessageFont) => void): Unsubscribe;
+  onMyAvatarChanged(cb: (avatar: AvatarImage | null) => void): Unsubscribe;
 
   // atualização automática
   getUpdateStatus(): Promise<UpdateStatus>;
@@ -257,14 +266,16 @@ export const IPC = {
   sendImage: 'chat:send-image',
   sendNudge: 'chat:send-nudge',
   sendWink: 'chat:send-wink',
-  wink: 'chat:wink',
-  nudge: 'chat:nudge',
   connect: 'chat:connect',
   getSaved: 'chat:get-saved',
   forget: 'chat:forget',
-  message: 'chat:message',
-  image: 'chat:image',
   peer: 'chat:peer',
+  openChat: 'chat:open',
+  getChatInit: 'chat:init',
+  chatItem: 'chat:item',
+  selfChanged: 'session:self-changed',
+  fontChanged: 'font:changed',
+  myAvatarChanged: 'avatar:mine-changed',
   getUpdateStatus: 'update:status',
   installUpdate: 'update:install',
   checkForUpdates: 'update:check',
