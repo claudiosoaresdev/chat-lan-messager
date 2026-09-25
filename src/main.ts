@@ -133,11 +133,20 @@ function selfInfo(s: Session): SelfInfo {
   };
 }
 
+/** Referência às notificações abertas: sem isso o GC pode levar o clique embora. */
+const openNotifications = new Set<Notification>();
+
 /** Notificação do sistema quando a conversa do contato não está em foco; o clique traz a conversa. */
 function notifyChat(peerId: string, title: string, body: string) {
   if (chats.get(peerId)?.focused || !Notification.isSupported()) return;
   const n = new Notification({ title, body: body.slice(0, 200), silent: false });
-  n.on('click', () => chats.open(peerId, true));
+  openNotifications.add(n);
+  const release = () => openNotifications.delete(n);
+  n.on('close', release);
+  n.on('click', () => {
+    release();
+    chats.open(peerId, true);
+  });
   n.show();
 }
 
@@ -276,6 +285,7 @@ async function login(req: LoginRequest): Promise<SelfInfo> {
 }
 
 async function logout() {
+  // `?.`: o app pode sair antes do 'ready' (instalação do Squirrel), com `chats` ainda não criado.
   chats?.closeAll();
   conversations.clear();
   const s = session;
