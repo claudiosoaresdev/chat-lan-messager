@@ -46,10 +46,13 @@ export class ChatWindows {
     if (!w) {
       const created: ChatWindowHandle = this.create(peerId, {
         onClosed: () => {
-          if (this.windows.get(peerId) === created) this.windows.delete(peerId);
+          if (this.windows.get(peerId) !== created) return;
+          this.windows.delete(peerId);
           this.setUnread(peerId, false);
         },
-        onFocused: () => this.setUnread(peerId, false),
+        onFocused: () => {
+          if (this.windows.get(peerId) === created) this.setUnread(peerId, false);
+        },
       });
       this.windows.set(peerId, created);
       w = created;
@@ -105,6 +108,7 @@ export class ChatWindows {
   }
 
   closeAll(): void {
+    // Limpa antes de fechar: os onClosed seguintes não avisam a home, que volta ao login.
     this.unread.clear();
     for (const w of this.windows.values()) if (!w.destroyed) w.close();
     this.windows.clear();

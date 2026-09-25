@@ -162,6 +162,15 @@ describe('ChatWindows', () => {
     expect(unreadEvents).toEqual([['bbb', true]]);
   });
 
+  it('janela aberta mas fora de foco também marca', () => {
+    const { chats, created, unreadEvents } = setup();
+    chats.open('bbb', true);
+    created[0].blur();
+    chats.receive('bbb', text('oi'));
+    expect(chats.unreadIds()).toEqual(['bbb']);
+    expect(unreadEvents).toEqual([['bbb', true]]);
+  });
+
   it('item recebido com a conversa em foco não marca', () => {
     const { chats, unreadEvents } = setup();
     chats.open('bbb', true);
