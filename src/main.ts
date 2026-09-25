@@ -432,6 +432,8 @@ function registerIpc() {
   handle(IPC.getUpdateStatus, () => updater?.getStatus() ?? { state: 'idle' });
   handle(IPC.installUpdate, () => {
     if (!updater) throw new Error('Atualização automática indisponível nesta versão.');
+    // Garante que o "X" da home não esconda durante a instalação.
+    quitting = true;
     updater.install();
   });
   handle(IPC.checkForUpdates, () => updater?.check());
@@ -584,6 +586,10 @@ const createWindow = () => {
     }
   });
   mainWindow.on('closed', () => (mainWindow = null));
+  // Desligar/sair do Windows não emite before-quit: sem isso, o "X" da home tentaria esconder na bandeja.
+  mainWindow.on('session-end', () => {
+    quitting = true;
+  });
 };
 
 function createChatWindow(peerId: string, onClosed: () => void): ChatWindowHandle {

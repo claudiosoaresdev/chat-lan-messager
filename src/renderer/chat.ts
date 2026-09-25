@@ -52,7 +52,7 @@ const els = {
 const TEXT_PLACEHOLDER = els.text.placeholder;
 
 /** Contato desta janela; erro se a janela não é de conversa. */
-export function to(): string {
+function to(): string {
   if (!state.peerId) throw new Error('Conversa sem contato');
   return state.peerId;
 }
@@ -328,6 +328,7 @@ buildWinkGrid(els.winkGrid, (id) => void sendWink(id));
 initGiphy({
   sent: (meta, data) => addImage(meta, new Blob([data as Uint8Array<ArrayBuffer>], { type: meta.mime })),
   close: () => closePickers(),
+  to,
 });
 
 // ---------------------------------------------------------------- emoticons e grades suspensas

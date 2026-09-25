@@ -34,14 +34,15 @@ quando a home é fechada, como no MSN Messenger.
 ### Histórico da sessão (`src/main/conversations.ts`, novo)
 
 - Guarda em memória, por id de contato, a lista de itens da conversa: texto, imagem (com os bytes),
-  wink, nudge e avisos do sistema ("entrou", "saiu", erros de envio).
+  wink, nudge e avisos do sistema ("entrou", "saiu").
 - Teto de 200 itens por contato; ao passar, descarta os mais antigos.
 - `clear()` no logout. Nada é gravado em disco.
 - Serve para a janela recém-aberta carregar o que já chegou e para reabrir uma conversa fechada.
 
-### Gerente de janelas (`src/main/windows.ts`, novo)
+### Gerente de janelas (`src/main/chat-windows.ts`, novo)
 
-- Mantém a janela principal (login/home) e um `Map<idContato, BrowserWindow>` das conversas.
+- Cuida só das janelas de conversa: um `Map<idContato, BrowserWindow>`. A janela principal (login/home)
+  continua no `main.ts`.
 - `openChat(id, { focus })`: se a janela existe, mostra e (com `focus`) foca; se não, cria. Com
   `focus: false`, usa `showInactive()` e `flashFrame(true)`. O piscar para quando a janela ganha foco.
 - Roteamento de eventos da rede:
@@ -57,8 +58,8 @@ quando a home é fechada, como no MSN Messenger.
 
 ### Ícone da bandeja
 
-- Borboleta em PNG (gerada uma vez do SVG e versionada em `assets/tray/`). No mac, imagem template
-  monocromática.
+- Borboleta em PNG (gerada uma vez do SVG por `scripts/make-tray-icons.mjs` e versionada em
+  `public/tray/`). No mac, imagem template monocromática.
 - Dica: `Chat Live Messenger – <nome> (<status>)`, ou `Chat Live Messenger` fora de sessão.
   Com atualização pronta, acrescenta `– Atualização disponível`.
 - Clique (Windows): mostra e foca a home. No mac o clique abre o menu.

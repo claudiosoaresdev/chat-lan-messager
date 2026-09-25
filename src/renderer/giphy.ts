@@ -2,7 +2,6 @@
 // aqui só chegam bytes (prévias em blob:), então a CSP da interface continua fechada.
 import type { UiImageMeta } from '../shared/api';
 import { $, chat, el, errorMessage } from './dom';
-import { to } from './chat';
 
 const els = {
   setup: $('gif-setup'),
@@ -20,6 +19,9 @@ const els = {
 
 let onSent: (meta: UiImageMeta, data: Uint8Array) => void = () => undefined;
 let onClose: () => void = () => undefined;
+let getTo: () => string = () => {
+  throw new Error('Conversa sem contato');
+};
 let urls: string[] = [];
 let currentQuery: string | null = null;
 let nextOffset: number | null = null;
@@ -41,7 +43,7 @@ async function send(id: string, title: string) {
   sending = true;
   setStatus(`Enviando "${title}"…`);
   try {
-    const { meta, data } = await chat().giphySend(to(), id);
+    const { meta, data } = await chat().giphySend(getTo(), id);
     onSent(meta, data);
     setStatus('');
     onClose();
@@ -141,7 +143,8 @@ export async function onGifPickerOpened() {
   }
 }
 
-export function initGiphy(handlers: { sent(meta: UiImageMeta, data: Uint8Array): void; close(): void }) {
+export function initGiphy(handlers: { sent(meta: UiImageMeta, data: Uint8Array): void; close(): void; to(): string }) {
   onSent = handlers.sent;
   onClose = handlers.close;
+  getTo = handlers.to;
 }
