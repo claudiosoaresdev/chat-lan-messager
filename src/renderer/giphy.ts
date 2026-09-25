@@ -2,7 +2,7 @@
 // aqui só chegam bytes (prévias em blob:), então a CSP da interface continua fechada.
 import type { UiImageMeta } from '../shared/api';
 import { $, chat, el, errorMessage } from './dom';
-import { state } from './state';
+import { to } from './chat';
 
 const els = {
   setup: $('gif-setup'),
@@ -41,7 +41,7 @@ async function send(id: string, title: string) {
   sending = true;
   setStatus(`Enviando "${title}"…`);
   try {
-    const { meta, data } = await chat().giphySend(state.peerId ?? '', id);
+    const { meta, data } = await chat().giphySend(to(), id);
     onSent(meta, data);
     setStatus('');
     onClose();

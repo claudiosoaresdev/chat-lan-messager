@@ -19,12 +19,7 @@ export const state = {
 };
 
 type Listener = () => void;
-const viewListeners: Array<(v: ViewName) => void> = [];
 const peerListeners: Listener[] = [];
-
-export function onViewChange(fn: (v: ViewName) => void) {
-  viewListeners.push(fn);
-}
 
 export function onPeersChange(fn: Listener) {
   peerListeners.push(fn);
@@ -36,7 +31,6 @@ export function showView(view: ViewName) {
   $('titlebar-title').textContent = TITLES[view];
   // Como no Messenger: login e conversa em paisagem, lista de contatos em pé.
   chat().setLayout(view === 'home' ? 'app' : view);
-  viewListeners.forEach((fn) => fn(view));
 }
 
 export function setPeers(list: PeerInfo[]) {
@@ -51,9 +45,6 @@ export function upsertPeer(peer: PeerInfo): PeerInfo | undefined {
   peerListeners.forEach((fn) => fn());
   return prev;
 }
-
-export const onlinePeers = () =>
-  [...state.peers.values()].filter((p) => p.online).sort((a, b) => a.name.localeCompare(b.name));
 
 export function resetSession() {
   state.self = null;

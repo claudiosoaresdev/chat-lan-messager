@@ -102,7 +102,7 @@ quando a home é fechada, como no MSN Messenger.
 - Cabeçalho com nome, status, mensagem pessoal e avatar do contato, no lugar do cabeçalho de grupo.
 - Removidos: botões "Contatos" e "Convidar".
 - Barra de título própria com minimizar, maximizar e fechar (a atual, reaproveitada).
-- Ao abrir, pede ao main o histórico do contato e o renderiza antes de assinar os eventos novos.
+- Ao abrir, assina os itens novos, pede ao main o histórico, renderiza o histórico e depois os itens que chegaram no meio, sem repetir (pelo `seq`).
 - Contato offline: campo de envio desativado com o aviso "<nome> está offline". Reativa quando ele
   volta.
 - Avisos "entrou" e "saiu" só na conversa daquele contato.

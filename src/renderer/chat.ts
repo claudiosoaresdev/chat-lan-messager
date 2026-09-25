@@ -1,6 +1,6 @@
 // Janela de conversa com um contato, no formato do MSN: "Fulano diz:" e a mensagem recuada embaixo.
 import type { PeerInfo, UiChatMessage, UiImageMeta, UiNudge, UiWink } from '../shared/api';
-import type { WinkId } from '../shared/protocol';
+import type { PresenceStatus, WinkId } from '../shared/protocol';
 import { IMAGE_MIME_TYPES, MAX_IMAGE_BYTES } from '../shared/protocol';
 import { $, chat, el, errorMessage, timeFmt } from './dom';
 import { onPeerAvatarsChange, paintAvatar, peerAvatarUrl } from './avatar';
@@ -52,7 +52,7 @@ const els = {
 const TEXT_PLACEHOLDER = els.text.placeholder;
 
 /** Contato desta janela; erro se a janela não é de conversa. */
-function to(): string {
+export function to(): string {
   if (!state.peerId) throw new Error('Conversa sem contato');
   return state.peerId;
 }
@@ -167,15 +167,6 @@ export function addSystem(text: string) {
   append(el('li', 'system', text));
 }
 
-export function clearChat() {
-  els.messages.querySelectorAll('img').forEach((img) => URL.revokeObjectURL(img.src));
-  els.messages.replaceChildren();
-  els.text.value = '';
-  els.error.textContent = '';
-  els.statusbar.textContent = '\u00a0';
-  last = null;
-}
-
 /** Cabeçalho, título da janela (aparece na barra de tarefas) e caixa de texto conforme o contato. */
 export function setPeer(p: PeerInfo) {
   peer = p;
@@ -194,6 +185,10 @@ export function setPeer(p: PeerInfo) {
   els.sendBtn.disabled = !p.online;
   els.nudge.disabled = !p.online;
   els.fmtNudge.disabled = !p.online;
+  els.fmtImage.disabled = !p.online;
+  els.fmtWink.disabled = !p.online;
+  els.fmtGif.disabled = !p.online;
+  els.file.disabled = !p.online;
   els.text.placeholder = p.online ? TEXT_PLACEHOLDER : `${p.name} está offline.`;
 }
 
@@ -471,9 +466,14 @@ window.addEventListener('resize', () => {
 
 // ---------------------------------------------------------------- init
 
+/** Cor do status na minha imagem de exibição (muda quando troco o status na janela principal). */
+export function setSelfStatus(status: PresenceStatus) {
+  els.meAvatar.dataset.status = status;
+}
+
 export function enterChat() {
   restoreComposeHeight();
-  els.meAvatar.dataset.status = state.self?.status ?? 'available';
+  setSelfStatus(state.self?.status ?? 'available');
   els.messages.scrollTop = els.messages.scrollHeight;
   if (!els.text.disabled) els.text.focus();
 }

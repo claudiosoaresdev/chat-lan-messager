@@ -3,14 +3,16 @@ import type { ConversationItem, PeerInfo } from '../shared/api';
 import { chat } from './dom';
 import { applyPeerAvatar, initAvatars, loadMyAvatar, loadPeerAvatars, watchMyAvatar } from './avatar';
 import { loadFont, watchFontChanges } from './font';
-import { addImage, addNudge, addSystem, addText, addWink, enterChat, setPeer } from './chat';
+import { addImage, addNudge, addSystem, addText, addWink, enterChat, setPeer, setSelfStatus } from './chat';
 import { showView, state } from './state';
 
 /** Wink ou nudge que chegou há menos disso toca ao abrir: foi ele que abriu a janela. */
 const REPLAY_MS = 10_000;
 
 function render(item: ConversationItem, live: boolean) {
-  const fresh = live || Date.now() - item.at < REPLAY_MS;
+  // Wink ou nudge meu não toca de novo ao reler o histórico.
+  const ownItem = (item.kind === 'wink' && item.wink.self) || (item.kind === 'nudge' && item.nudge.self);
+  const fresh = live || (!ownItem && Date.now() - item.at < REPLAY_MS);
   switch (item.kind) {
     case 'text':
       addText(item.message);
@@ -52,6 +54,7 @@ export async function startChatWindow(peerId: string) {
     chat().close();
     return;
   }
+  chat().onPeerAvatar((a) => applyPeerAvatar(a));
   await Promise.all([loadMyAvatar(), loadFont(), loadPeerAvatars()]);
 
   // Assina antes de pedir o histórico; o que chegar no meio espera na fila e o seq evita repetidos.
@@ -68,9 +71,9 @@ export async function startChatWindow(peerId: string) {
   chat().onPeer((p) => {
     if (p.id === peerId) setPeer(p);
   });
-  chat().onPeerAvatar((a) => applyPeerAvatar(a));
   chat().onSelfChanged((self) => {
     state.self = self;
+    setSelfStatus(self.status);
   });
 
   const init = await chat().getChatInit(peerId);
