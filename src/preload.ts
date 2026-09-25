@@ -60,6 +60,12 @@ const api: ChatApi = {
   openChat: (peerId) => ipcRenderer.send(IPC.openChat, peerId),
   getChatInit: (peerId) => call(IPC.getChatInit, peerId),
   onChatItem: (cb) => subscribe(IPC.chatItem, cb),
+  getUnread: () => call(IPC.getUnread),
+  onUnreadChanged: (cb) => subscribe(IPC.unreadChanged, cb),
+
+  getSounds: () => call(IPC.getSounds),
+  setSounds: (on) => call(IPC.setSounds, on),
+  onSoundsChanged: (cb) => subscribe(IPC.soundsChanged, cb),
 
   onSelfChanged: (cb) => subscribe(IPC.selfChanged, cb),
   onFontChanged: (cb) => subscribe(IPC.fontChanged, cb),

@@ -222,6 +222,14 @@ export interface ChatApi {
   getChatInit(peerId: string): Promise<ChatInit>;
   /** Item novo na conversa desta janela (mensagem, imagem, wink, nudge ou aviso). */
   onChatItem(cb: (item: ConversationItem) => void): Unsubscribe;
+  /** Contatos com mensagem não vista (piscam na lista). */
+  getUnread(): Promise<string[]>;
+  onUnreadChanged(cb: (change: { peerId: string; unread: boolean }) => void): Unsubscribe;
+
+  // som de nova mensagem (menu ☰ da home)
+  getSounds(): Promise<boolean>;
+  setSounds(on: boolean): Promise<boolean>;
+  onSoundsChanged(cb: (on: boolean) => void): Unsubscribe;
 
   // mudanças feitas em outra janela
   onSelfChanged(cb: (self: SelfInfo) => void): Unsubscribe;
@@ -273,6 +281,11 @@ export const IPC = {
   openChat: 'chat:open',
   getChatInit: 'chat:init',
   chatItem: 'chat:item',
+  getUnread: 'chat:unread',
+  unreadChanged: 'chat:unread-changed',
+  getSounds: 'sound:get',
+  setSounds: 'sound:set',
+  soundsChanged: 'sound:changed',
   selfChanged: 'session:self-changed',
   fontChanged: 'font:changed',
   myAvatarChanged: 'avatar:mine-changed',

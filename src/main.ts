@@ -10,7 +10,7 @@ import { AvatarStore } from './main/avatar-store';
 import { GiphyClient, isGiphyKey } from './main/giphy';
 import { Updater, feedUrl } from './main/updater';
 import { Conversations } from './main/conversations';
-import { ChatWindows, type ChatWindowHandle } from './main/chat-windows';
+import { ChatWindows, type ChatWindowEvents, type ChatWindowHandle } from './main/chat-windows';
 import { createTray } from './main/tray';
 import { trayTooltip } from './main/tray-text';
 import {
@@ -74,7 +74,7 @@ interface Session {
 let session: Session | null = null;
 let store: SettingsStore;
 let avatars: AvatarStore;
-let settings: Settings = { manualPeers: [], profile: null, font: null, giphyKey: null };
+let settings: Settings = { manualPeers: [], profile: null, font: null, giphyKey: null, sounds: true };
 const giphy = new GiphyClient(() => settings.giphyKey);
 let mainWindow: BrowserWindow | null = null;
 let updater: Updater | null = null;
@@ -478,6 +478,14 @@ function registerIpc() {
       history: conversations.get(id),
     };
   });
+  handle(IPC.getUnread, () => chats.unreadIds());
+  handle(IPC.getSounds, () => settings.sounds);
+  handle(IPC.setSounds, (on: unknown) => {
+    if (typeof on !== 'boolean') throw new Error('Valor inválido');
+    saveSettings({ ...settings, sounds: on });
+    broadcast(IPC.soundsChanged, on);
+    return on;
+  });
   handle(IPC.connect, async (host: unknown, port: unknown) => {
     if (typeof host !== 'string' || !host.trim()) throw new Error('IP inválido');
     const p = Number(port);
@@ -592,7 +600,7 @@ const createWindow = () => {
   });
 };
 
-function createChatWindow(peerId: string, onClosed: () => void): ChatWindowHandle {
+function createChatWindow(peerId: string, events: ChatWindowEvents): ChatWindowHandle {
   const l = LAYOUTS.chat;
   const w = new BrowserWindow({
     width: l.width,
@@ -607,7 +615,8 @@ function createChatWindow(peerId: string, onClosed: () => void): ChatWindowHandl
   });
   harden(w);
   currentLayout.set(w, 'chat');
-  w.on('closed', onClosed);
+  w.on('closed', events.onClosed);
+  w.on('focus', events.onFocused);
   loadRenderer(w, `chat=${encodeURIComponent(peerId)}`);
   return {
     get destroyed() {
@@ -649,8 +658,11 @@ app.on('ready', () => {
   avatars = new AvatarStore(app.getPath('userData'), builtinAvatars);
   settings = store.load();
   registerIpc();
-  chats = new ChatWindows(createChatWindow, conversations, (id) =>
-    !!session?.peers.getPeers().some((p) => p.id === id),
+  chats = new ChatWindows(
+    createChatWindow,
+    conversations,
+    (id) => !!session?.peers.getPeers().some((p) => p.id === id),
+    (peerId, unread) => sendToRenderer(IPC.unreadChanged, { peerId, unread }),
   );
   createWindow();
   const trayIcons = MAIN_WINDOW_VITE_DEV_SERVER_URL
