@@ -41,8 +41,8 @@ O visual segue o do projeto MSN (`../msn`): janela sem moldura com barra de tít
    - **Entrar como**: Disponível, Ausente ou Ocupado.
    - **Lembrar minhas informações** / **Entrar automaticamente**, e em **Opções** a porta deste computador.
 2. **Contatos**: você no topo (status, mensagem pessoal e endereço), busca, grupos **Online** e **Offline** com status e mensagem pessoal de cada um. O botão com o boneco e o **+** adiciona um contato por IP e mostra os endereços salvos (o **×** esquece um).
-3. **Conversa em grupo**: fica no topo da lista, com o número de mensagens não lidas. Dois cliques em um contato também abrem a conversa. As mensagens aparecem no formato "Fulano diz:". Imagens (PNG, JPEG, WebP, GIF até 10 MB) vão pelo botão **Imagem**, arrastando para a conversa ou colando com Ctrl/Cmd+V.
-4. **Chamar atenção** (botão na barra da conversa ou ao lado do de imagem): a janela de todos treme e toca um som, como no MSN. Um a cada 5 s; chamadas repetidas do mesmo contato nesse intervalo são ignoradas.
+3. **Conversas**: as mensagens aparecem no formato "Fulano diz:". Imagens (PNG, JPEG, WebP, GIF até 10 MB) vão pelo botão **Imagem**, arrastando para a conversa ou colando com Ctrl/Cmd+V.
+4. **Chamar atenção** (botão na barra da conversa ou ao lado do de imagem): a janela do contato treme e toca um som, como no MSN. Um a cada 5 s; chamadas repetidas do mesmo contato nesse intervalo são ignoradas.
    - **Som original do MSN:** ele não vem com o projeto (é da Microsoft). Se você tiver o arquivo, coloque em `public/sounds/nudge.wav` (ou `nudge.mp3` / `nudge.ogg`) e rode o app ou o `npm run make` de novo: ele passa a ser usado e vai junto no instalador. Sem o arquivo, o app toca um chacoalhar sintetizado parecido.
 5. **Imagem de exibição**: clique no seu avatar (no login, na lista ou na conversa) para abrir a janela "Imagem de exibição", com a grade de imagens e o **Procurar...** para enviar uma do computador (recortada em quadrado 128×128). Ela vai para os contatos e aparece na lista (miniatura com moldura na cor do status) e na conversa.
    - **Imagens padrão** vêm de `public/avatars/`: qualquer PNG, JPEG, WebP, GIF ou SVG colocado lá aparece na grade (o nome do arquivo vira o título; `01-girassol.svg` → "Girassol").
@@ -50,11 +50,22 @@ O visual segue o do projeto MSN (`../msn`): janela sem moldura com barra de tít
 6. **Alterar fonte**: o botão **A** na barra da caixa de escrever abre a janela "Alterar fonte" (fonte, estilo, tamanho, sublinhado e cor). A fonte vai junto com cada mensagem, então os contatos veem suas mensagens nela, como no MSN; a escolha fica salva. Só fontes de uma lista fixa (com equivalentes no Windows e no Mac) são aceitas; fonte inválida recebida é ignorada e a mensagem aparece sem formatação.
 7. **Emoticons**: atalhos como `:)`, `:D`, `;)`, `:P`, `(H)`, `(Y)`, `(L)`/`<3`, `(C)` viram emoticons nas mensagens, nas mensagens pessoais e nos avisos. A carinha na barra da caixa de escrever abre a grade com os 35 emoticons (passe o mouse para ver o atalho). Os desenhos são próprios (não as imagens originais do MSN) e o texto viaja como atalho, então funciona com qualquer versão do app.
 8. **Divisor da conversa**: arraste a faixa pontilhada entre a conversa e a caixa de texto para aumentar uma ou outra (setas ↑/↓ com o divisor em foco; clique duplo volta ao padrão). O tamanho fica lembrado.
-9. **Winks**: o botão **Winks** abre a grade com 6 animações (Beijo, Corações, Risada, Fogos, Parabéns e Chuva de estrelas) que tocam por cima da conversa de todos, com som, como no MSN. Recebido fora da conversa, toca quando você abrir a conversa; "Ver de novo" repete. Um a cada 3 s. As animações são próprias (SVG + CSS); os winks originais eram animações Flash da Microsoft.
+9. **Winks**: o botão **Winks** abre a grade com 6 animações (Beijo, Corações, Risada, Fogos, Parabéns e Chuva de estrelas) que tocam na janela daquela conversa, com som, como no MSN. Se a conversa estiver fechada, a janela abre e o wink toca nela; "Ver de novo" repete. Um a cada 3 s. As animações são próprias (SVG + CSS); os winks originais eram animações Flash da Microsoft.
 10. **GIFs do GIPHY** (opcional, precisa de internet): o botão **GIF** abre a busca. Na primeira vez, cole uma API Key gratuita criada em [developers.giphy.com](https://developers.giphy.com/dashboard/) (fica salva só neste computador). A busca e o download são feitos pelo processo principal (a interface continua sem acesso à internet) e o GIF escolhido vai como imagem pela rede local, então quem recebe não precisa de internet. Sem internet ou sem chave, o resto do app funciona igual.
 11. Mensagem chegando fora da conversa gera um aviso no canto da janela e, com a janela em segundo plano, uma notificação do sistema.
 
 A rede (servidor, mDNS e reconexões) só sobe depois de **Entrar** e é derrubada em **Sair**. IPs conectados ficam salvos e reconectam sozinhos a cada 3 s enquanto o outro estiver fechado.
+
+### Conversas e bandeja
+
+- Clique duas vezes num contato para abrir a conversa com ele. Cada conversa tem a própria janela e o
+  próprio botão na barra de tarefas (Windows) ou no Dock (mac).
+- As mensagens vão só para aquele contato. Não existe mais a conversa em grupo.
+- Chegou mensagem de alguém cuja conversa está fechada? A janela abre sem roubar o foco e pisca na
+  barra de tarefas.
+- Fechar a lista de contatos não sai do app: ele continua online na bandeja (ou na barra de menus do
+  mac). Para sair, use **Sair** no menu do ícone da borboleta.
+- O histórico da conversa vale enquanto o app estiver aberto; ao sair, ele some (como no MSN).
 
 ### Porta e conexão automática ao abrir
 
@@ -160,4 +171,4 @@ A maioria dos problemas é de rede, não de código.
 
 ## Fora do MVP
 
-Histórico persistente, conversas 1:1, arquivos genéricos/grandes em chunks, criptografia (wss://) e pareamento por código, comunicação entre redes, assinatura de código e auto-update.
+Histórico persistente, arquivos genéricos/grandes em chunks, criptografia (wss://) e pareamento por código, comunicação entre redes, assinatura de código.
