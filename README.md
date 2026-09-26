@@ -75,6 +75,20 @@ A rede (servidor, mDNS e reconexões) só sobe depois de **Entrar** e é derruba
 - Para usar os sons originais do MSN, coloque `message.wav` (nova mensagem) e `nudge.wav` (chamar atenção)
   em `public/sounds/` antes de gerar o app.
 
+### Aparência
+
+No menu ☰ da lista de contatos, **Aparência...** abre a janela de modo e temas:
+
+- **Modo**: Sistema (segue o macOS/Windows na hora), Claro ou Escuro.
+- **Tema**: Azul clássico (o visual original), Verde, Rosa, Roxo, Laranja, Menta, Vermelho e Grafite, cada um
+  com versão clara e escura. O tema traz a cor e uma fonte sugerida para as mensagens (todas funcionam sem
+  internet). Todos os temas passam no contraste mínimo WCAG AA.
+- A prévia aparece na hora em todas as janelas abertas; **Cancelar** desfaz e **OK** salva.
+- Trocar a fonte depois em "Alterar fonte" deixa o tema como **Personalizado**; **Restaurar tema** volta a fonte
+  sugerida.
+- Cores de mensagem ilegíveis no fundo atual são ajustadas só na sua tela (no escuro, preto vira a cor de texto
+  do tema). O contato continua recebendo a cor que você escolheu.
+
 ### Porta e conexão automática ao abrir
 
 A porta padrão é **47800**, sempre a mesma, então o `IP:porta` de cada máquina não muda entre aberturas (o IP pode mudar se o roteador trocar o DHCP; reserve o IP no roteador para ficar fixo). Se a 47800 estiver ocupada, o app cai para uma porta livre e mostra qual na barra lateral.
