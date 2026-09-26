@@ -75,7 +75,7 @@ describe('SettingsStore', () => {
       font,
       giphyKey: 'abcDEF1234567890abcd',
       sounds: false,
-      appearance: { mode: 'dark', theme: 'roxo' },
+      appearance: { mode: 'dark', theme: 'roxo', scene: { kind: 'builtin', id: 'montanhas' } },
     });
     expect(store.load()).toEqual({
       manualPeers: [{ host: '10.0.0.2', port: 47800 }],
@@ -83,7 +83,7 @@ describe('SettingsStore', () => {
       font,
       giphyKey: 'abcDEF1234567890abcd',
       sounds: false,
-      appearance: { mode: 'dark', theme: 'roxo' },
+      appearance: { mode: 'dark', theme: 'roxo', scene: { kind: 'builtin', id: 'montanhas' } },
     });
 
     fs.writeFileSync(path.join(dir, 'settings.json'), '{ lixo');
@@ -96,7 +96,7 @@ describe('SettingsStore', () => {
       font: null,
       giphyKey: null,
       sounds: true,
-      appearance: { mode: 'system', theme: 'azul-classico' },
+      appearance: { mode: 'system', theme: 'azul-classico', scene: null },
     });
     fs.rmSync(dir, { recursive: true, force: true });
   });
@@ -118,18 +118,34 @@ describe('aparência', () => {
     return out;
   };
 
-  it('padrão: seguir o sistema com o Azul clássico', () => {
-    expect(load(undefined)).toEqual({ mode: 'system', theme: 'azul-classico' });
+  const DEFAULT = { mode: 'system', theme: 'azul-classico', scene: null as unknown };
+
+  it('padrão: seguir o sistema com o Azul clássico e a cena do tema', () => {
+    expect(load(undefined)).toEqual(DEFAULT);
   });
 
-  it('lê modo e tema válidos', () => {
-    expect(load({ mode: 'light', theme: 'verde' })).toEqual({ mode: 'light', theme: 'verde' });
+  it('lê modo e tema válidos; arquivo antigo sem cena fica com a do tema (null)', () => {
+    expect(load({ mode: 'light', theme: 'verde' })).toEqual({ mode: 'light', theme: 'verde', scene: null });
+  });
+
+  it('lê a cena escolhida', () => {
+    for (const scene of [{ kind: 'builtin', id: 'aurora' }, { kind: 'custom', id: '0123456789abcdef' }, { kind: 'none' }])
+      expect(load({ mode: 'dark', theme: 'roxo', scene }).scene).toEqual(scene);
+  });
+
+  it('cena inválida vira a do tema, sem perder modo e tema', () => {
+    expect(load({ mode: 'dark', theme: 'roxo', scene: { kind: 'builtin', id: 'nada' } })).toEqual({
+      mode: 'dark',
+      theme: 'roxo',
+      scene: null,
+    });
+    expect(load({ mode: 'dark', theme: 'roxo', scene: { kind: 'custom', id: '../x' } }).scene).toBeNull();
   });
 
   it('valores inválidos voltam ao padrão', () => {
-    expect(load({ mode: 'noite', theme: 'verde' })).toEqual({ mode: 'system', theme: 'azul-classico' });
-    expect(load({ mode: 'dark', theme: 'inexistente' })).toEqual({ mode: 'system', theme: 'azul-classico' });
-    expect(load('dark')).toEqual({ mode: 'system', theme: 'azul-classico' });
+    expect(load({ mode: 'noite', theme: 'verde' })).toEqual(DEFAULT);
+    expect(load({ mode: 'dark', theme: 'inexistente' })).toEqual(DEFAULT);
+    expect(load('dark')).toEqual(DEFAULT);
   });
 });
 

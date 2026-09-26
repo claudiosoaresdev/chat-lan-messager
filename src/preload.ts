@@ -74,6 +74,11 @@ const api: ChatApi = {
   onAppearanceChanged: (cb) => subscribe(IPC.appearanceChanged, cb),
   onFontPreview: (cb) => subscribe(IPC.fontPreview, cb),
 
+  listCustomScenes: () => call(IPC.listCustomScenes),
+  addCustomScene: (data) => call(IPC.addCustomScene, data),
+  removeCustomScene: (id) => call(IPC.removeCustomScene, id),
+  getCustomScene: (id) => call(IPC.getCustomScene, id),
+
   onSelfChanged: (cb) => subscribe(IPC.selfChanged, cb),
   onFontChanged: (cb) => subscribe(IPC.fontChanged, cb),
   onMyAvatarChanged: (cb) => subscribe(IPC.myAvatarChanged, cb),

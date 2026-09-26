@@ -1,6 +1,7 @@
 // Temas de cor: o Azul clássico tem os dois conjuntos desenhados à mão (theme-tokens.ts); os demais giram o
 // matiz (e escalam a saturação) dos tokens cromáticos do Azul clássico e depois corrigem o contraste.
 import { averageColor, contrast, luminance, mapColors, parseHex, rgbToHsl, rotateHue, shiftLightness } from './color';
+import { validateSceneChoice, type SceneChoice } from './scenes';
 import { CLASSIC_DARK, CLASSIC_LIGHT, TOKEN_NAMES, type TokenName, type Tokens } from './theme-tokens';
 
 export type ThemeMode = 'light' | 'dark';
@@ -15,7 +16,7 @@ export interface Theme {
   saturation: number;
   /** Fonte sugerida das mensagens (favorita do Google ou clássica). */
   font: string;
-  /** Cena padrão (usada na fase 2). */
+  /** Cena padrão (id da galeria em scenes.ts). */
   scene: string;
 }
 
@@ -55,18 +56,28 @@ export type AppearanceMode = 'system' | ThemeMode;
 export interface Appearance {
   mode: AppearanceMode;
   theme: string;
+  /** Cena escolhida; null = a cena padrão do tema. */
+  scene: SceneChoice | null;
 }
 
-export const DEFAULT_APPEARANCE: Appearance = { mode: 'system', theme: DEFAULT_THEME };
+export const DEFAULT_APPEARANCE: Appearance = { mode: 'system', theme: DEFAULT_THEME, scene: null };
+
+/** Cena que vale de fato: a escolhida ou, sem escolha, a padrão do tema. */
+export function effectiveScene(a: Appearance): SceneChoice {
+  return a.scene ?? { kind: 'builtin', id: (findTheme(a.theme) ?? THEMES[0]).scene };
+}
 
 export const isAppearanceMode = (v: unknown): v is AppearanceMode => v === 'system' || v === 'light' || v === 'dark';
 
-/** Valida uma aparência vinda do disco ou da IPC; null se inválida. */
+/**
+ * Valida uma aparência vinda do disco ou da IPC; null se inválida. Cena ausente ou inválida vira null (a do
+ * tema): arquivo de versão antiga continua valendo. Se a imagem própria ainda existe, quem confere é o main.
+ */
 export function validateAppearance(raw: unknown): Appearance | null {
   const a = raw as Partial<Appearance> | null;
   if (!a || typeof a !== 'object') return null;
   if (!isAppearanceMode(a.mode) || typeof a.theme !== 'string' || !findTheme(a.theme)) return null;
-  return { mode: a.mode, theme: a.theme };
+  return { mode: a.mode, theme: a.theme, scene: validateSceneChoice(a.scene) };
 }
 
 /** Tokens de significado próprio (aviso, erro, não lida, winks, contador verde): não giram com o tema. */

@@ -21,6 +21,7 @@ import started from 'electron-squirrel-startup';
 import { PeerManager, SELF_CONNECTION } from './main/peer-manager';
 import { Discovery } from './main/discovery';
 import { AvatarStore } from './main/avatar-store';
+import { SceneStore } from './main/scene-store';
 import { FontCache, type FontFaceFile } from './main/font-cache';
 import { GiphyClient, isGiphyKey } from './main/giphy';
 import { Updater, feedUrl } from './main/updater';
@@ -98,6 +99,7 @@ interface Session {
 let session: Session | null = null;
 let store: SettingsStore;
 let avatars: AvatarStore;
+let scenes: SceneStore;
 let settings: Settings = defaultSettings();
 const giphy = new GiphyClient(() => settings.giphyKey);
 let mainWindow: BrowserWindow | null = null;
@@ -136,6 +138,16 @@ function broadcast(channel: string, payload: unknown) {
 /** Prévia da janela "Aparência" (ainda não salva); null = vale a salva. */
 let previewing: Appearance | null = null;
 const shownAppearance = (): Appearance => previewing ?? settings.appearance;
+
+/** Imagem própria que sumiu do disco: volta para a cena do tema. */
+function withExistingScene(a: Appearance): Appearance {
+  return a.scene?.kind === 'custom' && !scenes.has(a.scene.id) ? { ...a, scene: null } : a;
+}
+
+/** Ids das imagens próprias em uso (salva e em prévia): a limpeza do SceneStore não as apaga. */
+function customScenesInUse(): string[] {
+  return [settings.appearance, previewing].flatMap((a) => (a?.scene?.kind === 'custom' ? [a.scene.id] : []));
+}
 
 /** Modo efetivo: com themeSource já ajustado, o nativeTheme resolve o 'system' pelo sistema operacional. */
 const effectiveMode = () => (nativeTheme.shouldUseDarkColors ? 'dark' : 'light');
@@ -511,8 +523,9 @@ function registerIpc() {
   handle(IPC.getAppearance, () => shownAppearance());
   // OK da janela "Aparência": valida tudo antes e salva aparência e fonte juntas.
   handle(IPC.setAppearance, (raw: unknown, rawFont: unknown) => {
-    const appearance = validateAppearance(raw);
-    if (!appearance) throw new Error('Aparência inválida');
+    const valid = validateAppearance(raw);
+    if (!valid) throw new Error('Aparência inválida');
+    const appearance = withExistingScene(valid);
     const font = rawFont === null || rawFont === undefined ? null : validateFont(rawFont);
     if (rawFont !== null && rawFont !== undefined && !font) throw new Error('Fonte inválida');
     endPreview(false);
@@ -528,8 +541,9 @@ function registerIpc() {
       endPreview();
       return;
     }
-    const appearance = validateAppearance(raw);
-    if (!appearance) throw new Error('Aparência inválida');
+    const valid = validateAppearance(raw);
+    if (!valid) throw new Error('Aparência inválida');
+    const appearance = withExistingScene(valid);
     const font = rawFont === null || rawFont === undefined ? null : validateFont(rawFont);
     watchPreviewOwner(e.sender);
     previewing = appearance;
@@ -538,6 +552,24 @@ function registerIpc() {
       fontPreviewSent = true;
       broadcast(IPC.fontPreview, font);
     }
+  });
+
+  handle(IPC.listCustomScenes, () => scenes.list());
+  handle(IPC.addCustomScene, (data: unknown) => {
+    if (!(data instanceof Uint8Array)) throw new Error('Imagem inválida');
+    const { id } = scenes.add(data);
+    return { id, data };
+  });
+  handle(IPC.getCustomScene, (id: unknown) => (typeof id === 'string' ? scenes.get(id) : null));
+  // Apagar a imagem em uso: a aparência (salva e a da prévia) volta para a cena do tema.
+  handle(IPC.removeCustomScene, (id: unknown) => {
+    if (typeof id !== 'string') throw new Error('Cena inválida');
+    scenes.remove(id);
+    const uses = (a: Appearance | null) => a?.scene?.kind === 'custom' && a.scene.id === id;
+    const shown = uses(shownAppearance());
+    if (uses(settings.appearance)) saveSettings({ ...settings, appearance: { ...settings.appearance, scene: null } });
+    if (previewing && uses(previewing)) previewing = { ...previewing, scene: null };
+    if (shown) showAppearance();
   });
 
   handle(IPC.hasGiphyKey, () => !!settings.giphyKey);
@@ -822,7 +854,9 @@ app.on('ready', () => {
     ? path.join(app.getAppPath(), 'public')
     : path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}`);
   avatars = new AvatarStore(app.getPath('userData'), path.join(publicDir, 'avatars'));
+  scenes = new SceneStore(app.getPath('userData'), customScenesInUse);
   settings = store.load();
+  settings = { ...settings, appearance: withExistingScene(settings.appearance) };
   nativeTheme.themeSource = settings.appearance.mode;
   // Sistema trocou claro/escuro (modo "Sistema"): refaz o fundo das janelas; as páginas seguem pelo matchMedia.
   nativeTheme.on('updated', refreshWindowBackgrounds);

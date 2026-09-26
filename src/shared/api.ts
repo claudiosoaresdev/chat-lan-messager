@@ -3,6 +3,7 @@ import type { ImageMime, MessageFont, PresenceStatus, WinkId } from './protocol'
 import type { Appearance } from './themes';
 
 export type { Appearance, AppearanceMode } from './themes';
+export type { SceneChoice } from './scenes';
 
 /** Informações da máquina, disponíveis antes do login. */
 export interface LocalInfo {
@@ -138,6 +139,12 @@ export interface PeerAvatar {
   data: Uint8Array | null;
 }
 
+/** Cena própria (JPEG 1600×900 até 400 KB) guardada em userData/scenes. */
+export interface CustomScene {
+  id: string;
+  data: Uint8Array;
+}
+
 /** Resultado da busca no GIPHY, com a prévia já baixada pelo processo principal. */
 export interface GiphyItem {
   id: string;
@@ -260,6 +267,16 @@ export interface ChatApi {
   /** Prévia da fonte (só visual, não muda a fonte de envio); null = fim da prévia. */
   onFontPreview(cb: (font: MessageFont | null) => void): Unsubscribe;
 
+  // cenas próprias (imagens do usuário para o topo e o fundo das conversas)
+  /** Mais recentes primeiro. */
+  listCustomScenes(): Promise<CustomScene[]>;
+  /** Guarda um JPEG (já recortado em 1600×900, até 400 KB); a mesma imagem não duplica. */
+  addCustomScene(data: Uint8Array): Promise<CustomScene>;
+  /** Apaga; se era a cena em uso (ou em prévia), a aparência volta para a cena do tema. */
+  removeCustomScene(id: string): Promise<void>;
+  /** Bytes da imagem, ou null se ela não existe mais. */
+  getCustomScene(id: string): Promise<Uint8Array | null>;
+
   // mudanças feitas em outra janela
   onSelfChanged(cb: (self: SelfInfo) => void): Unsubscribe;
   onFontChanged(cb: (font: MessageFont) => void): Unsubscribe;
@@ -321,6 +338,10 @@ export const IPC = {
   previewAppearance: 'appearance:preview',
   appearanceChanged: 'appearance:changed',
   fontPreview: 'font:preview',
+  listCustomScenes: 'scene:list',
+  addCustomScene: 'scene:add',
+  removeCustomScene: 'scene:remove',
+  getCustomScene: 'scene:get',
   selfChanged: 'session:self-changed',
   fontChanged: 'font:changed',
   myAvatarChanged: 'avatar:mine-changed',
