@@ -3,6 +3,9 @@
 // binário logo após o cabeçalho `image`.
 
 import { findGoogleFont } from './google-fonts';
+import { MAX_SCENE_BYTES, findBuiltinScene } from './scenes';
+
+export { MAX_SCENE_BYTES };
 
 export const SERVICE_TYPE = 'chatlan';
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -130,6 +133,22 @@ export interface AvatarHeader {
   size: number;
 }
 
+export const SCENE_MIME_TYPES = ['image/jpeg', 'image/png'] as const;
+export type SceneMime = (typeof SCENE_MIME_TYPES)[number];
+
+/**
+ * Cena (plano de fundo da conversa) de quem envia, como no WLM. `builtin` é uma cena da galeria
+ * (id validado contra a lista local); `image` é seguida por um frame binário com os bytes
+ * (JPEG/PNG, até MAX_SCENE_BYTES); `none` = sem cena. Versões antigas ignoram a mensagem.
+ */
+export type SceneHeader =
+  | { type: 'scene'; from: string; kind: 'builtin'; id: string }
+  | { type: 'scene'; from: string; kind: 'image'; mime: SceneMime; size: number }
+  | { type: 'scene'; from: string; kind: 'none' };
+
+export const isSceneMime = (v: unknown): v is SceneMime =>
+  typeof v === 'string' && (SCENE_MIME_TYPES as readonly string[]).includes(v);
+
 export type WireMessage =
   | HelloMessage
   | PresenceMessage
@@ -137,6 +156,7 @@ export type WireMessage =
   | ImageHeader
   | NudgeMessage
   | AvatarHeader
+  | SceneHeader
   | WinkMessage;
 
 type Json = Record<string, unknown>;
@@ -229,6 +249,22 @@ export function validateMessage(value: unknown): WireMessage | null {
       return { type: 'avatar', from: value.from, mime: value.mime, size: value.size };
     }
 
+    case 'scene': {
+      if (!isBoundedString(value.from, MAX_ID_LENGTH)) return null;
+      if (value.kind === 'none') return { type: 'scene', from: value.from, kind: 'none' };
+      if (value.kind === 'builtin') {
+        if (typeof value.id !== 'string' || !findBuiltinScene(value.id)) return null;
+        return { type: 'scene', from: value.from, kind: 'builtin', id: value.id };
+      }
+      if (value.kind === 'image') {
+        if (!isSceneMime(value.mime)) return null;
+        if (typeof value.size !== 'number' || !Number.isInteger(value.size)) return null;
+        if (value.size < 1 || value.size > MAX_SCENE_BYTES) return null;
+        return { type: 'scene', from: value.from, kind: 'image', mime: value.mime, size: value.size };
+      }
+      return null;
+    }
+
     case 'wink':
       if (!isBoundedString(value.from, MAX_ID_LENGTH) || !isWinkId(value.wink) || !isTimestamp(value.ts)) return null;
       return { type: 'wink', from: value.from, wink: value.wink, ts: value.ts };
@@ -285,6 +321,12 @@ export function detectImageMime(bytes: Uint8Array): ImageMime | null {
 export function validateImageBytes(bytes: Uint8Array, declaredMime: ImageMime, declaredSize?: number): boolean {
   if (bytes.length === 0 || bytes.length > MAX_IMAGE_BYTES) return false;
   if (declaredSize !== undefined && bytes.length !== declaredSize) return false;
+  return detectImageMime(bytes) === declaredMime;
+}
+
+/** Confere os bytes de uma cena recebida: tamanho declarado, limite e assinatura JPEG/PNG. */
+export function validateSceneBytes(bytes: Uint8Array, declaredMime: SceneMime, declaredSize: number): boolean {
+  if (bytes.length === 0 || bytes.length > MAX_SCENE_BYTES || bytes.length !== declaredSize) return false;
   return detectImageMime(bytes) === declaredMime;
 }
 

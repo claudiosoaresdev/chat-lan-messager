@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   MAX_IMAGE_BYTES,
+  MAX_SCENE_BYTES,
   MAX_TEXT_LENGTH,
   detectImageMime,
   parseMessage,
   shouldInitiate,
   validateFont,
   validateImageBytes,
+  validateSceneBytes,
 } from './protocol';
 
 const PNG = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0]);
@@ -109,6 +111,59 @@ describe('parseMessage', () => {
     expect(parseMessage(JSON.stringify({ type: 'avatar', from: 'a', mime: 'image/png', size: 300 * 1024 }))).toBeNull();
   });
 
+  it('aceita os três formatos de cena', () => {
+    expect(parseMessage(JSON.stringify({ type: 'scene', from: 'a', kind: 'builtin', id: 'aurora' }))).toEqual({
+      type: 'scene',
+      from: 'a',
+      kind: 'builtin',
+      id: 'aurora',
+    });
+    expect(parseMessage(JSON.stringify({ type: 'scene', from: 'a', kind: 'image', mime: 'image/jpeg', size: 1000 }))).toEqual({
+      type: 'scene',
+      from: 'a',
+      kind: 'image',
+      mime: 'image/jpeg',
+      size: 1000,
+    });
+    expect(parseMessage(JSON.stringify({ type: 'scene', from: 'a', kind: 'none' }))).toEqual({
+      type: 'scene',
+      from: 'a',
+      kind: 'none',
+    });
+  });
+
+  it('descarta campos extras da cena', () => {
+    expect(
+      parseMessage(JSON.stringify({ type: 'scene', from: 'a', kind: 'none', id: 'aurora', url: 'http://x/' })),
+    ).toEqual({ type: 'scene', from: 'a', kind: 'none' });
+    expect(
+      parseMessage(JSON.stringify({ type: 'scene', from: 'a', kind: 'builtin', id: 'ceu', mime: 'image/png', size: 5 })),
+    ).toEqual({ type: 'scene', from: 'a', kind: 'builtin', id: 'ceu' });
+  });
+
+  it('rejeita cena inválida', () => {
+    const scene = (v: object) => parseMessage(JSON.stringify({ type: 'scene', from: 'a', ...v }));
+    // id da galeria desconhecido (ou caminho) é ignorado
+    expect(scene({ kind: 'builtin', id: 'nao-existe' })).toBeNull();
+    expect(scene({ kind: 'builtin', id: '../../etc/passwd' })).toBeNull();
+    expect(scene({ kind: 'builtin' })).toBeNull();
+    // só JPEG/PNG, 1 byte a 400 KB
+    for (const mime of ['image/gif', 'image/webp', 'image/svg+xml', undefined]) {
+      expect(scene({ kind: 'image', mime, size: 10 })).toBeNull();
+    }
+    for (const size of [0, -1, 1.5, MAX_SCENE_BYTES + 1, '10', undefined]) {
+      expect(scene({ kind: 'image', mime: 'image/png', size })).toBeNull();
+    }
+    expect(scene({ kind: 'image', mime: 'image/png', size: MAX_SCENE_BYTES })).not.toBeNull();
+    expect(scene({ kind: 'custom', id: '0123456789abcdef' })).toBeNull();
+    expect(scene({})).toBeNull();
+    expect(parseMessage(JSON.stringify({ type: 'scene', kind: 'none' }))).toBeNull();
+  });
+
+  it('mensagem de tipo desconhecido vira null (é assim que versões antigas ignoram a cena)', () => {
+    expect(parseMessage(JSON.stringify({ type: 'coisa-nova', from: 'a' }))).toBeNull();
+  });
+
   it('aceita só winks conhecidos', () => {
     expect(parseMessage(JSON.stringify({ type: 'wink', from: 'a', wink: 'beijo', ts: 1 }))).toEqual({
       type: 'wink',
@@ -189,6 +244,24 @@ describe('validateImageBytes', () => {
     const big = new Uint8Array(MAX_IMAGE_BYTES + 1);
     big.set(PNG);
     expect(validateImageBytes(big, 'image/png')).toBe(false);
+  });
+});
+
+describe('validateSceneBytes', () => {
+  it('aceita JPEG/PNG com assinatura e tamanho conferindo', () => {
+    expect(validateSceneBytes(JPEG, 'image/jpeg', JPEG.length)).toBe(true);
+    expect(validateSceneBytes(PNG, 'image/png', PNG.length)).toBe(true);
+  });
+
+  it('rejeita assinatura diferente do mime, tamanho divergente, vazio e acima do limite', () => {
+    expect(validateSceneBytes(PNG, 'image/jpeg', PNG.length)).toBe(false);
+    expect(validateSceneBytes(SVG, 'image/png', SVG.length)).toBe(false);
+    expect(validateSceneBytes(GIF, 'image/png', GIF.length)).toBe(false);
+    expect(validateSceneBytes(PNG, 'image/png', PNG.length + 1)).toBe(false);
+    expect(validateSceneBytes(new Uint8Array(), 'image/png', 0)).toBe(false);
+    const big = new Uint8Array(MAX_SCENE_BYTES + 1);
+    big.set(JPEG);
+    expect(validateSceneBytes(big, 'image/jpeg', big.length)).toBe(false);
   });
 });
 
