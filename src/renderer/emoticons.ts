@@ -1,6 +1,6 @@
 // Emoticons: desenhos próprios no clima do MSN (não são as imagens originais),
 // inseridos como <svg><use/></svg>. O texto da rede nunca vira HTML: só nós de texto e ícones.
-import { EMOTICONS, tokenize } from './emoticon-codes';
+import { EMOTICONS, tokenizeRich } from './emoticon-codes';
 import { el } from './dom';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -90,13 +90,27 @@ export function emoticonIcon(id: string, label: string) {
   return svg;
 }
 
-/** Preenche o elemento com o texto, trocando os atalhos por emoticons. */
-export function renderRichText(node: HTMLElement, text: string) {
+/**
+ * Preenche o elemento com o texto, trocando os atalhos por emoticons. Links viram clicáveis, exceto com
+ * `links: false` (lista de contatos e avisos, onde o clique já tem outro sentido): lá ficam como texto.
+ */
+export function renderRichText(node: HTMLElement, text: string, { links = true } = {}) {
   node.replaceChildren(
-    ...tokenize(text).map((t) =>
-      'text' in t ? document.createTextNode(t.text) : emoticonIcon(t.emoticon.id, `${t.emoticon.name} ${t.code}`),
-    ),
+    ...tokenizeRich(text).map((t) => {
+      if ('link' in t) return links ? linkElement(t.link, t.label) : document.createTextNode(t.label);
+      return 'text' in t ? document.createTextNode(t.text) : emoticonIcon(t.emoticon.id, `${t.emoticon.name} ${t.code}`);
+    }),
   );
+}
+
+/** Link clicável: abre no navegador (o main só deixa sair http/https, via setWindowOpenHandler). */
+export function linkElement(url: string, label: string): HTMLAnchorElement {
+  const a = el('a', 'msg-link', label);
+  a.href = url;
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+  a.title = url;
+  return a;
 }
 
 // ---------------------------------------------------------------- seletor

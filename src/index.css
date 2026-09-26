@@ -1261,6 +1261,24 @@ button {
   color: var(--accent);
 }
 
+/* Links nas mensagens: mesma cor do texto (que já é legível sobre a cena), sublinhados. */
+.msg-link {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+  cursor: pointer;
+}
+
+.msg-link:hover {
+  text-decoration-thickness: 2px;
+}
+
+.msg-link:focus-visible {
+  outline: 1px dotted currentColor;
+  outline-offset: 1px;
+}
+
 .said-image {
   display: block;
   max-width: calc(100% - 12px);

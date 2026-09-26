@@ -1,4 +1,5 @@
 // Emoticons no estilo do MSN: atalhos de texto → id do desenho. Sem DOM aqui (testável).
+import { findLinks } from '../shared/links';
 
 export interface Emoticon {
   id: string;
@@ -66,5 +67,20 @@ export function tokenize(text: string): Token[] {
     last = at + code.length;
   }
   if (last < text.length) out.push({ text: text.slice(last) });
+  return out;
+}
+
+export type RichToken = Token | { link: string; label: string };
+
+/** Como `tokenize`, mas separa os links antes: `:/` de `https://` ou `8)` num caminho não viram emoticon. */
+export function tokenizeRich(text: string): RichToken[] {
+  const out: RichToken[] = [];
+  let last = 0;
+  for (const l of findLinks(text)) {
+    if (l.start > last) out.push(...tokenize(text.slice(last, l.start)));
+    out.push({ link: l.url, label: text.slice(l.start, l.end) });
+    last = l.end;
+  }
+  if (last < text.length) out.push(...tokenize(text.slice(last)));
   return out;
 }

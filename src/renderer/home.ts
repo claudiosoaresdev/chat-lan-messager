@@ -169,7 +169,7 @@ function contactRow(p: PeerInfo) {
   if (extra) {
     // Mensagem pessoal com emoticons, como no MSN.
     const span = el('span', 'contact-extra');
-    renderRichText(span, extra);
+    renderRichText(span, extra, { links: false });
     li.append(span);
   }
   return li;

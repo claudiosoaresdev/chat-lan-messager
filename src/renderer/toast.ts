@@ -15,7 +15,7 @@ export function showToast(from: string, text: string, onClick: () => void, headi
   body.append(el('div', 'toast-from', heading));
   if (text) {
     const t = el('div', 'toast-text');
-    renderRichText(t, text);
+    renderRichText(t, text, { links: false });
     body.append(t);
   }
   toast.append(title, body);
