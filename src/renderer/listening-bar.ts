@@ -5,7 +5,7 @@ import { $, chat, el } from './dom';
 
 /** Velocidade do letreiro: igual para músicas de nome curto ou longo. */
 const PX_PER_SECOND = 45;
-/** Espaço entre o fim do texto e o começo da cópia seguinte. */
+/** Espaço mínimo entre o fim do texto e o começo da cópia seguinte. */
 const GAP_PX = 48;
 const FADE_MS = 160;
 
@@ -30,20 +30,22 @@ function current(): { text: string; query: string } | null {
   return null;
 }
 
-/** Mede o texto: se couber, fica parado; senão, duas cópias rolando sem emenda. */
+/**
+ * Letreiro: duas cópias do texto rolando da direita para a esquerda, em loop e sem emenda. Texto curto ganha um
+ * espaço maior antes da cópia seguinte, para uma só aparecer por vez (entra pela direita quando a outra sai).
+ */
 function layout() {
   const text = shownText;
   const copy = el('span', 'marquee-copy', text);
   els.track.replaceChildren(copy);
   els.marquee.classList.remove('is-scrolling');
-  els.track.style.removeProperty('--marquee-distance');
-  els.track.style.removeProperty('--marquee-duration');
-  if (!text || copy.offsetWidth <= els.marquee.clientWidth) return;
-  const distance = copy.offsetWidth + GAP_PX;
+  if (!text) return;
+  const gap = Math.max(GAP_PX, els.marquee.clientWidth - copy.offsetWidth);
+  const distance = copy.offsetWidth + gap;
   const twin = el('span', 'marquee-copy', text);
   twin.setAttribute('aria-hidden', 'true');
   els.track.append(twin);
-  els.track.style.setProperty('--marquee-gap', `${GAP_PX}px`);
+  els.track.style.setProperty('--marquee-gap', `${gap}px`);
   els.track.style.setProperty('--marquee-distance', `${distance}px`);
   els.track.style.setProperty('--marquee-duration', `${(distance / PX_PER_SECOND).toFixed(2)}s`);
   els.marquee.classList.add('is-scrolling');
@@ -61,6 +63,7 @@ function render() {
   window.clearTimeout(fadeTimer);
   if (!next) {
     els.track.replaceChildren();
+    els.marquee.classList.remove('is-scrolling');
     return;
   }
   els.marquee.classList.add('is-changing');

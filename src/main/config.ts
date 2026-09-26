@@ -10,6 +10,7 @@ import {
   type MessageFont,
 } from '../shared/protocol';
 import { DEFAULT_APPEARANCE, validateAppearance, type Appearance } from '../shared/themes';
+import { parseBounds, type Rect } from './video-window';
 
 /** Porta padrão do servidor. Evita a 5000 (AirPlay Receiver no Mac). */
 export const DEFAULT_PORT = 47800;
@@ -40,6 +41,8 @@ export interface Settings {
   shareListening: boolean;
   /** Busca a prévia (título, imagem) dos links que eu envio (menu ☰ da home). Padrão: ligado. */
   linkPreviews: boolean;
+  /** Posição e tamanho da janela flutuante de vídeo; null = canto inferior direito. */
+  videoBounds: Rect | null;
 }
 
 const isPort = (n: unknown): n is number => typeof n === 'number' && Number.isInteger(n) && n >= 1 && n <= 65535;
@@ -114,6 +117,7 @@ export const defaultSettings = (): Settings => ({
   appearance: { ...DEFAULT_APPEARANCE },
   shareListening: true,
   linkPreviews: true,
+  videoBounds: null,
 });
 
 export class SettingsStore {
@@ -144,6 +148,7 @@ export class SettingsStore {
         appearance: validateAppearance(raw?.appearance) ?? { ...DEFAULT_APPEARANCE },
         shareListening: raw?.shareListening !== false,
         linkPreviews: raw?.linkPreviews !== false,
+        videoBounds: parseBounds(raw?.videoBounds),
       };
     } catch {
       return defaultSettings();

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob:; font-src 'self' chatfont:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob:; font-src 'self' chatfont:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src https://www.youtube-nocookie.com"
     />
     <title>Chat Live Messenger</title>
     <link rel="stylesheet" href="/src/index.css" />
@@ -89,6 +89,20 @@
         <path d="M12.6 2.1a6 6 0 1 0 4.6 8.7A5 5 0 0 1 12.6 2.1z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" />
       </symbol>
     </svg>
+
+    <!-- Janela flutuante de vídeo (?video=): só o player, com a faixa de arrastar em cima. -->
+    <div class="video-root" id="video-root" hidden>
+      <div class="video-frame" id="video-frame"></div>
+      <div class="video-bar">
+        <span class="video-grip" aria-hidden="true">⋮⋮</span>
+        <button type="button" class="video-btn" id="video-back" title="Voltar para a conversa" aria-label="Voltar para a conversa">
+          <svg viewBox="0 0 16 16"><path d="M6 3L2 7l4 4M2.5 7H10a4 4 0 0 1 0 8H8" /></svg>
+        </button>
+        <button type="button" class="video-btn" id="video-close" title="Fechar" aria-label="Fechar">
+          <svg viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8" /></svg>
+        </button>
+      </div>
+    </div>
 
     <div class="window">
       <header class="titlebar" id="titlebar">

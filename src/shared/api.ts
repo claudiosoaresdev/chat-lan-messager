@@ -80,6 +80,13 @@ export interface LinkPreview {
   image?: { mime: ImageMime; data: Uint8Array };
 }
 
+/** Vídeo para a janela flutuante (ou de volta para a conversa `peerId`). */
+export interface VideoRequest {
+  id: string;
+  start: number;
+  peerId: string;
+}
+
 /** Prévia que chegou para a mensagem `ref` da conversa com `peerId`. */
 export interface ChatPreview {
   peerId: string;
@@ -137,6 +144,8 @@ export interface ChatInit {
   /** null se o contato não é conhecido (ex.: sessão encerrada). */
   peer: PeerInfo | null;
   history: ConversationItem[];
+  /** Vídeo que voltou da janela flutuante enquanto esta conversa estava fechada: toca ao abrir. */
+  video?: VideoRequest;
 }
 
 /** Imagem de exibição (bytes + tipo). */
@@ -297,6 +306,16 @@ export interface ChatApi {
   onPeerScene(cb: (scene: PeerScene) => void): Unsubscribe;
   onUnreadChanged(cb: (change: { peerId: string; unread: boolean }) => void): Unsubscribe;
 
+  // vídeo do YouTube na janela flutuante (sempre por cima, arrastável)
+  /** Abre (ou troca) o vídeo na janela flutuante, a partir de `start` segundos. */
+  openVideo(id: string, start: number, peerId: string): void;
+  /** Janela flutuante: devolve o vídeo à conversa de origem e fecha. */
+  videoBack(id: string, start: number, peerId: string): void;
+  /** Janela flutuante: outro vídeo foi destacado para ela. */
+  onVideoLoad(cb: (video: VideoRequest) => void): Unsubscribe;
+  /** Conversa: o vídeo voltou da janela flutuante. */
+  onVideoReturn(cb: (video: VideoRequest) => void): Unsubscribe;
+
   // prévia dos links que eu envio (menu ☰ da home)
   getLinkPreviews(): Promise<boolean>;
   setLinkPreviews(on: boolean): Promise<boolean>;
@@ -398,6 +417,10 @@ export const IPC = {
   peerScene: 'scene:peer',
   unreadChanged: 'chat:unread-changed',
   chatPreview: 'chat:preview',
+  openVideo: 'video:open',
+  videoBack: 'video:back',
+  videoLoad: 'video:load',
+  videoReturn: 'video:return',
   getLinkPreviews: 'preview:get',
   setLinkPreviews: 'preview:set',
   linkPreviewsChanged: 'preview:changed',

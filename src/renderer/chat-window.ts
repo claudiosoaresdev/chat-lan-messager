@@ -3,7 +3,7 @@ import type { ConversationItem, PeerInfo } from '../shared/api';
 import { chat } from './dom';
 import { applyPeerAvatar, initAvatars, loadMyAvatar, loadPeerAvatars, watchMyAvatar } from './avatar';
 import { loadFont, watchFontChanges } from './font';
-import { addImage, addNudge, addPreview, addSystem, addText, addWink, enterChat, setPeer, setSelfStatus } from './chat';
+import { addImage, addNudge, addPreview, addSystem, addText, addWink, enterChat, resumeVideo, setPeer, setSelfStatus } from './chat';
 import { showView, state } from './state';
 import { shouldPlayMessageSound } from './message-alert';
 import { playMessageSound } from './sound';
@@ -96,6 +96,9 @@ export async function startChatWindow(peerId: string) {
       render(item, true);
     }
   });
+  chat().onVideoReturn((v) => {
+    if (v.peerId === peerId) resumeVideo(v.id, v.start);
+  });
   chat().onChatPreview((p) => {
     if (p.peerId === peerId) addPreview(p.ref, p.preview);
   });
@@ -125,4 +128,6 @@ export async function startChatWindow(peerId: string) {
     render(item, true);
   }
   enterChat();
+  // Vídeo que voltou da janela flutuante com esta conversa fechada.
+  if (init.video) resumeVideo(init.video.id, init.video.start);
 }

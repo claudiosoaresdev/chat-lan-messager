@@ -1430,6 +1430,100 @@ a.link-card:focus-visible {
   font-size: 12px;
 }
 
+/* Vídeo do YouTube: miniatura 16:9 com ▶; tocando, o player entra no lugar dela. */
+.link-card.is-video {
+  width: min(420px, calc(100% - 12px));
+  cursor: default;
+}
+
+.yt-box {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: black;
+}
+
+.yt-thumb,
+.yt-iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.yt-thumb {
+  object-fit: cover;
+}
+
+.yt-play {
+  position: absolute;
+  inset: 0;
+  width: 64px;
+  height: 44px;
+  margin: auto;
+  border: 0;
+  border-radius: 12px;
+  background: color-mix(in srgb, black 70%, transparent);
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.yt-play::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-style: solid;
+  border-width: 9px 0 9px 15px;
+  border-color: transparent transparent transparent white;
+  transform: translate(-40%, -50%);
+}
+
+.yt-play:hover,
+.yt-play:focus-visible {
+  background: #e62117; /* cor-fixa: vermelho do botão do YouTube */
+}
+
+.is-playing :is(.yt-thumb, .yt-play) {
+  display: none;
+}
+
+.yt-actions {
+  display: none;
+  gap: 4px;
+  padding: 4px 8px 0;
+}
+
+.is-playing .yt-actions {
+  display: flex;
+}
+
+.yt-action {
+  padding: 2px 8px;
+  border: 1px solid color-mix(in srgb, var(--border-strong) 35%, var(--surface));
+  border-radius: 3px;
+  background: var(--surface);
+  color: var(--text-strong);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.yt-action:hover {
+  border-color: var(--accent-soft);
+  background: color-mix(in srgb, var(--accent-soft) 22%, var(--surface));
+}
+
+.yt-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.yt-link:hover {
+  background: color-mix(in srgb, var(--accent-soft) 22%, var(--surface));
+}
+
 .said-image.is-gif {
   max-width: min(220px, calc(100% - 12px));
   max-height: 150px;
@@ -3269,4 +3363,93 @@ body.is-resizing * {
 
 :root[data-scene='on'] .chat-body .system {
   color: var(--scene-system);
+}
+
+/* ---------------------------------------------------------------- janela flutuante de vídeo */
+
+.video-mode .window {
+  display: none;
+}
+
+.video-mode body {
+  overflow: hidden;
+  background: black;
+}
+
+.video-root {
+  position: fixed;
+  inset: 0;
+  background: black;
+}
+
+.video-root[hidden] {
+  display: none;
+}
+
+.video-frame,
+.video-frame .yt-iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* Faixa de cima: arrasta a janela; aparece com o mouse em cima do vídeo. */
+.video-bar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 30px;
+  padding: 0 4px 0 8px;
+  /* Quase opaca: cobre os controles de cima do YouTube enquanto aparece (arrastar ali não clica neles). */
+  background: color-mix(in srgb, black 85%, transparent);
+  color: white;
+  opacity: 0;
+  transition: opacity 150ms ease;
+  -webkit-app-region: drag;
+}
+
+.video-root:hover .video-bar,
+.video-bar:focus-within {
+  opacity: 1;
+}
+
+.video-grip {
+  flex: 1;
+  font-size: 12px;
+  letter-spacing: -2px;
+  opacity: 0.8;
+}
+
+.video-btn {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 22px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+
+.video-btn:hover {
+  background: color-mix(in srgb, white 22%, transparent);
+}
+
+.video-btn svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }

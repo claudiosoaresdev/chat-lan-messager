@@ -12,6 +12,7 @@ import { playNudgeSound } from './sound';
 import { state } from './state';
 import { STATUS_LABEL } from './status';
 import { linkCard } from './link-card';
+import { resumeInline, youtubeCard } from './youtube-card';
 
 const MAX_RENDERED_ITEMS = 300;
 /** Mensagens seguidas do mesmo remetente dentro deste intervalo não repetem o "diz:". */
@@ -139,7 +140,7 @@ export function addPreview(ref: string, preview: LinkPreview) {
     if (stick) els.messages.scrollTop = els.messages.scrollHeight;
   };
   const wrap = el('div', 'link-card-wrap');
-  wrap.append(linkCard(preview, keep));
+  wrap.append(preview.youtube ? youtubeCard(preview, keep, to) : linkCard(preview, keep));
   line.after(wrap);
   keep();
 }
@@ -162,6 +163,11 @@ export function addImage(meta: Pick<UiImageMeta, 'from' | 'fromName' | 'ts' | 's
   });
   li.append(img);
   append(li, meta.self);
+}
+
+/** Vídeo voltou da janela flutuante para esta conversa. */
+export function resumeVideo(id: string, start: number) {
+  resumeInline(els.messages, id, start);
 }
 
 /** Treme o conteúdo da janela (vale também com a janela maximizada) e toca o som. */

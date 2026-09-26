@@ -9,6 +9,7 @@ import {
   Notification,
   protocol,
   screen,
+  session as electronSession,
   shell,
   type IpcMainInvokeEvent,
   type Tray,
@@ -33,6 +34,8 @@ import { NowPlayingWatcher, readerFor, type Exec } from './main/now-playing';
 import { LinkPreviewer, type MakeThumbnail } from './main/link-preview';
 import { findLinks } from './shared/links';
 import { imageSize } from './shared/image-size';
+import { isYoutubeId } from './shared/links';
+import { defaultBounds, restoreBounds, snapToEdge, VIDEO_MIN } from './main/video-window';
 import { trayTooltip } from './main/tray-text';
 import {
   DEFAULT_PORT,
@@ -55,6 +58,7 @@ import {
   type SavedProfile,
   type SelfInfo,
   type UiChatMessage,
+  type VideoRequest,
   type WindowLayout,
 } from './shared/api';
 import {
@@ -151,6 +155,96 @@ async function sendLinkPreview(peerId: string, message: UiChatMessage) {
     // contato saiu: a prévia fica só do meu lado
   }
   if (conversations.attachPreview(peerId, ref, true, preview)) chats.get(peerId)?.send(IPC.chatPreview, { peerId, ref, preview });
+}
+
+// ---------------------------------------------------------------- vídeo flutuante (YouTube)
+
+let videoWindow: BrowserWindow | null = null;
+/** Vídeo devolvido a uma conversa que estava fechada: a janela dela pega ao abrir (getChatInit). */
+const pendingVideoReturn = new Map<string, VideoRequest>();
+
+function parseVideoRequest(id: unknown, start: unknown, peerId: unknown): VideoRequest | null {
+  if (!isYoutubeId(id) || typeof peerId !== 'string' || !peerId || peerId.length > 64) return null;
+  const s = typeof start === 'number' && Number.isFinite(start) ? Math.min(Math.max(Math.floor(start), 0), 86_400) : 0;
+  return { id, start: s, peerId };
+}
+
+function saveVideoBounds(w: BrowserWindow) {
+  if (w.isDestroyed() || w.isFullScreen() || w.isMinimized()) return;
+  saveSettings({ ...settings, videoBounds: w.getBounds() });
+}
+
+/**
+ * Janela de vídeo sempre por cima, sem moldura, 16:9, que se arrasta pela tela (e encosta na borda ao soltar perto
+ * dela), como o picture-in-picture dos navegadores. Uma só: destacar outro vídeo troca o que está tocando.
+ */
+function openVideoWindow(req: VideoRequest) {
+  if (videoWindow && !videoWindow.isDestroyed()) {
+    videoWindow.webContents.send(IPC.videoLoad, req);
+    if (videoWindow.isMinimized()) videoWindow.restore();
+    videoWindow.showInactive();
+    return;
+  }
+  const areas = screen.getAllDisplays().map((d) => d.workArea);
+  const bounds = restoreBounds(settings.videoBounds, areas) ?? defaultBounds(screen.getPrimaryDisplay().workArea);
+  const w = new BrowserWindow({
+    ...bounds,
+    minWidth: VIDEO_MIN.width,
+    minHeight: VIDEO_MIN.height,
+    show: false,
+    frame: false,
+    alwaysOnTop: true,
+    maximizable: false,
+    title: 'Vídeo - Chat Live Messenger',
+    backgroundColor: '#000000',
+    webPreferences: WEB_PREFERENCES,
+  });
+  videoWindow = w;
+  // Por cima das outras janelas (inclusive de outros apps) e, no Mac, em todas as mesas e em tela cheia.
+  w.setAlwaysOnTop(true, 'floating');
+  if (process.platform === 'darwin') w.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  w.setAspectRatio(16 / 9);
+  harden(w);
+  w.once('ready-to-show', () => w.showInactive());
+  w.on('moved', () => {
+    const b = w.getBounds();
+    const snapped = snapToEdge(b, screen.getDisplayMatching(b).workArea);
+    if (snapped.x !== b.x || snapped.y !== b.y) w.setBounds(snapped, true);
+    saveVideoBounds(w);
+  });
+  w.on('resized', () => saveVideoBounds(w));
+  w.on('closed', () => {
+    if (videoWindow === w) videoWindow = null;
+  });
+  loadRenderer(w, undefined, req);
+}
+
+/** O vídeo volta para a conversa de origem (a janela dela toca do mesmo ponto) e a flutuante fecha. */
+function returnVideo(req: VideoRequest) {
+  const existing = chats.get(req.peerId);
+  if (existing) {
+    existing.send(IPC.videoReturn, req);
+    existing.show(true);
+  } else {
+    pendingVideoReturn.set(req.peerId, req);
+    if (!chats.open(req.peerId, true)) pendingVideoReturn.delete(req.peerId);
+  }
+  if (videoWindow && !videoWindow.isDestroyed()) videoWindow.close();
+}
+
+/**
+ * Páginas file:// (app empacotado) não mandam Referer, e o YouTube recusa o player sem ele (erro 153). Só para o
+ * documento do player embutido; o resto das requisições não muda.
+ */
+function setupYoutubeReferer() {
+  electronSession.defaultSession.webRequest.onBeforeSendHeaders(
+    { urls: ['https://www.youtube-nocookie.com/embed/*'] },
+    (details, callback) => {
+      const headers = { ...details.requestHeaders };
+      if (!headers.Referer && !headers.referer) headers.Referer = 'https://chat-lan.app/';
+      callback({ requestHeaders: headers });
+    },
+  );
 }
 
 /** Música do Spotify ("O que estou ouvindo"); null = sistema sem leitor. */
@@ -723,14 +817,25 @@ function registerIpc() {
     chats.record(peerId, { kind: 'wink', wink: sent });
     return sent;
   });
+  ipcMain.on(IPC.openVideo, (_e, id: unknown, start: unknown, peerId: unknown) => {
+    const req = parseVideoRequest(id, start, peerId);
+    if (req) openVideoWindow(req);
+  });
+  ipcMain.on(IPC.videoBack, (_e, id: unknown, start: unknown, peerId: unknown) => {
+    const req = parseVideoRequest(id, start, peerId);
+    if (req) returnVideo(req);
+  });
   ipcMain.on(IPC.openChat, (_e, peerId: unknown) => {
     if (typeof peerId === 'string') chats.open(peerId, true);
   });
   handle(IPC.getChatInit, (peerId: unknown): ChatInit => {
     const id = requirePeerId(peerId);
+    const video = pendingVideoReturn.get(id);
+    pendingVideoReturn.delete(id);
     return {
       peer: session?.peers.getPeers().find((p) => p.id === id) ?? null,
       history: conversations.get(id),
+      ...(video ? { video } : {}),
     };
   });
   handle(IPC.getPeerScene, (peerId: unknown) => session?.peers.getPeerScene(requirePeerId(peerId)) ?? null);
@@ -830,9 +935,14 @@ const WEB_PREFERENCES: Electron.WebPreferences = {
  * Mesmo index.html em todas as janelas; `chat` (id do contato) diz o papel da janela. `mode`, `theme` e `scene` levam a
  * aparência atual para a página pintar já com as cores certas (a confirmação chega depois pela IPC).
  */
-function loadRenderer(w: BrowserWindow, chatWith?: string) {
+function loadRenderer(w: BrowserWindow, chatWith?: string, video?: VideoRequest) {
   const params = new URLSearchParams();
   if (chatWith) params.set('chat', chatWith);
+  if (video) {
+    params.set('video', video.id);
+    params.set('start', String(video.start));
+    params.set('peer', video.peerId);
+  }
   params.set('mode', effectiveMode());
   params.set('theme', shownAppearance().theme);
   params.set('scene', JSON.stringify(shownAppearance().scene));
@@ -997,6 +1107,7 @@ app.on('ready', () => {
   // Sistema trocou claro/escuro (modo "Sistema"): refaz o fundo das janelas; as páginas seguem pelo matchMedia.
   nativeTheme.on('updated', refreshWindowBackgrounds);
   setupFonts(publicDir);
+  setupYoutubeReferer();
   registerIpc();
   chats = new ChatWindows(
     createChatWindow,

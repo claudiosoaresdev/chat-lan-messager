@@ -78,6 +78,7 @@ describe('SettingsStore', () => {
       appearance: { mode: 'dark', theme: 'roxo', scene: { kind: 'builtin', id: 'montanhas' }, showContactScenes: false },
       shareListening: false,
       linkPreviews: false,
+      videoBounds: { x: 10, y: 20, width: 480, height: 270 },
     });
     expect(store.load()).toEqual({
       manualPeers: [{ host: '10.0.0.2', port: 47800 }],
@@ -88,6 +89,7 @@ describe('SettingsStore', () => {
       appearance: { mode: 'dark', theme: 'roxo', scene: { kind: 'builtin', id: 'montanhas' }, showContactScenes: false },
       shareListening: false,
       linkPreviews: false,
+      videoBounds: { x: 10, y: 20, width: 480, height: 270 },
     });
 
     fs.writeFileSync(path.join(dir, 'settings.json'), '{ lixo');
@@ -103,6 +105,7 @@ describe('SettingsStore', () => {
       appearance: { mode: 'system', theme: 'azul-classico', scene: null, showContactScenes: true },
       shareListening: true,
       linkPreviews: true,
+      videoBounds: null,
     });
     fs.rmSync(dir, { recursive: true, force: true });
   });

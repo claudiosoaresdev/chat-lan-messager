@@ -5,8 +5,11 @@ import { initAppearance } from './renderer/appearance';
 import { expectContactScene } from './renderer/scene';
 import { startChatWindow } from './renderer/chat-window';
 import { startMainWindow } from './renderer/main-window';
+import { startVideoWindow } from './renderer/video-window';
 
-const chatWith = new URLSearchParams(location.search).get('chat');
+const query = new URLSearchParams(location.search);
+const chatWith = query.get('chat');
+const video = query.get('video');
 
 // Conversa: a cena pode ser a do contato; espera por ela em vez de piscar a minha.
 if (chatWith) expectContactScene();
@@ -33,5 +36,6 @@ $('help-close').addEventListener('click', () => help.close());
 
 // ---------------------------------------------------------------- papel da janela
 
-if (chatWith) void startChatWindow(chatWith);
+if (video) startVideoWindow({ id: video, start: Number(query.get('start')) || 0, peerId: query.get('peer') ?? '' });
+else if (chatWith) void startChatWindow(chatWith);
 else void startMainWindow(openHelp);
