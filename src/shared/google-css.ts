@@ -40,10 +40,19 @@ export function css2Url([family, , mask, italic]: FontEntry): string {
 }
 
 export function parseFontFaces(css: string): FontFaceSource[] {
+  // Comentário livre (não só nome de subconjunto): fontes tipo CJK (ex.: Noto Sans JP) numeram
+  // fatias como `/* [12] */`, que não é um subconjunto válido, e não podem ser confundidas com
+  // "sem comentário".
+  const blocks = /(?:\/\*\s*([^*]*?)\s*\*\/\s*)?@font-face\s*\{([^}]*)\}/g;
+  const matches = [...css.matchAll(blocks)];
+  // Quando a resposta rotula alguns blocos com o subconjunto (latin, latin-ext, cyrillic, …),
+  // qualquer bloco sem rótulo reconhecido — comentado ou não — é de outro subconjunto (ex.: as
+  // dezenas de fatias de CJK) e deve ser descartado; só quando NENHUM bloco tem comentário é que
+  // a fonte não distingue subconjuntos e todos os blocos são aceitos.
+  const anyLabelled = matches.some(([, subset]) => subset !== undefined);
   const out: FontFaceSource[] = [];
-  const blocks = /(?:\/\*\s*([\w-]+)\s*\*\/\s*)?@font-face\s*\{([^}]*)\}/g;
-  for (const [, subset, body] of css.matchAll(blocks)) {
-    if (subset && !KEEP_SUBSETS.has(subset)) continue;
+  for (const [, subset, body] of matches) {
+    if (anyLabelled && !KEEP_SUBSETS.has(subset ?? '')) continue;
     const weight = Number(/font-weight:\s*(\d{3})\s*;/.exec(body)?.[1]);
     const style = /font-style:\s*italic/.test(body) ? 'italic' : 'normal';
     const src = /src:\s*url\((https:\/\/fonts\.gstatic\.com\/[A-Za-z0-9._/-]+\.woff2)\)/.exec(body)?.[1];

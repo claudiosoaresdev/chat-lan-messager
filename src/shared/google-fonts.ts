@@ -1,6 +1,6 @@
 // Catálogo do Google Fonts embutido no app (gerado por scripts/update-google-fonts.mjs): lista e busca offline.
 import catalog from './google-fonts.json';
-import { weightsOf, type FontCategory, type FontEntry } from '../main/google-css';
+import { weightsOf, type FontCategory, type FontEntry } from './google-css';
 
 const entries = catalog.fonts as FontEntry[];
 const byName = new Map(entries.map((e) => [e[0], e]));
@@ -21,6 +21,9 @@ const fold = (s: string) =>
     .toLowerCase()
     .trim();
 
+/** Nomes do catálogo já sem maiúsculas/acentos, na mesma ordem de `entries` (calculado uma vez). */
+const foldedNames = entries.map((e) => fold(e[0]));
+
 /** Nomes que contêm o texto (sem maiúsculas/acentos); os que começam com ele vêm primeiro. */
 export function searchFonts(query: string): string[] {
   const q = fold(query);
@@ -28,10 +31,10 @@ export function searchFonts(query: string): string[] {
   if (!q) return names;
   const starts: string[] = [];
   const contains: string[] = [];
-  for (const name of names) {
-    const n = fold(name);
-    if (n.startsWith(q)) starts.push(name);
-    else if (n.includes(q)) contains.push(name);
+  for (let i = 0; i < names.length; i++) {
+    const n = foldedNames[i];
+    if (n.startsWith(q)) starts.push(names[i]);
+    else if (n.includes(q)) contains.push(names[i]);
   }
   return [...starts, ...contains];
 }

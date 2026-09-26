@@ -49,6 +49,32 @@ describe('google-css', () => {
     expect(parseFontFaces(css)).toEqual([{ weight: 400, style: 'normal', unicodeRange: '', src: 'https://fonts.gstatic.com/s/p/v1/a.woff2' }]);
   });
 
+  it('fonte tipo CJK (Noto Sans JP): fatias numeradas sem comentário útil são descartadas quando há blocos com subconjunto nomeado', () => {
+    // Formato real do Google para fontes com muitos subconjuntos: dezenas de fatias, algumas sem
+    // comentário e outras com `/* [n] */` (não é um nome de subconjunto), e os nomeados no fim.
+    const numbered = Array.from(
+      { length: 3 },
+      (_, i) => `
+/* [${i}] */
+@font-face { font-style: normal; font-weight: 400; src: url(https://fonts.gstatic.com/s/notosansjp/v1/slice${i}.woff2) format('woff2'); unicode-range: U+3000-303F; }`,
+    ).join('\n');
+    const unlabelled = `@font-face { font-style: normal; font-weight: 400; src: url(https://fonts.gstatic.com/s/notosansjp/v1/nolabel.woff2) format('woff2'); }`;
+    const css = `
+${numbered}
+${unlabelled}
+/* vietnamese */
+@font-face { font-style: normal; font-weight: 400; src: url(https://fonts.gstatic.com/s/notosansjp/v1/vi.woff2) format('woff2'); unicode-range: U+0102-0103; }
+/* latin-ext */
+@font-face { font-style: normal; font-weight: 400; src: url(https://fonts.gstatic.com/s/notosansjp/v1/ext.woff2) format('woff2'); unicode-range: U+0100-024F; }
+/* latin */
+@font-face { font-style: normal; font-weight: 400; src: url(https://fonts.gstatic.com/s/notosansjp/v1/lat.woff2) format('woff2'); unicode-range: U+0000-00FF; }
+`;
+    expect(parseFontFaces(css)).toEqual([
+      { weight: 400, style: 'normal', unicodeRange: 'U+0100-024F', src: 'https://fonts.gstatic.com/s/notosansjp/v1/ext.woff2' },
+      { weight: 400, style: 'normal', unicodeRange: 'U+0000-00FF', src: 'https://fonts.gstatic.com/s/notosansjp/v1/lat.woff2' },
+    ]);
+  });
+
   it('pesos pela máscara de bits', () => {
     expect(weightsOf(0b000001000)).toEqual([400]);
     expect(weightsOf(0b101001101)).toEqual([100, 300, 400, 700, 900]);
