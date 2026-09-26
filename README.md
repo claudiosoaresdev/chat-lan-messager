@@ -84,8 +84,12 @@ No menu ☰ da lista de contatos, **Aparência...** abre a janela de modo e tema
   com versão clara e escura. O tema traz a cor e uma fonte sugerida para as mensagens (todas funcionam sem
   internet). Todos os temas passam no contraste mínimo WCAG AA.
 - A prévia aparece na hora em todas as janelas abertas; **Cancelar** desfaz e **OK** salva.
-- Trocar a fonte depois em "Alterar fonte" deixa o tema como **Personalizado**; **Restaurar tema** volta a fonte
-  sugerida.
+- Trocar a fonte ou a cena deixa o tema como **Personalizado**; **Restaurar tema** volta a fonte e a cena do tema.
+- **Cena**: uma imagem no topo da lista de contatos e da conversa e, bem suave, atrás das mensagens. Há 10
+  cenas prontas (Céu, Folhas, Pétalas, Aurora, Pôr do sol, Ondas, Brasas, Pontilhado, Noite estrelada e
+  Montanhas; cada tema tem a sua), **Nenhuma** ou **Procurar...** para usar uma imagem do computador (recortada
+  em 16:9 e reduzida automaticamente; dá para remover no ×). O texto sobre a cena fica claro ou escuro conforme
+  a própria imagem, com uma faixa translúcida quando ela é muito contrastada.
 - Cores de mensagem ilegíveis no fundo atual são ajustadas só na sua tela (no escuro, preto vira a cor de texto
   do tema). O contato continua recebendo a cor que você escolheu.
 
