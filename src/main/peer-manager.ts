@@ -192,6 +192,7 @@ export class PeerManager extends EventEmitter<PeerManagerEvents> {
     if (data.length === 0 || data.length > MAX_SCENE_BYTES) throw new Error('Cena maior que 400 KB');
     const mime = detectImageMime(data);
     if (!isSceneMime(mime)) throw new Error('Formato de cena não suportado (use JPEG ou PNG)');
+    if (!validateSceneBytes(data, mime, data.length)) throw new Error('Dimensões da cena inválidas (máximo 2048×1152)');
     return { kind: 'image', mime, data: new Uint8Array(data) };
   }
 

@@ -3,7 +3,8 @@
 // binário logo após o cabeçalho `image`.
 
 import { findGoogleFont } from './google-fonts';
-import { MAX_SCENE_BYTES, findBuiltinScene } from './scenes';
+import { imageSize } from './image-size';
+import { MAX_SCENE_BYTES, findBuiltinScene, isSceneSize } from './scenes';
 
 export { MAX_SCENE_BYTES };
 
@@ -324,10 +325,14 @@ export function validateImageBytes(bytes: Uint8Array, declaredMime: ImageMime, d
   return detectImageMime(bytes) === declaredMime;
 }
 
-/** Confere os bytes de uma cena recebida: tamanho declarado, limite e assinatura JPEG/PNG. */
+/**
+ * Confere os bytes de uma cena: tamanho declarado, limite, assinatura JPEG/PNG e dimensões do cabeçalho (até
+ * 2048×1152, sem zero). Sem dimensões legíveis, recusa.
+ */
 export function validateSceneBytes(bytes: Uint8Array, declaredMime: SceneMime, declaredSize: number): boolean {
   if (bytes.length === 0 || bytes.length > MAX_SCENE_BYTES || bytes.length !== declaredSize) return false;
-  return detectImageMime(bytes) === declaredMime;
+  if (detectImageMime(bytes) !== declaredMime) return false;
+  return isSceneSize(imageSize(bytes, declaredMime));
 }
 
 /** Regra anti-duplicação: só o lado com o ID menor inicia a conexão. */

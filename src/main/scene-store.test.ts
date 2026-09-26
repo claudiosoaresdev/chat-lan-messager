@@ -3,8 +3,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { MAX_CUSTOM_SCENES, MAX_SCENE_BYTES, SceneStore } from './scene-store';
+import { jpegHeader } from '../shared/test-images';
 
-const jpeg = (n: number) => Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, n & 0xff, (n >> 8) & 0xff]);
+/** JPEG 1600×900 (só cabeçalho), com bytes finais diferentes por n. */
+const jpeg = (n: number) => jpegHeader(1600, 900, [n & 0xff, (n >> 8) & 0xff]);
 
 let root: string;
 let inUse: string[];
@@ -51,6 +53,13 @@ describe('SceneStore', () => {
     const big = new Uint8Array(MAX_SCENE_BYTES + 1);
     big.set([0xff, 0xd8, 0xff]);
     expect(() => store.add(big)).toThrow(/400 KB/);
+  });
+
+  it('recusa JPEG com dimensões acima de 2048×1152, zero ou ilegíveis', () => {
+    expect(() => store.add(jpegHeader(10000, 10000))).toThrow(/Dimensões/);
+    expect(() => store.add(jpegHeader(1600, 0))).toThrow(/Dimensões/);
+    expect(() => store.add(Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 1, 2]))).toThrow(/Dimensões/);
+    expect(store.list()).toEqual([]);
   });
 
   it('ids fora do formato são recusados (nada de caminho)', () => {

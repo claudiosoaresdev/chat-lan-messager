@@ -4,7 +4,8 @@ import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { CustomScene } from '../shared/api';
-import { MAX_SCENE_BYTES } from '../shared/scenes';
+import { jpegSize } from '../shared/image-size';
+import { MAX_SCENE_BYTES, isSceneSize } from '../shared/scenes';
 
 export { MAX_SCENE_BYTES };
 /** Quantas imagens próprias ficam guardadas; ao passar, as mais antigas (fora de uso) são apagadas. */
@@ -12,10 +13,11 @@ export const MAX_CUSTOM_SCENES = 12;
 
 const SCENE_ID = /^[0-9a-f]{16}$/;
 
-/** Confere tamanho e assinatura JPEG (FF D8 FF). */
+/** Confere tamanho, assinatura JPEG (FF D8 FF) e dimensões do cabeçalho (até 2048×1152). */
 export function validateSceneImage(data: Uint8Array) {
   if (data.byteLength === 0 || data.byteLength > MAX_SCENE_BYTES) throw new Error('Imagem da cena maior que 400 KB');
   if (data[0] !== 0xff || data[1] !== 0xd8 || data[2] !== 0xff) throw new Error('A cena precisa ser JPEG');
+  if (!isSceneSize(jpegSize(data))) throw new Error('Dimensões da cena inválidas (máximo 2048×1152)');
 }
 
 export const isSceneId = (id: unknown): id is string => typeof id === 'string' && SCENE_ID.test(id);

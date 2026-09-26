@@ -10,6 +10,7 @@ import {
   validateImageBytes,
   validateSceneBytes,
 } from './protocol';
+import { jpegHeader, pngHeader } from './test-images';
 
 const PNG = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0]);
 const JPEG = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 0, 0]);
@@ -248,20 +249,44 @@ describe('validateImageBytes', () => {
 });
 
 describe('validateSceneBytes', () => {
-  it('aceita JPEG/PNG com assinatura e tamanho conferindo', () => {
-    expect(validateSceneBytes(JPEG, 'image/jpeg', JPEG.length)).toBe(true);
-    expect(validateSceneBytes(PNG, 'image/png', PNG.length)).toBe(true);
+  const SJPEG = jpegHeader(1600, 900);
+  const SPNG = pngHeader(1600, 900);
+
+  it('aceita JPEG/PNG com assinatura, tamanho e dimensões conferindo', () => {
+    expect(validateSceneBytes(SJPEG, 'image/jpeg', SJPEG.length)).toBe(true);
+    expect(validateSceneBytes(SPNG, 'image/png', SPNG.length)).toBe(true);
+    const max = pngHeader(2048, 1152);
+    expect(validateSceneBytes(max, 'image/png', max.length)).toBe(true);
   });
 
   it('rejeita assinatura diferente do mime, tamanho divergente, vazio e acima do limite', () => {
-    expect(validateSceneBytes(PNG, 'image/jpeg', PNG.length)).toBe(false);
+    expect(validateSceneBytes(SPNG, 'image/jpeg', SPNG.length)).toBe(false);
     expect(validateSceneBytes(SVG, 'image/png', SVG.length)).toBe(false);
     expect(validateSceneBytes(GIF, 'image/png', GIF.length)).toBe(false);
-    expect(validateSceneBytes(PNG, 'image/png', PNG.length + 1)).toBe(false);
+    expect(validateSceneBytes(SPNG, 'image/png', SPNG.length + 1)).toBe(false);
     expect(validateSceneBytes(new Uint8Array(), 'image/png', 0)).toBe(false);
     const big = new Uint8Array(MAX_SCENE_BYTES + 1);
-    big.set(JPEG);
+    big.set(SJPEG);
     expect(validateSceneBytes(big, 'image/jpeg', big.length)).toBe(false);
+  });
+
+  it('rejeita bomba de descompressão e dimensões zero ou acima de 2048×1152', () => {
+    const bomb = pngHeader(10000, 10000);
+    expect(bomb.length).toBeLessThan(1024);
+    expect(validateSceneBytes(bomb, 'image/png', bomb.length)).toBe(false);
+    for (const [w, h] of [[2049, 900], [1600, 1153], [0, 900], [1600, 0]]) {
+      const p = pngHeader(w, h);
+      const j = jpegHeader(w, h);
+      expect(validateSceneBytes(p, 'image/png', p.length)).toBe(false);
+      expect(validateSceneBytes(j, 'image/jpeg', j.length)).toBe(false);
+    }
+  });
+
+  it('rejeita cabeçalho cortado ou embaralhado (sem dimensões)', () => {
+    expect(validateSceneBytes(PNG, 'image/png', PNG.length)).toBe(false);
+    expect(validateSceneBytes(JPEG, 'image/jpeg', JPEG.length)).toBe(false);
+    const cut = SJPEG.slice(0, 26);
+    expect(validateSceneBytes(cut, 'image/jpeg', cut.length)).toBe(false);
   });
 });
 

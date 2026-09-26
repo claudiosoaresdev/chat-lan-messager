@@ -2,9 +2,13 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
 import { PeerManager, type PeerManagerEvents } from './peer-manager';
 import type { PeerInfo } from '../shared/api';
+import { jpegHeader, pngHeader } from '../shared/test-images';
 
 const HOST = '127.0.0.1';
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4]);
+/** Cenas: cabeçalhos com dimensões válidas (1600×900). */
+const SCENE_PNG = Buffer.from(pngHeader(1600, 900));
+const SCENE_JPEG = Buffer.from(jpegHeader(1600, 900));
 
 let managers: PeerManager[] = [];
 
@@ -171,7 +175,7 @@ describe('PeerManager', () => {
     expect(b.getPeerScene('aaa')).toEqual({ id: 'aaa', scene: { kind: 'builtin', id: 'aurora' } });
 
     // Troca para imagem própria (cabeçalho + frame binário).
-    const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]);
+    const jpeg = SCENE_JPEG;
     const image = next(b, 'scene');
     a.setScene({ kind: 'image', data: new Uint8Array(jpeg) });
     const got = await image;
@@ -236,8 +240,11 @@ describe('PeerManager', () => {
     expect(() => a.setScene({ kind: 'image', data: new TextEncoder().encode('<svg/>') })).toThrow(/Formato/);
     expect(() => a.setScene({ kind: 'image', data: new TextEncoder().encode('GIF89a....') })).toThrow(/Formato/);
     const big = new Uint8Array(400 * 1024 + 1);
-    big.set(PNG);
+    big.set(SCENE_PNG);
     expect(() => a.setScene({ kind: 'image', data: big })).toThrow(/400 KB/);
+    // bomba de descompressão: cabeçalho pequeno declarando 10000×10000
+    expect(() => a.setScene({ kind: 'image', data: pngHeader(10000, 10000) })).toThrow(/Dimensões/);
+    expect(() => a.setScene({ kind: 'image', data: new Uint8Array(PNG) })).toThrow(/Dimensões/);
   });
 
   it('descarta cena recebida inválida e binário sem cabeçalho', async () => {
@@ -256,14 +263,17 @@ describe('PeerManager', () => {
     const svg = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"/>');
     ws.send(JSON.stringify({ type: 'scene', from: 'zzz-raw', kind: 'image', mime: 'image/png', size: svg.length }));
     ws.send(svg);
+    const bomb = pngHeader(10000, 10000);
+    ws.send(JSON.stringify({ type: 'scene', from: 'zzz-raw', kind: 'image', mime: 'image/png', size: bomb.length }));
+    ws.send(bomb); // bomba de descompressão
     await sleep(50);
     expect(scenes).toHaveLength(0);
     expect(a.getPeerScene('zzz-raw')).toBeNull();
 
     // Uma válida passa.
     const ok = next(a, 'scene');
-    ws.send(JSON.stringify({ type: 'scene', from: 'zzz-raw', kind: 'image', mime: 'image/png', size: PNG.length }));
-    ws.send(PNG);
+    ws.send(JSON.stringify({ type: 'scene', from: 'zzz-raw', kind: 'image', mime: 'image/png', size: SCENE_PNG.length }));
+    ws.send(SCENE_PNG);
     expect(await ok).toMatchObject({ id: 'zzz-raw', scene: { kind: 'image', mime: 'image/png' } });
     ws.close();
   });

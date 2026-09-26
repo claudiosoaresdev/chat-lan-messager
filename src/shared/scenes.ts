@@ -4,6 +4,13 @@
 export const SCENE_WIDTH = 1600;
 export const SCENE_HEIGHT = 900;
 export const MAX_SCENE_BYTES = 400 * 1024;
+/** Maior cena aceita (lida do cabeçalho): folga sobre 1600×900, barra bombas de descompressão. */
+export const MAX_SCENE_WIDTH = 2048;
+export const MAX_SCENE_HEIGHT = 1152;
+
+/** Dimensões dentro do limite das cenas (e não zero). */
+export const isSceneSize = (s: { width: number; height: number } | null): boolean =>
+  !!s && s.width > 0 && s.height > 0 && s.width <= MAX_SCENE_WIDTH && s.height <= MAX_SCENE_HEIGHT;
 
 export interface BuiltinScene {
   id: string;
