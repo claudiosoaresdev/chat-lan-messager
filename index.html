@@ -60,6 +60,12 @@
         <rect x="5.5" y="2.5" width="9" height="3" rx="1.2" fill="#2e7fe0" />
         <path d="M3 4.5l-1.6 3.5L3 11.5M17 4.5l1.6 3.5-1.6 3.5" fill="none" stroke="#f2b50d" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
       </symbol>
+      <symbol id="i-music" viewBox="0 0 16 16">
+        <path d="M6 12.2V3.4l7.5-1.9v8.6" fill="none" stroke="#2e7fe0" stroke-width="1.5" stroke-linejoin="round" />
+        <ellipse cx="4.2" cy="12.4" rx="2.2" ry="1.7" fill="#2e7fe0" />
+        <ellipse cx="11.7" cy="10.2" rx="2.2" ry="1.7" fill="#2e7fe0" />
+        <path d="M6 5.6l7.5-1.9" stroke="#6b3fa0" stroke-width="1.5" />
+      </symbol>
       <symbol id="i-image" viewBox="0 0 20 16">
         <rect x=".75" y=".75" width="18.5" height="14.5" rx="1.5" fill="#fff" stroke="#3c7fb1" stroke-width="1.5" />
         <circle cx="6" cy="5.5" r="1.8" fill="#f2b50d" />
@@ -258,7 +264,12 @@
             </div>
           </div>
 
-          <div class="chat-toolbar" id="chat-toolbar" hidden></div>
+          <div class="chat-toolbar" id="chat-toolbar" hidden>
+            <button type="button" class="listening" id="listening">
+              <svg class="listening-icon" aria-hidden="true"><use href="#i-music" /></svg>
+              <span class="marquee" id="listening-marquee"><span class="marquee-track" id="listening-track"></span></span>
+            </button>
+          </div>
         </div>
 
         <div class="chat-main">

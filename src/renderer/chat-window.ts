@@ -8,6 +8,7 @@ import { showView, state } from './state';
 import { shouldPlayMessageSound } from './message-alert';
 import { playMessageSound } from './sound';
 import { setContactScene } from './scene';
+import { setListeningPeerName, startListeningBar } from './listening-bar';
 
 /** Wink ou nudge que chegou há menos disso toca ao abrir: foi ele que abriu a janela. */
 const REPLAY_MS = 10_000;
@@ -95,7 +96,9 @@ export async function startChatWindow(peerId: string) {
     }
   });
   chat().onPeer((p) => {
-    if (p.id === peerId) setPeer(p);
+    if (p.id !== peerId) return;
+    setPeer(p);
+    setListeningPeerName(p.name);
   });
   chat().onSelfChanged((self) => {
     state.self = self;
@@ -104,6 +107,8 @@ export async function startChatWindow(peerId: string) {
 
   const init = await chat().getChatInit(peerId);
   setPeer(init.peer ?? unknownPeer(peerId));
+  setListeningPeerName((init.peer ?? unknownPeer(peerId)).name);
+  void startListeningBar(peerId);
   for (const item of init.history) {
     lastSeq = item.seq;
     render(item, false);

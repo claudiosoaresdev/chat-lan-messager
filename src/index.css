@@ -1149,6 +1149,101 @@ button {
   background: linear-gradient(180deg, color-mix(in srgb, var(--accent-soft) 6.42%, var(--bg)), color-mix(in srgb, var(--accent-soft) 25.18%, var(--bg)));
 }
 
+.chat-toolbar[hidden] {
+  display: none;
+}
+
+/* "O que estou ouvindo": letreiro com a música do Spotify. */
+.listening {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  height: 22px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: none;
+  color: var(--text-strong);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.listening:hover {
+  border-color: var(--accent-soft);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent-soft) 3.67%, var(--bg)), color-mix(in srgb, var(--accent-soft) 31.2%, var(--bg)));
+}
+
+.listening-icon {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
+.marquee {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: opacity 160ms ease;
+}
+
+.marquee.is-changing {
+  opacity: 0;
+}
+
+/* Rolando: as bordas somem aos poucos em vez de cortar as letras. */
+.marquee.is-scrolling {
+  mask-image: linear-gradient(90deg, transparent, black 14px, black calc(100% - 14px), transparent);
+}
+
+.marquee-track {
+  display: inline-flex;
+  gap: var(--marquee-gap, 0);
+}
+
+.marquee.is-scrolling .marquee-track {
+  padding-left: 14px;
+  animation: marquee var(--marquee-duration, 10s) linear infinite;
+}
+
+.marquee:not(.is-scrolling) .marquee-track {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.listening:hover .marquee-track {
+  animation-play-state: paused;
+}
+
+@keyframes marquee {
+  to {
+    transform: translateX(calc(-1 * var(--marquee-distance, 0px)));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee.is-scrolling {
+    mask-image: none;
+  }
+
+  .marquee.is-scrolling .marquee-track {
+    display: block;
+    overflow: hidden;
+    padding-left: 0;
+    text-overflow: ellipsis;
+    animation: none;
+  }
+
+  .marquee-copy[aria-hidden='true'] {
+    display: none;
+  }
+}
+
 /* Contato offline: ferramentas de envio da barra de formatação ficam apagadas. */
 .fmt-btn:disabled {
   opacity: 0.45;
@@ -3034,7 +3129,7 @@ body.is-resizing * {
   --scene-shade: var(--scene-shade-on-light);
 }
 
-:root[data-scene='on'] :is(.home-header, .chat-header) {
+:root[data-scene='on'] :is(.home-header, .chat-header, .chat-toolbar) {
   border-bottom-color: transparent;
   background: none;
   --scene-halo: 0 0 2px var(--scene-shade), 0 0 6px color-mix(in srgb, var(--scene-shade) 70%, transparent);
@@ -3078,6 +3173,11 @@ body.is-resizing * {
 }
 
 /* Botões na transição: placa do fundo do tema, com as cores normais do tema. */
+:root[data-scene='on'] .listening:not(:hover) {
+  color: var(--scene-text);
+  text-shadow: var(--scene-halo);
+}
+
 :root[data-scene='on'] .tool-btn:not(:hover) {
   background: color-mix(in srgb, var(--bg) var(--scene-tool-plate), transparent);
 }
