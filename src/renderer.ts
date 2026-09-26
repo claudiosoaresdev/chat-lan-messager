@@ -1,8 +1,12 @@
 // Entrada do renderer. O mesmo index.html serve a janela principal (login e contatos)
 // e as janelas de conversa (?chat=<id do contato>). Sem acesso ao Node: tudo passa por window.chat.
 import { $, chat } from './renderer/dom';
+import { initAppearance } from './renderer/appearance';
 import { startChatWindow } from './renderer/chat-window';
 import { startMainWindow } from './renderer/main-window';
+
+// Cores do tema antes de qualquer tela.
+initAppearance();
 
 // ---------------------------------------------------------------- barra de título (janela sem moldura)
 

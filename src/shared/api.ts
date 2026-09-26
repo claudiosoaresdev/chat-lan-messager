@@ -1,5 +1,8 @@
 // Tipos compartilhados entre main, preload e renderer (API window.chat).
 import type { ImageMime, MessageFont, PresenceStatus, WinkId } from './protocol';
+import type { Appearance } from './themes';
+
+export type { Appearance, AppearanceMode } from './themes';
 
 /** Informações da máquina, disponíveis antes do login. */
 export interface LocalInfo {
@@ -242,6 +245,18 @@ export interface ChatApi {
   setSounds(on: boolean): Promise<boolean>;
   onSoundsChanged(cb: (on: boolean) => void): Unsubscribe;
 
+  // aparência (modo claro/escuro e tema)
+  getAppearance(): Promise<Appearance>;
+  /** Salva, ajusta as janelas nativas e avisa todas as janelas. */
+  setAppearance(appearance: Appearance): Promise<Appearance>;
+  /**
+   * Prévia ao vivo em todas as janelas, sem salvar (janela "Aparência"). `font`: fonte sugerida do tema,
+   * também só em prévia. `null` volta à aparência e à fonte salvas.
+   */
+  previewAppearance(appearance: Appearance | null, font?: MessageFont): Promise<void>;
+  /** Aparência mudou (salva ou em prévia). */
+  onAppearanceChanged(cb: (appearance: Appearance) => void): Unsubscribe;
+
   // mudanças feitas em outra janela
   onSelfChanged(cb: (self: SelfInfo) => void): Unsubscribe;
   onFontChanged(cb: (font: MessageFont) => void): Unsubscribe;
@@ -298,6 +313,10 @@ export const IPC = {
   getSounds: 'sound:get',
   setSounds: 'sound:set',
   soundsChanged: 'sound:changed',
+  getAppearance: 'appearance:get',
+  setAppearance: 'appearance:set',
+  previewAppearance: 'appearance:preview',
+  appearanceChanged: 'appearance:changed',
   selfChanged: 'session:self-changed',
   fontChanged: 'font:changed',
   myAvatarChanged: 'avatar:mine-changed',

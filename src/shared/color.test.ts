@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   averageColor,
   contrast,
+  ensureContrast,
   hslToRgb,
   luminance,
   mapColors,
@@ -73,5 +74,36 @@ describe('cor', () => {
     expect(averageColor(v)).toBe('#808080');
     expect(averageColor('#123456')).toBe('#123456');
     expect(() => averageColor('transparent')).toThrow();
+  });
+});
+
+describe('ensureContrast', () => {
+  it('mantém a cor que já contrasta', () => {
+    expect(ensureContrast('#000000', '#ffffff', 3)).toBe('#000000');
+    expect(ensureContrast('#0B3F92', '#fff', 3)).toBe('#0b3f92');
+  });
+
+  it('clareia no fundo escuro e escurece no claro, até o mínimo', () => {
+    const dark = '#20262f';
+    const black = ensureContrast('#000000', dark, 3);
+    expect(contrast(black, dark)).toBeGreaterThanOrEqual(3);
+    expect(luminance(black)).toBeGreaterThan(luminance(dark));
+
+    const navy = ensureContrast('#000080', dark, 3);
+    expect(contrast(navy, dark)).toBeGreaterThanOrEqual(3);
+    // mantém o matiz
+    expect(Math.round(rgbToHsl(parseHex(navy)).h)).toBe(240);
+
+    const yellow = ensureContrast('#ffff66', '#ffffff', 3);
+    expect(contrast(yellow, '#ffffff')).toBeGreaterThanOrEqual(3);
+    expect(luminance(yellow)).toBeLessThan(luminance('#ffff66'));
+  });
+
+  it('muda o mínimo possível (não vai além do necessário)', () => {
+    const dark = '#20262f';
+    const out = ensureContrast('#000000', dark, 3);
+    const hsl = rgbToHsl(parseHex(out));
+    const lessLight = toHex(hslToRgb({ ...hsl, l: hsl.l - 0.01 }));
+    expect(contrast(lessLight, dark)).toBeLessThan(3);
   });
 });

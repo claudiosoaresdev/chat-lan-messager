@@ -1,6 +1,8 @@
 // "Alterar fonte" das mensagens, como no MSN: fonte, estilo, tamanho, sublinhado e cor.
 // A fonte vai junto com cada mensagem e é aplicada só via propriedades de estilo (CSSOM).
+import { averageColor, ensureContrast } from '../shared/color';
 import { DEFAULT_FONT, type MessageFont } from '../shared/protocol';
+import { onAppearanceApplied } from './appearance';
 import { $, chat, el, errorMessage } from './dom';
 import { ensureFontLoaded, fontStack } from './font-loader';
 import {
@@ -39,13 +41,46 @@ const COLORS = [
 let current: MessageFont = { ...DEFAULT_FONT };
 const listeners: Array<(f: MessageFont) => void> = [];
 
-/** Cores muito claras ficariam invisíveis no fundo branco: escurece para leitura. */
-function readableColor(hex: string) {
-  const n = parseInt(hex.slice(1), 16);
-  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-  const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-  return luminance > 0.85 ? '#7a7a7a' : hex;
+/** Contraste mínimo da cor da mensagem sobre o fundo da conversa (texto grande o bastante para 3:1). */
+const MIN_MESSAGE_CONTRAST = 3;
+
+/** Fundo da conversa no tema e modo atuais. */
+function surfaceColor() {
+  try {
+    return averageColor(getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() || '#fff');
+  } catch {
+    return '#ffffff';
+  }
 }
+
+/**
+ * Cor legível no fundo atual: preto no modo escuro clareia, amarelo-claro no claro escurece (mesmo matiz).
+ * A cor original fica em data-font-color para reajustar quando o modo ou o tema mudam.
+ */
+export function readableColor(hex: string) {
+  try {
+    return ensureContrast(hex, surfaceColor(), MIN_MESSAGE_CONTRAST);
+  } catch {
+    return hex;
+  }
+}
+
+/** Barrinha de cor sob o "A" da barra de formatação: mostra a cor como vai aparecer. */
+export function applyColorBar(node: HTMLElement, color: string) {
+  node.dataset.fontBar = color;
+  node.style.backgroundColor = readableColor(color);
+}
+
+/** Reaplica a cor legível em tudo que mostra a fonte (mensagens, caixa de escrever, exemplo, barrinha). */
+function refreshReadableColors() {
+  document.querySelectorAll<HTMLElement>('[data-font-color]').forEach((n) => {
+    n.style.color = readableColor(n.dataset.fontColor ?? '#000000');
+  });
+  document.querySelectorAll<HTMLElement>('[data-font-bar]').forEach((n) => {
+    n.style.backgroundColor = readableColor(n.dataset.fontBar ?? '#000000');
+  });
+}
+onAppearanceApplied(refreshReadableColors);
 
 export interface ApplyFontOptions {
   /** Fonte de mensagem recebida: o download entra no limite de downloads automáticos. */
@@ -66,6 +101,7 @@ export function applyFont(
   node.style.fontWeight = String(font.weight ?? (font.bold ? 700 : 400));
   node.style.fontStyle = font.italic ? 'italic' : 'normal';
   node.style.textDecoration = font.underline ? 'underline' : 'none';
+  node.dataset.fontColor = font.color;
   node.style.color = readableColor(font.color);
   // Fonte do Google: registra e o texto troca sozinho quando ela carregar.
   if (load) void ensureFontLoaded(font.family, { auto });

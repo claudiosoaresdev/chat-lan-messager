@@ -49,6 +49,26 @@ export function findTheme(id: string): Theme | undefined {
   return THEMES.find((t) => t.id === id);
 }
 
+/** Modo escolhido pelo usuário: 'system' segue o sistema operacional. */
+export type AppearanceMode = 'system' | ThemeMode;
+
+export interface Appearance {
+  mode: AppearanceMode;
+  theme: string;
+}
+
+export const DEFAULT_APPEARANCE: Appearance = { mode: 'system', theme: DEFAULT_THEME };
+
+export const isAppearanceMode = (v: unknown): v is AppearanceMode => v === 'system' || v === 'light' || v === 'dark';
+
+/** Valida uma aparência vinda do disco ou da IPC; null se inválida. */
+export function validateAppearance(raw: unknown): Appearance | null {
+  const a = raw as Partial<Appearance> | null;
+  if (!a || typeof a !== 'object') return null;
+  if (!isAppearanceMode(a.mode) || typeof a.theme !== 'string' || !findTheme(a.theme)) return null;
+  return { mode: a.mode, theme: a.theme };
+}
+
 /** Tokens de significado próprio (aviso, erro, não lida, winks, contador verde): não giram com o tema. */
 const SEMANTIC = new Set<TokenName>([
   'accent-green',

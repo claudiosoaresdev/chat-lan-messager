@@ -7,7 +7,7 @@ import { onPeerAvatarsChange, paintAvatar, peerAvatarUrl } from './avatar';
 import { buildEmoticonGrid, emoticonIcon, renderRichText } from './emoticons';
 import { buildWinkGrid, playWink, winkInfo } from './winks';
 import { initGiphy, onGifPickerOpened } from './giphy';
-import { applyFont, onFontChange, openFontDialog } from './font';
+import { applyColorBar, applyFont, onFontChange, openFontDialog } from './font';
 import { playNudgeSound } from './sound';
 import { state } from './state';
 import { STATUS_LABEL } from './status';
@@ -293,7 +293,7 @@ els.fmtFont.addEventListener('click', () => openFontDialog());
 // A caixa de escrever mostra a fonte escolhida; a barrinha do "A" mostra a cor.
 onFontChange((font) => {
   applyFont(els.text, font);
-  els.fmtFontBar.style.backgroundColor = font.color;
+  applyColorBar(els.fmtFontBar, font.color);
 });
 
 // ---------------------------------------------------------------- winks

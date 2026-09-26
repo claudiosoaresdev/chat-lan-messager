@@ -68,6 +68,11 @@ const api: ChatApi = {
   setSounds: (on) => call(IPC.setSounds, on),
   onSoundsChanged: (cb) => subscribe(IPC.soundsChanged, cb),
 
+  getAppearance: () => call(IPC.getAppearance),
+  setAppearance: (appearance) => call(IPC.setAppearance, appearance),
+  previewAppearance: (appearance, font) => call(IPC.previewAppearance, appearance, font ?? null),
+  onAppearanceChanged: (cb) => subscribe(IPC.appearanceChanged, cb),
+
   onSelfChanged: (cb) => subscribe(IPC.selfChanged, cb),
   onFontChanged: (cb) => subscribe(IPC.fontChanged, cb),
   onMyAvatarChanged: (cb) => subscribe(IPC.myAvatarChanged, cb),

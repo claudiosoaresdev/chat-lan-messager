@@ -127,3 +127,20 @@ export function averageColor(value: string): string {
   const sum = colors.reduce((a, c) => ({ r: a.r + c.r, g: a.g + c.g, b: a.b + c.b }), { r: 0, g: 0, b: 0 });
   return toHex({ r: sum.r / colors.length, g: sum.g / colors.length, b: sum.b / colors.length });
 }
+
+/**
+ * Garante contraste mínimo de `hex` sobre `bgHex`: se faltar, clareia (fundo escuro) ou escurece (fundo claro)
+ * em passos de 1% de luminosidade HSL, mantendo o matiz. Se nem o extremo bastar, devolve o extremo.
+ */
+export function ensureContrast(hex: string, bgHex: string, min: number): string {
+  const color = toHex(parseHex(hex));
+  if (contrast(color, bgHex) >= min) return color;
+  // Clareia se o branco contrasta mais com o fundo do que o preto.
+  const direction = contrast('#ffffff', bgHex) > contrast('#000000', bgHex) ? 1 : -1;
+  let out = color;
+  for (let step = 1; step <= 100; step++) {
+    out = shiftLightness(color, direction * step * 0.01);
+    if (contrast(out, bgHex) >= min) return out;
+  }
+  return out;
+}

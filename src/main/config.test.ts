@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_PORT, SettingsStore, parseArgs, parseHostPort, parseProfile, rememberPeer } from './config';
+import { DEFAULT_PORT, SettingsStore, defaultSettings, parseArgs, parseHostPort, parseProfile, rememberPeer } from './config';
 
 describe('parseHostPort', () => {
   it('lê host e porta', () => {
@@ -58,7 +58,7 @@ describe('SettingsStore', () => {
   it('salva e carrega; arquivo ausente ou corrompido vira padrão', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlan-'));
     const store = new SettingsStore(dir);
-    expect(store.load()).toEqual({ manualPeers: [], profile: null, font: null, giphyKey: null, sounds: true });
+    expect(store.load()).toEqual(defaultSettings());
 
     const font = {
       family: 'Georgia',
@@ -75,6 +75,7 @@ describe('SettingsStore', () => {
       font,
       giphyKey: 'abcDEF1234567890abcd',
       sounds: false,
+      appearance: { mode: 'dark', theme: 'roxo' },
     });
     expect(store.load()).toEqual({
       manualPeers: [{ host: '10.0.0.2', port: 47800 }],
@@ -82,10 +83,11 @@ describe('SettingsStore', () => {
       font,
       giphyKey: 'abcDEF1234567890abcd',
       sounds: false,
+      appearance: { mode: 'dark', theme: 'roxo' },
     });
 
     fs.writeFileSync(path.join(dir, 'settings.json'), '{ lixo');
-    expect(store.load()).toEqual({ manualPeers: [], profile: null, font: null, giphyKey: null, sounds: true });
+    expect(store.load()).toEqual(defaultSettings());
 
     fs.writeFileSync(path.join(dir, 'settings.json'), JSON.stringify({ manualPeers: [{ host: 1 }, { host: 'x', port: 2 }] }));
     expect(store.load()).toEqual({
@@ -94,6 +96,7 @@ describe('SettingsStore', () => {
       font: null,
       giphyKey: null,
       sounds: true,
+      appearance: { mode: 'system', theme: 'azul-classico' },
     });
     fs.rmSync(dir, { recursive: true, force: true });
   });
@@ -103,6 +106,30 @@ describe('SettingsStore', () => {
     fs.writeFileSync(path.join(dir, 'settings.json'), JSON.stringify({ manualPeers: [] }));
     expect(new SettingsStore(dir).load().sounds).toBe(true);
     fs.rmSync(dir, { recursive: true, force: true });
+  });
+});
+
+describe('aparência', () => {
+  const load = (appearance: unknown) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlan-'));
+    fs.writeFileSync(path.join(dir, 'settings.json'), JSON.stringify({ appearance }));
+    const out = new SettingsStore(dir).load().appearance;
+    fs.rmSync(dir, { recursive: true, force: true });
+    return out;
+  };
+
+  it('padrão: seguir o sistema com o Azul clássico', () => {
+    expect(load(undefined)).toEqual({ mode: 'system', theme: 'azul-classico' });
+  });
+
+  it('lê modo e tema válidos', () => {
+    expect(load({ mode: 'light', theme: 'verde' })).toEqual({ mode: 'light', theme: 'verde' });
+  });
+
+  it('valores inválidos voltam ao padrão', () => {
+    expect(load({ mode: 'noite', theme: 'verde' })).toEqual({ mode: 'system', theme: 'azul-classico' });
+    expect(load({ mode: 'dark', theme: 'inexistente' })).toEqual({ mode: 'system', theme: 'azul-classico' });
+    expect(load('dark')).toEqual({ mode: 'system', theme: 'azul-classico' });
   });
 });
 

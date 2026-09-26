@@ -9,6 +9,7 @@ import {
   validateFont,
   type MessageFont,
 } from '../shared/protocol';
+import { DEFAULT_APPEARANCE, validateAppearance, type Appearance } from '../shared/themes';
 
 /** Porta padrão do servidor. Evita a 5000 (AirPlay Receiver no Mac). */
 export const DEFAULT_PORT = 47800;
@@ -33,6 +34,8 @@ export interface Settings {
   giphyKey: string | null;
   /** Som de nova mensagem (menu ☰ da home). Padrão: ligado. */
   sounds: boolean;
+  /** Modo (sistema/claro/escuro) e tema de cor. */
+  appearance: Appearance;
 }
 
 const isPort = (n: unknown): n is number => typeof n === 'number' && Number.isInteger(n) && n >= 1 && n <= 65535;
@@ -98,6 +101,15 @@ export function rememberPeer(list: HostPort[], target: HostPort): HostPort[] {
   return [target, ...list.filter((p) => !sameTarget(p, target))].slice(0, MAX_SAVED_PEERS);
 }
 
+export const defaultSettings = (): Settings => ({
+  manualPeers: [],
+  profile: null,
+  font: null,
+  giphyKey: null,
+  sounds: true,
+  appearance: { ...DEFAULT_APPEARANCE },
+});
+
 export class SettingsStore {
   private readonly file: string;
 
@@ -123,9 +135,10 @@ export class SettingsStore {
         font: validateFont(raw?.font),
         giphyKey,
         sounds: raw?.sounds !== false,
+        appearance: validateAppearance(raw?.appearance) ?? { ...DEFAULT_APPEARANCE },
       };
     } catch {
-      return { manualPeers: [], profile: null, font: null, giphyKey: null, sounds: true };
+      return defaultSettings();
     }
   }
 

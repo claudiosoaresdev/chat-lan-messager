@@ -3,6 +3,7 @@ import {
   autoUpdater,
   BrowserWindow,
   ipcMain,
+  nativeTheme,
   net,
   Notification,
   protocol,
@@ -30,6 +31,7 @@ import { trayTooltip } from './main/tray-text';
 import {
   DEFAULT_PORT,
   SettingsStore,
+  defaultSettings,
   parseArgs,
   parseHostPort,
   rememberPeer,
@@ -56,6 +58,8 @@ import {
   isWinkId,
   validateFont,
 } from './shared/protocol';
+import { averageColor } from './shared/color';
+import { themeTokens, validateAppearance, type Appearance } from './shared/themes';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -94,7 +98,7 @@ interface Session {
 let session: Session | null = null;
 let store: SettingsStore;
 let avatars: AvatarStore;
-let settings: Settings = { manualPeers: [], profile: null, font: null, giphyKey: null, sounds: true };
+let settings: Settings = defaultSettings();
 const giphy = new GiphyClient(() => settings.giphyKey);
 let mainWindow: BrowserWindow | null = null;
 let updater: Updater | null = null;
@@ -125,6 +129,31 @@ function sendToRenderer(channel: string, payload: unknown) {
 /** Para todas as janelas (home e conversas): mudanças de perfil, fonte e avatares. */
 function broadcast(channel: string, payload: unknown) {
   for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.webContents.send(channel, payload);
+}
+
+// ---------------------------------------------------------------- aparência
+
+/** Prévia da janela "Aparência" (ainda não salva); null = vale a salva. */
+let previewing: Appearance | null = null;
+const shownAppearance = (): Appearance => previewing ?? settings.appearance;
+
+/** Modo efetivo: com themeSource já ajustado, o nativeTheme resolve o 'system' pelo sistema operacional. */
+const effectiveMode = () => (nativeTheme.shouldUseDarkColors ? 'dark' : 'light');
+
+/** Fundo das janelas nativas (evita o flash branco antes de a página pintar). */
+const windowBackground = () => averageColor(themeTokens(shownAppearance().theme, effectiveMode()).bg);
+
+function refreshWindowBackgrounds() {
+  const bg = windowBackground();
+  for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.setBackgroundColor(bg);
+}
+
+/** Ajusta nativeTheme e o fundo das janelas e manda a aparência mostrada para todas as janelas. */
+function showAppearance() {
+  const shown = shownAppearance();
+  if (nativeTheme.themeSource !== shown.mode) nativeTheme.themeSource = shown.mode;
+  refreshWindowBackgrounds();
+  broadcast(IPC.appearanceChanged, shown);
 }
 
 function refreshTray() {
@@ -435,6 +464,31 @@ function registerIpc() {
     return fonts.ensure(family, { auto: auto === true });
   });
 
+  handle(IPC.getAppearance, () => shownAppearance());
+  handle(IPC.setAppearance, (raw: unknown) => {
+    const appearance = validateAppearance(raw);
+    if (!appearance) throw new Error('Aparência inválida');
+    previewing = null;
+    saveSettings({ ...settings, appearance });
+    showAppearance();
+    return appearance;
+  });
+  // Prévia da janela "Aparência": vale para todas as janelas, sem salvar. null volta à aparência e à fonte salvas.
+  handle(IPC.previewAppearance, (raw: unknown, rawFont: unknown) => {
+    if (raw === null) {
+      previewing = null;
+      showAppearance();
+      broadcast(IPC.fontChanged, settings.font ?? DEFAULT_FONT);
+      return;
+    }
+    const appearance = validateAppearance(raw);
+    if (!appearance) throw new Error('Aparência inválida');
+    previewing = appearance;
+    showAppearance();
+    const font = rawFont === null || rawFont === undefined ? null : validateFont(rawFont);
+    if (font) broadcast(IPC.fontChanged, font);
+  });
+
   handle(IPC.hasGiphyKey, () => !!settings.giphyKey);
   handle(IPC.setGiphyKey, (key: unknown) => {
     if (key !== null && !isGiphyKey(typeof key === 'string' ? key.trim() : key)) {
@@ -554,12 +608,20 @@ const WEB_PREFERENCES: Electron.WebPreferences = {
   sandbox: true,
 };
 
-/** Mesmo index.html em todas as janelas; `query` (ex.: "chat=<id>") diz o papel da janela. */
-function loadRenderer(w: BrowserWindow, query = '') {
+/**
+ * Mesmo index.html em todas as janelas; `chat` (id do contato) diz o papel da janela. `mode` e `theme` levam a
+ * aparência atual para a página pintar já com as cores certas (a confirmação chega depois pela IPC).
+ */
+function loadRenderer(w: BrowserWindow, chatWith?: string) {
+  const params = new URLSearchParams();
+  if (chatWith) params.set('chat', chatWith);
+  params.set('mode', effectiveMode());
+  params.set('theme', shownAppearance().theme);
+  const query = params.toString();
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    w.loadURL(query ? `${MAIN_WINDOW_VITE_DEV_SERVER_URL}?${query}` : MAIN_WINDOW_VITE_DEV_SERVER_URL);
+    w.loadURL(`${MAIN_WINDOW_VITE_DEV_SERVER_URL}?${query}`);
   } else {
-    w.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`), query ? { search: query } : undefined);
+    w.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`), { search: query });
   }
 }
 
@@ -601,7 +663,7 @@ const createWindow = () => {
     title: 'Chat Live Messenger',
     // Sem moldura nativa: a barra de título azul (estilo MSN) é desenhada pela interface.
     frame: false,
-    backgroundColor: '#ffffff',
+    backgroundColor: windowBackground(),
     webPreferences: WEB_PREFERENCES,
   });
   harden(mainWindow);
@@ -636,14 +698,14 @@ function createChatWindow(peerId: string, events: ChatWindowEvents): ChatWindowH
     show: false,
     title: 'Conversa - Chat Live Messenger',
     frame: false,
-    backgroundColor: '#ffffff',
+    backgroundColor: windowBackground(),
     webPreferences: WEB_PREFERENCES,
   });
   harden(w);
   currentLayout.set(w, 'chat');
   w.on('closed', events.onClosed);
   w.on('focus', events.onFocused);
-  loadRenderer(w, `chat=${encodeURIComponent(peerId)}`);
+  loadRenderer(w, peerId);
   return {
     get destroyed() {
       return w.isDestroyed();
@@ -710,6 +772,9 @@ app.on('ready', () => {
     : path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}`);
   avatars = new AvatarStore(app.getPath('userData'), path.join(publicDir, 'avatars'));
   settings = store.load();
+  nativeTheme.themeSource = settings.appearance.mode;
+  // Sistema trocou claro/escuro (modo "Sistema"): refaz o fundo das janelas; as páginas seguem pelo matchMedia.
+  nativeTheme.on('updated', refreshWindowBackgrounds);
   setupFonts(publicDir);
   registerIpc();
   chats = new ChatWindows(

@@ -80,6 +80,11 @@
   color-scheme: light;
 }
 
+/* Controles nativos (barras de rolagem, campos) no modo escuro. */
+:root[data-mode='dark'] {
+  color-scheme: dark;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -2082,7 +2087,7 @@ body.is-resizing * {
   width: 13px;
   height: 3px;
   border-radius: 1px;
-  background: #000; /* cor-fixa: cor padrão da mensagem (preto) */
+  background: var(--text-strong); /* a cor escolhida vem do JS (applyColorBar) */
 }
 
 .font-dialog {
