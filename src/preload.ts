@@ -41,6 +41,7 @@ const api: ChatApi = {
 
   getFont: () => call(IPC.getFont),
   setFont: (font) => call(IPC.setFont, font),
+  ensureFont: (family) => call(IPC.ensureFont, family),
 
   hasGiphyKey: () => call(IPC.hasGiphyKey),
   setGiphyKey: (key) => call(IPC.setGiphyKey, key),

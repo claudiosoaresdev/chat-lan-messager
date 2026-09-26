@@ -164,6 +164,14 @@ export type UpdateStatus =
   | { state: 'installing' }
   | { state: 'error'; message: string };
 
+/** Face de uma fonte do Google pronta para registrar com FontFace. */
+export interface FontFaceInfo {
+  weight: number;
+  style: 'normal' | 'italic';
+  unicodeRange: string;
+  url: string;
+}
+
 export interface ChatApi {
   // janela (sem moldura nativa: a barra de título é desenhada pela interface)
   minimize(): void;
@@ -194,6 +202,8 @@ export interface ChatApi {
   // fonte das mensagens ("Alterar fonte")
   getFont(): Promise<MessageFont>;
   setFont(font: MessageFont): Promise<MessageFont>;
+  /** Garante que a fonte do Google está no disco (baixa se preciso) e devolve as faces. */
+  ensureFont(family: string): Promise<FontFaceInfo[]>;
 
   // GIFs do GIPHY (opcional: precisa de internet e de uma chave de API)
   hasGiphyKey(): Promise<boolean>;
@@ -265,6 +275,7 @@ export const IPC = {
   peerAvatar: 'avatar:peer',
   getFont: 'font:get',
   setFont: 'font:set',
+  ensureFont: 'font:ensure',
   hasGiphyKey: 'giphy:has-key',
   setGiphyKey: 'giphy:set-key',
   giphySearch: 'giphy:search',

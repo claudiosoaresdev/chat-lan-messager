@@ -4,6 +4,7 @@
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import type { FontFaceInfo } from '../shared/api';
 import { findGoogleFont } from '../shared/google-fonts';
 import { GOOGLE_USER_AGENT, css2Url, fontSlug, parseFontFaces, type FontEntry } from '../shared/google-css';
 
@@ -26,13 +27,8 @@ export interface FontFaceFile {
   file: string;
 }
 
-/** Face pronta para o renderer registrar com a API FontFace. */
-export interface FontFaceInfo {
-  weight: number;
-  style: 'normal' | 'italic';
-  unicodeRange: string;
-  url: string;
-}
+/** Face pronta para o renderer registrar com a API FontFace (tipo único, em shared/api). */
+export type { FontFaceInfo };
 
 type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 

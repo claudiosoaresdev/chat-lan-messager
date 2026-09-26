@@ -1,12 +1,26 @@
-import { app, autoUpdater, BrowserWindow, ipcMain, Notification, screen, shell, type IpcMainInvokeEvent, type Tray } from 'electron';
+import {
+  app,
+  autoUpdater,
+  BrowserWindow,
+  ipcMain,
+  net,
+  Notification,
+  protocol,
+  screen,
+  shell,
+  type IpcMainInvokeEvent,
+  type Tray,
+} from 'electron';
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
+import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 import { PeerManager, SELF_CONNECTION } from './main/peer-manager';
 import { Discovery } from './main/discovery';
 import { AvatarStore } from './main/avatar-store';
+import { FontCache, type FontFaceFile } from './main/font-cache';
 import { GiphyClient, isGiphyKey } from './main/giphy';
 import { Updater, feedUrl } from './main/updater';
 import { Conversations } from './main/conversations';
@@ -47,6 +61,12 @@ import {
 if (started) {
   app.quit();
 }
+
+// Fontes baixadas do Google Fonts ficam no disco e chegam à página por este protocolo.
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'chatfont', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } },
+]);
+let fonts: FontCache;
 
 const localId = randomUUID();
 
@@ -408,6 +428,11 @@ function registerIpc() {
     broadcast(IPC.fontChanged, valid);
     return valid;
   });
+  // Só famílias do catálogo do Google Fonts (o FontCache rejeita as demais).
+  handle(IPC.ensureFont, (family: unknown) => {
+    if (typeof family !== 'string' || !family || family.length > 80) throw new Error('Fonte inválida');
+    return fonts.ensure(family);
+  });
 
   handle(IPC.hasGiphyKey, () => !!settings.giphyKey);
   handle(IPC.setGiphyKey, (key: unknown) => {
@@ -649,14 +674,39 @@ function createChatWindow(peerId: string, events: ChatWindowEvents): ChatWindowH
   };
 }
 
+/** Favoritas embutidas (public/fonts) + cache das baixadas, servidas pelo protocolo chatfont://. */
+function setupFonts(publicDir: string) {
+  let bundled: Record<string, FontFaceFile[]> = {};
+  try {
+    const parsed: unknown = JSON.parse(fs.readFileSync(path.join(publicDir, 'fonts', 'manifest.json'), 'utf8'));
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) bundled = parsed as Record<string, FontFaceFile[]>;
+  } catch {
+    // sem favoritas embutidas: todas vêm do download
+  }
+  fonts = new FontCache(path.join(app.getPath('userData'), 'fonts'), bundled, (url, init) => net.fetch(url, init));
+  // Só entrega arquivos que o FontCache aprova (dentro de userData/fonts, nome <hash>.woff2).
+  protocol.handle('chatfont', async (req) => {
+    const file = fonts.resolveFile(req.url);
+    if (!file) return new Response('', { status: 404 });
+    try {
+      const data = await fs.promises.readFile(file);
+      return new Response(data, { headers: { 'Content-Type': 'font/woff2' } });
+    } catch {
+      return new Response('', { status: 404 });
+    }
+  });
+}
+
 app.on('ready', () => {
   store = new SettingsStore(app.getPath('userData'));
-  // Imagens padrão: public/avatars no desenvolvimento; copiadas junto do renderer no app empacotado.
-  const builtinAvatars = MAIN_WINDOW_VITE_DEV_SERVER_URL
-    ? path.join(app.getAppPath(), 'public', 'avatars')
-    : path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/avatars`);
-  avatars = new AvatarStore(app.getPath('userData'), builtinAvatars);
+  // Arquivos de public/ (imagens padrão, favoritas de fonte, ícones da bandeja): a própria pasta no
+  // desenvolvimento; copiados junto do renderer no app empacotado.
+  const publicDir = MAIN_WINDOW_VITE_DEV_SERVER_URL
+    ? path.join(app.getAppPath(), 'public')
+    : path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}`);
+  avatars = new AvatarStore(app.getPath('userData'), path.join(publicDir, 'avatars'));
   settings = store.load();
+  setupFonts(publicDir);
   registerIpc();
   chats = new ChatWindows(
     createChatWindow,
@@ -665,10 +715,7 @@ app.on('ready', () => {
     (peerId, unread) => sendToRenderer(IPC.unreadChanged, { peerId, unread }),
   );
   createWindow();
-  const trayIcons = MAIN_WINDOW_VITE_DEV_SERVER_URL
-    ? path.join(app.getAppPath(), 'public', 'tray')
-    : path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/tray`);
-  tray = createTray(trayIcons, { open: showMainWindow, quit: () => app.quit() });
+  tray = createTray(path.join(publicDir, 'tray'), { open: showMainWindow, quit: () => app.quit() });
   refreshTray();
   startUpdater();
 });
