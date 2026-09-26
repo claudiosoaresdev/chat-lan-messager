@@ -90,6 +90,10 @@ No menu ☰ da lista de contatos, **Aparência...** abre a janela de modo e tema
   Montanhas; cada tema tem a sua), **Nenhuma** ou **Procurar...** para usar uma imagem do computador (recortada
   em 16:9 e reduzida automaticamente; dá para remover no ×). O texto sobre a cena fica claro ou escuro conforme
   a própria imagem, com uma faixa translúcida quando ela é muito contrastada.
+- **Cena compartilhada**, como no WLM: na conversa com um contato você vê a cena **dele** (no topo e atrás das
+  mensagens) e ele vê a sua, sempre com as cores do seu próprio tema e legível. Se o contato não tem cena ou usa
+  uma versão antiga, aparece a sua. Para ver sempre a sua, desmarque **Mostrar cenas dos contatos nas
+  conversas** na janela Aparência.
 - Cores de mensagem ilegíveis no fundo atual são ajustadas só na sua tela (no escuro, preto vira a cor de texto
   do tema). O contato continua recebendo a cor que você escolheu.
 
