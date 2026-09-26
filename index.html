@@ -483,9 +483,18 @@
         </div>
         <span class="font-label" id="appearance-theme-label">Tema — cor, cena e fonte</span>
         <div class="theme-grid" id="appearance-themes" role="radiogroup" aria-labelledby="appearance-theme-label"></div>
+        <span class="font-label" id="appearance-scene-label">Cena — topo e fundo das conversas</span>
+        <div class="scene-grid" id="appearance-scenes" role="radiogroup" aria-labelledby="appearance-scene-label"></div>
+        <div class="scene-actions">
+          <button type="button" class="win-btn" id="appearance-scene-browse" title="Usar uma imagem do computador (recortada em 16:9)">
+            Procurar…
+          </button>
+          <input type="file" id="appearance-scene-file" accept="image/png,image/jpeg,image/webp,image/gif" hidden />
+          <p class="form-error" id="appearance-scene-error" role="alert"></p>
+        </div>
         <p class="appearance-custom" id="appearance-custom" hidden>
-          <span title="A fonte das mensagens não é a sugerida pelo tema">Personalizado</span> ·
-          <button type="button" class="link" id="appearance-restore" title="Volta a fonte sugerida do tema">Restaurar tema</button>
+          <span title="A fonte ou a cena não são as sugeridas pelo tema">Personalizado</span> ·
+          <button type="button" class="link" id="appearance-restore" title="Volta a fonte e a cena sugeridas do tema">Restaurar tema</button>
         </p>
         <div class="button-row button-row-end">
           <button type="button" class="win-btn win-btn-default" id="appearance-ok">OK</button>

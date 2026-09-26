@@ -1,19 +1,25 @@
-// Janela "Aparência": modo (Sistema/Claro/Escuro) e tema (cor + fonte sugerida), com prévia ao vivo.
+// Janela "Aparência": modo (Sistema/Claro/Escuro), tema (cor + cena e fonte sugeridas) e cena, com prévia ao vivo.
 // Prévia: cada escolha pinta esta janela na hora e pede ao main um broadcast de prévia (previewAppearance), que
 // vale para todas as janelas abertas sem salvar. Cancelar/Esc pede a volta ao que está salvo; OK salva.
 import type { MessageFont } from '../shared/protocol';
-import { THEMES, findTheme, themeTokens, type Appearance, type AppearanceMode, type Theme } from '../shared/themes';
+import { BUILTIN_SCENES, MAX_SCENE_BYTES, SCENE_HEIGHT, SCENE_WIDTH, type SceneChoice } from '../shared/scenes';
+import { THEMES, effectiveScene, findTheme, themeTokens, type Appearance, type AppearanceMode, type Theme } from '../shared/themes';
 import { TOKEN_NAMES } from '../shared/theme-tokens';
 import { applyAppearance, currentAppearance, effectiveMode, onAppearanceApplied } from './appearance';
 import { $, chat, el, errorMessage } from './dom';
 import { currentFont } from './font';
 import { ensureFontLoaded, fontStack } from './font-loader';
+import { cropToCanvas, encodeJpegWithin } from './image-crop';
 
 const els = {
   dialog: $<HTMLDialogElement>('appearance-dialog'),
   modes: $('appearance-mode'),
   themes: $('appearance-themes'),
   custom: $('appearance-custom'),
+  scenes: $('appearance-scenes'),
+  sceneBrowse: $<HTMLButtonElement>('appearance-scene-browse'),
+  sceneFile: $<HTMLInputElement>('appearance-scene-file'),
+  sceneError: $('appearance-scene-error'),
   restore: $<HTMLButtonElement>('appearance-restore'),
   ok: $<HTMLButtonElement>('appearance-ok'),
   cancel: $<HTMLButtonElement>('appearance-cancel'),
@@ -40,6 +46,18 @@ const sameFont = (a: MessageFont, b: MessageFont) => JSON.stringify(a) === JSON.
 
 const draftTheme = () => findTheme(draft.theme) ?? THEMES[0];
 
+/** Chave de uma cena ("builtin:ceu", "custom:<id>", "none"): identifica os itens da grade. */
+const sceneKey = (c: SceneChoice) => (c.kind === 'none' ? 'none' : `${c.kind}:${c.id}`);
+
+/** A cena padrão do tema escolhida explicitamente conta como "a do tema" (null). */
+function normalizeScene(scene: SceneChoice | null, theme: Theme): SceneChoice | null {
+  return scene?.kind === 'builtin' && scene.id === theme.scene ? null : scene;
+}
+
+const sameScene = (a: SceneChoice | null, b: SceneChoice | null) => (a ? sceneKey(a) : '') === (b ? sceneKey(b) : '');
+
+const sceneUrl = (id: string) => `scenes/${id}.svg`;
+
 // ---------------------------------------------------------------- desenho
 
 /** Radiogroup com "roving tabindex": só o item marcado entra no Tab. */
@@ -58,12 +76,15 @@ function themeCard(theme: Theme) {
   card.type = 'button';
   card.setAttribute('role', 'radio');
   card.dataset.theme = theme.id;
-  card.setAttribute('aria-label', `${theme.name}, fonte ${theme.font}`);
+  const sceneName = BUILTIN_SCENES.find((x) => x.id === theme.scene)?.name ?? theme.scene;
+  card.setAttribute('aria-label', `${theme.name}, cena ${sceneName}, fonte ${theme.font}`);
 
   const preview = el('span', 'theme-preview');
   preview.setAttribute('aria-hidden', 'true');
   const tokens = themeTokens(theme.id, effectiveMode(draft));
   for (const name of TOKEN_NAMES) preview.style.setProperty(`--${name}`, tokens[name]);
+  // cena do tema no cabeçalho da mini-janela
+  preview.style.setProperty('--tp-scene', `url("${new URL(sceneUrl(theme.scene), location.href).href}")`);
   const body = el('span', 'tp-body');
   const mine = el('span', 'tp-line tp-mine', 'Oi! Tudo bem?');
   const theirs = el('span', 'tp-line tp-theirs', 'Tudo ótimo :)');
@@ -91,10 +112,79 @@ function renderThemes() {
   if (focused) els.themes.querySelector<HTMLElement>(`[data-theme="${focused}"]`)?.focus();
 }
 
+// ---------------------------------------------------------------- cenas
+
+/** Imagens próprias (miniaturas em blob:, revogadas ao recarregar a lista ou fechar). */
+let customs: Array<{ id: string; url: string }> = [];
+
+async function loadCustoms() {
+  const list = await chat().listCustomScenes();
+  customs.forEach((c) => URL.revokeObjectURL(c.url));
+  customs = list.map((c) => ({
+    id: c.id,
+    url: URL.createObjectURL(new Blob([c.data as Uint8Array<ArrayBuffer>], { type: 'image/jpeg' })),
+  }));
+}
+
+function sceneTile(choice: SceneChoice, name: string, url: string | null) {
+  const item = el('div', 'scene-item');
+  const tile = el('button', 'scene-card');
+  tile.type = 'button';
+  tile.setAttribute('role', 'radio');
+  tile.dataset.scene = sceneKey(choice);
+  const thumb = el('span', url ? 'scene-thumb' : 'scene-thumb scene-thumb-none');
+  thumb.setAttribute('aria-hidden', 'true');
+  if (url) {
+    const img = el('img');
+    img.alt = '';
+    img.src = url;
+    img.draggable = false;
+    thumb.append(img);
+  }
+  const badge = el('span', 'scene-badge', 'do tema');
+  badge.hidden = true;
+  thumb.append(badge);
+  tile.append(thumb, el('span', 'scene-name', name));
+  tile.addEventListener('click', () => pickScene(choice));
+  item.append(tile);
+  if (choice.kind === 'custom') {
+    const remove = el('button', 'scene-remove', '×');
+    remove.type = 'button';
+    remove.title = 'Apagar esta imagem';
+    remove.setAttribute('aria-label', 'Apagar esta imagem');
+    remove.addEventListener('click', () => void removeCustom(choice.id));
+    tile.addEventListener('keydown', (e) => {
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        void removeCustom(choice.id);
+      }
+    });
+    item.append(remove);
+  }
+  return item;
+}
+
+function renderScenes() {
+  const focused = els.scenes.contains(document.activeElement) ? (document.activeElement as HTMLElement).dataset.scene : undefined;
+  els.scenes.replaceChildren(
+    ...BUILTIN_SCENES.map((sc) => sceneTile({ kind: 'builtin', id: sc.id }, sc.name, sceneUrl(sc.id))),
+    ...customs.map((c) => sceneTile({ kind: 'custom', id: c.id }, 'Minha imagem', c.url)),
+    sceneTile({ kind: 'none' }, 'Nenhuma', null),
+  );
+  if (focused) els.scenes.querySelector<HTMLElement>(`[data-scene="${focused}"]`)?.focus();
+}
+
 function render() {
+  const theme = draftTheme();
   markRadios(els.modes, (b) => b.dataset.mode === draft.mode);
   markRadios(els.themes, (b) => b.dataset.theme === draft.theme);
-  els.custom.hidden = draftFont.family === draftTheme().font;
+  const shown = sceneKey(effectiveScene(draft));
+  markRadios(els.scenes, (b) => b.dataset.scene === shown);
+  els.scenes.querySelectorAll<HTMLElement>('.scene-card').forEach((b) => {
+    const badge = b.querySelector<HTMLElement>('.scene-badge');
+    if (badge) badge.hidden = b.dataset.scene !== `builtin:${theme.scene}`;
+  });
+  els.custom.hidden = draftFont.family === theme.font && normalizeScene(draft.scene, theme) === null;
 }
 
 // ---------------------------------------------------------------- prévia
@@ -116,10 +206,62 @@ function pickMode(mode: AppearanceMode) {
 
 function pickTheme(theme: Theme) {
   if (theme.id === draft.theme) return;
-  draft = { ...draft, theme: theme.id };
-  // De volta ao tema de quando abriu: volta também a fonte de antes (mesmo se era personalizada).
-  draftFont = theme.id === original.theme ? originalFont : withThemeFont(draftFont, theme);
+  // De volta ao tema de quando abriu: volta também a fonte e a cena de antes (mesmo se eram personalizadas);
+  // outro tema traz a cena dele.
+  const back = theme.id === original.theme;
+  draft = { ...draft, theme: theme.id, scene: back ? original.scene : null };
+  draftFont = back ? originalFont : withThemeFont(draftFont, theme);
   preview(draftFont);
+}
+
+function pickScene(choice: SceneChoice) {
+  const scene = normalizeScene(choice, draftTheme());
+  if (sameScene(scene, normalizeScene(draft.scene, draftTheme()))) return;
+  els.sceneError.textContent = '';
+  draft = { ...draft, scene };
+  preview();
+}
+
+async function removeCustom(id: string) {
+  els.sceneError.textContent = '';
+  const uses = (a: Appearance) => a.scene?.kind === 'custom' && a.scene.id === id;
+  try {
+    // O main também tira a imagem da aparência salva e da prévia; aqui o rascunho acompanha.
+    await chat().removeCustomScene(id);
+    if (uses(original)) original = { ...original, scene: null };
+    await loadCustoms();
+    renderScenes();
+    if (uses(draft)) {
+      draft = { ...draft, scene: null };
+      preview();
+    } else {
+      render();
+    }
+    els.scenes.querySelector<HTMLElement>('[aria-checked="true"]')?.focus();
+  } catch (err) {
+    els.sceneError.textContent = errorMessage(err);
+  }
+}
+
+/** Procurar…: recorte central 16:9, 1600×900, JPEG até 400 KB; guarda e já escolhe. */
+async function addCustom(file: File) {
+  els.sceneError.textContent = '';
+  if (!['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(file.type)) {
+    els.sceneError.textContent = 'Formato não suportado (use PNG, JPEG, WebP ou GIF)';
+    return;
+  }
+  try {
+    const canvas = await cropToCanvas(file, SCENE_WIDTH, SCENE_HEIGHT);
+    const bytes = await encodeJpegWithin(canvas, MAX_SCENE_BYTES);
+    const { id } = await chat().addCustomScene(bytes);
+    await loadCustoms();
+    renderScenes();
+    pickScene({ kind: 'custom', id });
+    render();
+    els.scenes.querySelector<HTMLElement>(`[data-scene="custom:${id}"]`)?.focus();
+  } catch (err) {
+    els.sceneError.textContent = errorMessage(err);
+  }
 }
 
 // ---------------------------------------------------------------- teclado
@@ -149,9 +291,17 @@ function radioKeys(group: HTMLElement, columns: () => number) {
   });
 }
 
-const gridColumns = () => getComputedStyle(els.themes).gridTemplateColumns.split(' ').filter(Boolean).length || 1;
+const gridColumns = (grid: HTMLElement) => () => getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length || 1;
 radioKeys(els.modes, () => 1);
-radioKeys(els.themes, gridColumns);
+radioKeys(els.themes, gridColumns(els.themes));
+radioKeys(els.scenes, gridColumns(els.scenes));
+
+els.sceneBrowse.addEventListener('click', () => els.sceneFile.click());
+els.sceneFile.addEventListener('change', () => {
+  const file = els.sceneFile.files?.[0];
+  els.sceneFile.value = '';
+  if (file) void addCustom(file);
+});
 
 els.modes.querySelectorAll<HTMLButtonElement>('.mode-option').forEach((b) =>
   b.addEventListener('click', () => pickMode(b.dataset.mode as AppearanceMode)),
@@ -184,6 +334,7 @@ async function confirm() {
 
 els.restore.addEventListener('click', () => {
   draftFont = withThemeFont(draftFont, draftTheme());
+  draft = { ...draft, scene: null };
   preview(draftFont);
   els.themes.querySelector<HTMLElement>('[aria-checked="true"]')?.focus();
 });
@@ -208,13 +359,20 @@ onAppearanceApplied((_a, mode) => {
   render();
 });
 
-export function openAppearanceDialog() {
+export async function openAppearanceDialog() {
   original = currentAppearance();
   originalFont = currentFont();
   draft = { ...original };
   draftFont = originalFont;
   dirty = false;
+  els.sceneError.textContent = '';
+  try {
+    await loadCustoms();
+  } catch (err) {
+    els.sceneError.textContent = errorMessage(err);
+  }
   renderThemes();
+  renderScenes();
   render();
   els.dialog.showModal();
   els.themes.querySelector<HTMLElement>('[aria-checked="true"]')?.focus();

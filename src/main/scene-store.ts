@@ -4,8 +4,9 @@ import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { CustomScene } from '../shared/api';
+import { MAX_SCENE_BYTES } from '../shared/scenes';
 
-export const MAX_SCENE_BYTES = 400 * 1024;
+export { MAX_SCENE_BYTES };
 /** Quantas imagens próprias ficam guardadas; ao passar, as mais antigas (fora de uso) são apagadas. */
 export const MAX_CUSTOM_SCENES = 12;
 

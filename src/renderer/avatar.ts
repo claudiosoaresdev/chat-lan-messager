@@ -3,6 +3,7 @@
 import type { LibraryAvatar, PeerAvatar } from '../shared/api';
 import { IMAGE_MIME_TYPES, MAX_AVATAR_BYTES } from '../shared/protocol';
 import { $, chat, el, errorMessage, icon } from './dom';
+import { cropToCanvas, encodeCanvas } from './image-crop';
 
 /** Lado da imagem que vai para os contatos (quadrada). */
 const AVATAR_SIZE = 128;
@@ -80,31 +81,10 @@ export function clearPeerAvatars() {
 
 /** Recorta no centro, reduz para 128×128 e devolve PNG (ou JPEG, se o PNG passar do limite). */
 async function toAvatarBytes(blob: Blob): Promise<Uint8Array> {
-  const url = URL.createObjectURL(blob);
-  try {
-    const img = new Image();
-    img.src = url;
-    await img.decode();
-    const w = img.naturalWidth || AVATAR_SIZE;
-    const h = img.naturalHeight || AVATAR_SIZE;
-    const side = Math.min(w, h);
-    const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = AVATAR_SIZE;
-    const g = canvas.getContext('2d');
-    if (!g) throw new Error('Não foi possível processar a imagem');
-    g.imageSmoothingQuality = 'high';
-    g.drawImage(img, (w - side) / 2, (h - side) / 2, side, side, 0, 0, AVATAR_SIZE, AVATAR_SIZE);
-
-    const encode = (type: string, quality?: number) =>
-      new Promise<Blob>((resolve, reject) =>
-        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Não foi possível processar a imagem'))), type, quality),
-      );
-    let out = await encode('image/png');
-    if (out.size > MAX_AVATAR_BYTES) out = await encode('image/jpeg', 0.9);
-    return new Uint8Array(await out.arrayBuffer());
-  } finally {
-    URL.revokeObjectURL(url);
-  }
+  const canvas = await cropToCanvas(blob, AVATAR_SIZE, AVATAR_SIZE);
+  let out = await encodeCanvas(canvas, 'image/png');
+  if (out.size > MAX_AVATAR_BYTES) out = await encodeCanvas(canvas, 'image/jpeg', 0.9);
+  return new Uint8Array(await out.arrayBuffer());
 }
 
 // ---------------------------------------------------------------- diálogo "Imagem de exibição"

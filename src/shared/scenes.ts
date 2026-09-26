@@ -1,5 +1,10 @@
 // Cenas da galeria embutida: SVGs em public/scenes/<id>.svg (1600×900, sem texto nem scripts).
 
+/** Imagens próprias: recorte 16:9 reduzido para 1600×900, JPEG até 400 KB. */
+export const SCENE_WIDTH = 1600;
+export const SCENE_HEIGHT = 900;
+export const MAX_SCENE_BYTES = 400 * 1024;
+
 export interface BuiltinScene {
   id: string;
   name: string;

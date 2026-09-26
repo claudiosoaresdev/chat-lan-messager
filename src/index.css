@@ -2802,9 +2802,10 @@ body.is-resizing * {
 
 .tp-header {
   flex: none;
-  height: 13px;
+  height: 15px;
   border-bottom: 1px solid var(--header-line);
-  background: var(--header-bg);
+  /* cena do tema (--tp-scene, posta pelo JS) sobre o cabeçalho do tema */
+  background: var(--tp-scene, none) center top / cover no-repeat, var(--header-bg);
 }
 
 .tp-body {
@@ -2849,6 +2850,136 @@ body.is-resizing * {
   font-size: 12px;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+/* Grade de cenas: miniaturas 16:9 com o nome; imagens próprias têm o "×" para apagar. */
+.scene-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+@media (max-width: 520px) {
+  .scene-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.scene-item {
+  position: relative;
+  min-width: 0;
+}
+
+.scene-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 3px 3px 2px;
+  border: 1px solid var(--box-border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+}
+
+.scene-card:hover:not(.is-selected) {
+  border-color: var(--row-hover-border);
+  background: var(--row-hover);
+}
+
+.scene-card.is-selected {
+  border-color: var(--btn-focus);
+  background: var(--row-selected);
+  box-shadow: inset 0 0 0 1px var(--btn-focus);
+}
+
+.scene-card:focus-visible {
+  outline: 2px solid var(--btn-focus);
+  outline-offset: 2px;
+}
+
+.scene-thumb {
+  position: relative;
+  display: block;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--border-strong) 60%, var(--surface));
+  border-radius: 2px;
+  background: var(--surface);
+}
+
+.scene-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* "Nenhuma": superfície lisa com um risco diagonal. */
+.scene-thumb-none {
+  background:
+    linear-gradient(to top right, transparent calc(50% - 1px), var(--muted) calc(50% - 1px), var(--muted) calc(50% + 1px), transparent calc(50% + 1px)),
+    var(--surface);
+}
+
+.scene-badge {
+  position: absolute;
+  left: 2px;
+  bottom: 2px;
+  padding: 0 4px;
+  border-radius: 2px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: 10px;
+  line-height: 14px;
+}
+
+.scene-badge[hidden] {
+  display: none;
+}
+
+.scene-name {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 11px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.scene-remove {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--btn-border);
+  border-radius: 50%;
+  background: var(--btn-face);
+  color: var(--text-strong);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.scene-remove:hover {
+  border-color: var(--error-border);
+  background: var(--error-bg);
+}
+
+.scene-remove:focus-visible {
+  outline: 2px solid var(--btn-focus);
+  outline-offset: 1px;
+}
+
+.scene-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
 }
 
 .appearance-custom {

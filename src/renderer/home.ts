@@ -223,7 +223,7 @@ document.querySelectorAll<HTMLButtonElement>('.group-header').forEach((btn) =>
 els.menuBtn.addEventListener('click', () =>
   openMenu(els.menuBtn, [
     { label: 'Adicionar contato por IP...', onSelect: () => void openAddDialog() },
-    { label: 'Aparência...', onSelect: () => openAppearanceDialog() },
+    { label: 'Aparência...', onSelect: () => void openAppearanceDialog() },
     {
       label: `${soundsOn ? '✓ ' : ''}Sons de mensagem`,
       onSelect: () =>
