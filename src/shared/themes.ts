@@ -58,9 +58,11 @@ export interface Appearance {
   theme: string;
   /** Cena escolhida; null = a cena padrão do tema. */
   scene: SceneChoice | null;
+  /** Nas conversas, mostrar a cena que o contato escolheu (como no WLM) no lugar da sua. */
+  showContactScenes: boolean;
 }
 
-export const DEFAULT_APPEARANCE: Appearance = { mode: 'system', theme: DEFAULT_THEME, scene: null };
+export const DEFAULT_APPEARANCE: Appearance = { mode: 'system', theme: DEFAULT_THEME, scene: null, showContactScenes: true };
 
 /** Cena que vale de fato: a escolhida ou, sem escolha, a padrão do tema. */
 export function effectiveScene(a: Appearance): SceneChoice {
@@ -71,13 +73,15 @@ export const isAppearanceMode = (v: unknown): v is AppearanceMode => v === 'syst
 
 /**
  * Valida uma aparência vinda do disco ou da IPC; null se inválida. Cena ausente ou inválida vira null (a do
- * tema): arquivo de versão antiga continua valendo. Se a imagem própria ainda existe, quem confere é o main.
+ * tema) e a opção de cenas dos contatos ausente vira true: arquivo de versão antiga continua valendo. Se a imagem própria ainda existe, quem confere é o main.
  */
 export function validateAppearance(raw: unknown): Appearance | null {
   const a = raw as Partial<Appearance> | null;
   if (!a || typeof a !== 'object') return null;
   if (!isAppearanceMode(a.mode) || typeof a.theme !== 'string' || !findTheme(a.theme)) return null;
-  return { mode: a.mode, theme: a.theme, scene: validateSceneChoice(a.scene) };
+  // Arquivo antigo, sem a opção: mostra as cenas dos contatos (padrão).
+  const showContactScenes = typeof a.showContactScenes === 'boolean' ? a.showContactScenes : true;
+  return { mode: a.mode, theme: a.theme, scene: validateSceneChoice(a.scene), showContactScenes };
 }
 
 /** Tokens de significado próprio (aviso, erro, não lida, winks, contador verde): não giram com o tema. */

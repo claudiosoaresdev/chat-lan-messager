@@ -257,6 +257,10 @@ export interface ChatApi {
   onChatItem(cb: (item: ConversationItem) => void): Unsubscribe;
   /** Contatos com mensagem não vista (piscam na lista). */
   getUnread(): Promise<string[]>;
+  /** Cena do contato (null = ele não mandou: versão antiga ou ainda conectando). */
+  getPeerScene(peerId: string): Promise<PeerScene | null>;
+  /** O contato desta janela trocou de cena. */
+  onPeerScene(cb: (scene: PeerScene) => void): Unsubscribe;
   onUnreadChanged(cb: (change: { peerId: string; unread: boolean }) => void): Unsubscribe;
 
   // som de nova mensagem (menu ☰ da home)
@@ -341,6 +345,8 @@ export const IPC = {
   getChatInit: 'chat:init',
   chatItem: 'chat:item',
   getUnread: 'chat:unread',
+  getPeerScene: 'scene:peer-get',
+  peerScene: 'scene:peer',
   unreadChanged: 'chat:unread-changed',
   getSounds: 'sound:get',
   setSounds: 'sound:set',

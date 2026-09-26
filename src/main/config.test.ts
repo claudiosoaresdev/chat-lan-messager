@@ -75,7 +75,7 @@ describe('SettingsStore', () => {
       font,
       giphyKey: 'abcDEF1234567890abcd',
       sounds: false,
-      appearance: { mode: 'dark', theme: 'roxo', scene: { kind: 'builtin', id: 'montanhas' } },
+      appearance: { mode: 'dark', theme: 'roxo', scene: { kind: 'builtin', id: 'montanhas' }, showContactScenes: false },
     });
     expect(store.load()).toEqual({
       manualPeers: [{ host: '10.0.0.2', port: 47800 }],
@@ -83,7 +83,7 @@ describe('SettingsStore', () => {
       font,
       giphyKey: 'abcDEF1234567890abcd',
       sounds: false,
-      appearance: { mode: 'dark', theme: 'roxo', scene: { kind: 'builtin', id: 'montanhas' } },
+      appearance: { mode: 'dark', theme: 'roxo', scene: { kind: 'builtin', id: 'montanhas' }, showContactScenes: false },
     });
 
     fs.writeFileSync(path.join(dir, 'settings.json'), '{ lixo');
@@ -96,7 +96,7 @@ describe('SettingsStore', () => {
       font: null,
       giphyKey: null,
       sounds: true,
-      appearance: { mode: 'system', theme: 'azul-classico', scene: null },
+      appearance: { mode: 'system', theme: 'azul-classico', scene: null, showContactScenes: true },
     });
     fs.rmSync(dir, { recursive: true, force: true });
   });
@@ -118,14 +118,20 @@ describe('aparência', () => {
     return out;
   };
 
-  const DEFAULT = { mode: 'system', theme: 'azul-classico', scene: null as unknown };
+  const DEFAULT = { mode: 'system', theme: 'azul-classico', scene: null as unknown, showContactScenes: true };
 
   it('padrão: seguir o sistema com o Azul clássico e a cena do tema', () => {
     expect(load(undefined)).toEqual(DEFAULT);
   });
 
   it('lê modo e tema válidos; arquivo antigo sem cena fica com a do tema (null)', () => {
-    expect(load({ mode: 'light', theme: 'verde' })).toEqual({ mode: 'light', theme: 'verde', scene: null });
+    expect(load({ mode: 'light', theme: 'verde' })).toEqual({ mode: 'light', theme: 'verde', scene: null, showContactScenes: true });
+  });
+
+  it('lê a opção de mostrar cenas dos contatos; ausente ou inválida = ligada', () => {
+    expect(load({ mode: 'light', theme: 'verde', showContactScenes: false }).showContactScenes).toBe(false);
+    expect(load({ mode: 'light', theme: 'verde', showContactScenes: true }).showContactScenes).toBe(true);
+    expect(load({ mode: 'light', theme: 'verde', showContactScenes: 'nao' }).showContactScenes).toBe(true);
   });
 
   it('lê a cena escolhida', () => {
@@ -138,6 +144,7 @@ describe('aparência', () => {
       mode: 'dark',
       theme: 'roxo',
       scene: null,
+      showContactScenes: true,
     });
     expect(load({ mode: 'dark', theme: 'roxo', scene: { kind: 'custom', id: '../x' } }).scene).toBeNull();
   });

@@ -18,7 +18,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
-import { PeerManager, SELF_CONNECTION } from './main/peer-manager';
+import { PeerManager, SELF_CONNECTION, type OwnScene } from './main/peer-manager';
 import { Discovery } from './main/discovery';
 import { AvatarStore } from './main/avatar-store';
 import { SceneStore } from './main/scene-store';
@@ -60,7 +60,7 @@ import {
   validateFont,
 } from './shared/protocol';
 import { averageColor } from './shared/color';
-import { themeTokens, validateAppearance, type Appearance } from './shared/themes';
+import { effectiveScene, findTheme, THEMES, themeTokens, validateAppearance, type Appearance } from './shared/themes';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -147,6 +147,28 @@ function withExistingScene(a: Appearance): Appearance {
 /** Ids das imagens próprias em uso (salva e em prévia): a limpeza do SceneStore não as apaga. */
 function customScenesInUse(): string[] {
   return [settings.appearance, previewing].flatMap((a) => (a?.scene?.kind === 'custom' ? [a.scene.id] : []));
+}
+
+/**
+ * Cena anunciada aos contatos: a efetiva da aparência **salva** (a prévia não sai da máquina). Imagem própria vai
+ * com os bytes do SceneStore; se ela sumiu, vale a cena do tema.
+ */
+function announcedScene(): OwnScene {
+  const a = settings.appearance;
+  const choice = effectiveScene(a);
+  if (choice.kind !== 'custom') return choice;
+  const data = scenes.get(choice.id);
+  if (data) return { kind: 'image', data };
+  return { kind: 'builtin', id: (findTheme(a.theme) ?? THEMES[0]).scene };
+}
+
+/** Manda a cena salva aos contatos (o PeerManager só reenvia se ela mudou). */
+function announceScene() {
+  try {
+    session?.peers.setScene(announcedScene());
+  } catch (err) {
+    console.warn('[cena] não foi possível anunciar a cena', err);
+  }
 }
 
 /** Modo efetivo: com themeSource já ajustado, o nativeTheme resolve o 'system' pelo sistema operacional. */
@@ -311,6 +333,7 @@ async function login(req: LoginRequest): Promise<SelfInfo> {
     status,
     message,
     avatar: avatars.getCurrent()?.data ?? null,
+    scene: announcedScene(),
     port: requestedPort,
     // Só a porta padrão cai para dinâmica; porta escolhida à mão falha de forma visível.
     fallbackToRandomPort: launch.port === undefined && requestedPort === DEFAULT_PORT,
@@ -334,6 +357,8 @@ async function login(req: LoginRequest): Promise<SelfInfo> {
     chats.peerChanged(peer);
   });
   peers.on('avatar', (avatar) => broadcast(IPC.peerAvatar, avatar));
+  // Cena do contato: só para a janela de conversa com ele.
+  peers.on('scene', (scene) => chats.get(scene.id)?.send(IPC.peerScene, scene));
   peers.on('message', (msg) => {
     chats.receive(msg.from, { kind: 'text', message: msg });
     notifyChat(msg.from, `${msg.fromName} diz:`, msg.text);
@@ -531,6 +556,7 @@ function registerIpc() {
     endPreview(false);
     saveSettings({ ...settings, appearance, ...(font ? { font } : {}) });
     showAppearance();
+    announceScene();
     if (font) broadcast(IPC.fontChanged, font);
     return appearance;
   });
@@ -566,7 +592,10 @@ function registerIpc() {
     scenes.remove(id);
     const uses = (a: Appearance | null) => a?.scene?.kind === 'custom' && a.scene.id === id;
     const shown = uses(shownAppearance());
-    if (uses(settings.appearance)) saveSettings({ ...settings, appearance: { ...settings.appearance, scene: null } });
+    if (uses(settings.appearance)) {
+      saveSettings({ ...settings, appearance: { ...settings.appearance, scene: null } });
+      announceScene();
+    }
     if (previewing && uses(previewing)) previewing = { ...previewing, scene: null };
     if (shown) showAppearance();
   });
@@ -640,6 +669,7 @@ function registerIpc() {
       history: conversations.get(id),
     };
   });
+  handle(IPC.getPeerScene, (peerId: unknown) => session?.peers.getPeerScene(requirePeerId(peerId)) ?? null);
   handle(IPC.getUnread, () => chats.unreadIds());
   handle(IPC.getSounds, () => settings.sounds);
   handle(IPC.setSounds, (on: unknown) => {

@@ -62,6 +62,8 @@ const api: ChatApi = {
   getChatInit: (peerId) => call(IPC.getChatInit, peerId),
   onChatItem: (cb) => subscribe(IPC.chatItem, cb),
   getUnread: () => call(IPC.getUnread),
+  getPeerScene: (peerId) => call(IPC.getPeerScene, peerId),
+  onPeerScene: (cb) => subscribe(IPC.peerScene, cb),
   onUnreadChanged: (cb) => subscribe(IPC.unreadChanged, cb),
 
   getSounds: () => call(IPC.getSounds),
