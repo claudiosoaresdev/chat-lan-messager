@@ -18,6 +18,8 @@ const config: ForgeConfig = {
     extendInfo: {
       NSLocalNetworkUsageDescription: 'O Chat LAN usa a rede local para encontrar e conversar com outros computadores.',
       NSBonjourServices: ['_chatlan._tcp'],
+      // "O que estou ouvindo": lê a música tocando no Spotify via AppleScript.
+      NSAppleEventsUsageDescription: 'O Chat LAN lê a música tocando no Spotify para mostrar aos seus contatos.',
     },
   },
   rebuildConfig: {},

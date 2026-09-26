@@ -214,6 +214,28 @@ describe('parseMessage', () => {
   });
 });
 
+describe('parseMessage listening', () => {
+  const base = { type: 'listening', from: 'a' };
+
+  it('música tocando e nada tocando', () => {
+    expect(parseMessage(JSON.stringify({ ...base, artist: 'Queen', title: 'Bicycle Race' }))).toEqual({
+      ...base,
+      artist: 'Queen',
+      title: 'Bicycle Race',
+    });
+    expect(parseMessage(JSON.stringify({ ...base, artist: '', title: 'Episódio 1' }))).toEqual({ ...base, artist: '', title: 'Episódio 1' });
+    expect(parseMessage(JSON.stringify({ ...base, artist: null, title: null, extra: 1 }))).toEqual({ ...base, artist: null, title: null });
+  });
+
+  it('recusa formatos inválidos', () => {
+    expect(parseMessage(JSON.stringify({ ...base, artist: 'A', title: '' }))).toBeNull();
+    expect(parseMessage(JSON.stringify({ ...base, artist: 'A', title: null }))).toBeNull();
+    expect(parseMessage(JSON.stringify({ ...base, artist: 'A', title: 'x'.repeat(129) }))).toBeNull();
+    expect(parseMessage(JSON.stringify({ ...base, artist: 1, title: 'B' }))).toBeNull();
+    expect(parseMessage(JSON.stringify({ type: 'listening', artist: 'A', title: 'B' }))).toBeNull();
+  });
+});
+
 describe('detectImageMime', () => {
   it('reconhece as assinaturas suportadas', () => {
     expect(detectImageMime(PNG)).toBe('image/png');

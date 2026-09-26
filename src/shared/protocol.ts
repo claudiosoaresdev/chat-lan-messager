@@ -150,6 +150,20 @@ export type SceneHeader =
 export const isSceneMime = (v: unknown): v is SceneMime =>
   typeof v === 'string' && (SCENE_MIME_TYPES as readonly string[]).includes(v);
 
+/** Tamanho máximo do artista e do nome da música em `listening`. */
+export const MAX_LISTENING_LENGTH = 128;
+
+/**
+ * "O que estou ouvindo" (como no WLM): música tocando no Spotify de quem envia; `artist` e `title` null = nada tocando
+ * (ou a pessoa desligou o compartilhamento). Versões antigas ignoram a mensagem.
+ */
+export interface ListeningMessage {
+  type: 'listening';
+  from: string;
+  artist: string | null;
+  title: string | null;
+}
+
 export type WireMessage =
   | HelloMessage
   | PresenceMessage
@@ -158,6 +172,7 @@ export type WireMessage =
   | NudgeMessage
   | AvatarHeader
   | SceneHeader
+  | ListeningMessage
   | WinkMessage;
 
 type Json = Record<string, unknown>;
@@ -264,6 +279,14 @@ export function validateMessage(value: unknown): WireMessage | null {
         return { type: 'scene', from: value.from, kind: 'image', mime: value.mime, size: value.size };
       }
       return null;
+    }
+
+    case 'listening': {
+      if (!isBoundedString(value.from, MAX_ID_LENGTH)) return null;
+      if (value.artist === null && value.title === null) return { type: 'listening', from: value.from, artist: null, title: null };
+      // Artista pode vir vazio (podcast, arquivo local); a música não.
+      if (!isBoundedString(value.artist, MAX_LISTENING_LENGTH, 0) || !isBoundedString(value.title, MAX_LISTENING_LENGTH)) return null;
+      return { type: 'listening', from: value.from, artist: value.artist, title: value.title };
     }
 
     case 'wink':
