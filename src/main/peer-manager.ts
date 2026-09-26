@@ -1,5 +1,6 @@
 // Mantém o servidor WebSocket, as conexões de saída e o mapa de peers.
 // Cada instância é servidor e cliente ao mesmo tempo.
+import { randomBytes } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import type { AddressInfo } from 'node:net';
 import { WebSocket, WebSocketServer, type RawData } from 'ws';
@@ -7,6 +8,10 @@ import {
   MAX_IMAGE_BYTES,
   MAX_AVATAR_BYTES,
   MAX_LISTENING_LENGTH,
+  MAX_PREVIEW_DESCRIPTION,
+  MAX_PREVIEW_IMAGE_BYTES,
+  MAX_PREVIEW_SITE,
+  MAX_PREVIEW_TITLE,
   MAX_NAME_LENGTH,
   MAX_PERSONAL_MESSAGE_LENGTH,
   MAX_SCENE_BYTES,
@@ -24,12 +29,14 @@ import {
   type ImageMime,
   type MessageFont,
   type PresenceStatus,
+  type PreviewHeader,
   type SceneHeader,
   type WinkId,
   isWinkId,
 } from '../shared/protocol';
 import { findBuiltinScene } from '../shared/scenes';
 import type {
+  LinkPreview,
   Listening,
   OutgoingImage,
   PeerAvatar,
@@ -70,6 +77,7 @@ interface Conn {
     | { kind: 'image'; header: ImageHeader }
     | { kind: 'avatar'; header: AvatarHeader }
     | { kind: 'scene'; header: Extract<SceneHeader, { kind: 'image' }> }
+    | { kind: 'preview'; header: PreviewHeader }
     | null;
   alive: boolean;
   onHello?: (peerId: string) => void;
@@ -128,6 +136,8 @@ export interface PeerManagerEvents {
   avatar: [PeerAvatar];
   scene: [PeerScene];
   listening: [PeerListening];
+  /** Prévia do link da mensagem `ref` do contato `from`. */
+  preview: [{ from: string; ref: string; preview: LinkPreview }];
 }
 
 /** Cena própria a anunciar: da galeria, bytes JPEG/PNG (mime pela assinatura) ou nenhuma. */
@@ -469,8 +479,44 @@ export class PeerManager extends EventEmitter<PeerManagerEvents> {
     if (trimmed.length > MAX_TEXT_LENGTH) throw new Error(`Mensagem maior que ${MAX_TEXT_LENGTH} caracteres`);
     const ws = this.socketFor(to);
     const ts = Date.now();
-    ws.send(encodeMessage({ type: 'chat', from: this.id, text: trimmed, ts, ...(font ? { font } : {}) }));
-    return { from: this.id, fromName: this._name, text: trimmed, ts, self: true, ...(font ? { font } : {}) };
+    const id = randomBytes(9).toString('base64url');
+    ws.send(encodeMessage({ type: 'chat', from: this.id, text: trimmed, ts, id, ...(font ? { font } : {}) }));
+    return { from: this.id, fromName: this._name, text: trimmed, ts, self: true, id, ...(font ? { font } : {}) };
+  }
+
+  /** Manda ao contato a prévia do link da minha mensagem `ref` (miniatura no frame binário seguinte). */
+  sendPreview(to: string, ref: string, preview: LinkPreview) {
+    const ws = this.socketFor(to);
+    const image = preview.image && preview.image.data.length <= MAX_PREVIEW_IMAGE_BYTES ? preview.image : null;
+    const header: PreviewHeader = {
+      type: 'preview',
+      from: this.id,
+      ref,
+      url: preview.url,
+      title: preview.title.slice(0, MAX_PREVIEW_TITLE),
+      ...(preview.description ? { description: preview.description.slice(0, MAX_PREVIEW_DESCRIPTION) } : {}),
+      ...(preview.siteName ? { siteName: preview.siteName.slice(0, MAX_PREVIEW_SITE) } : {}),
+      ...(preview.youtube ? { youtube: preview.youtube } : {}),
+      mime: image?.mime ?? null,
+      size: image?.data.length ?? 0,
+    };
+    ws.send(encodeMessage(header));
+    if (image) ws.send(image.data, { binary: true });
+  }
+
+  private emitPreview(header: PreviewHeader, image: LinkPreview['image'] | null) {
+    this.emit('preview', {
+      from: header.from,
+      ref: header.ref,
+      preview: {
+        url: header.url,
+        title: header.title,
+        ...(header.description !== undefined ? { description: header.description } : {}),
+        ...(header.siteName !== undefined ? { siteName: header.siteName } : {}),
+        ...(header.youtube !== undefined ? { youtube: header.youtube } : {}),
+        ...(image ? { image } : {}),
+      },
+    });
   }
 
   /** Chama a atenção do contato. Limitado a um a cada NUDGE_COOLDOWN_MS por contato. */
@@ -618,6 +664,14 @@ export class PeerManager extends EventEmitter<PeerManagerEvents> {
         return;
       }
 
+      if (pending.kind === 'preview') {
+        const { header } = pending;
+        // Miniatura estragada não derruba a prévia: fica só o texto.
+        const ok = !!header.mime && validateImageBytes(buf, header.mime, header.size);
+        this.emitPreview(header, ok && header.mime ? { mime: header.mime, data: new Uint8Array(buf) } : null);
+        return;
+      }
+
       if (pending.kind === 'avatar') {
         const { header } = pending;
         const peer = this.peers.get(conn.remote.id);
@@ -671,7 +725,15 @@ export class PeerManager extends EventEmitter<PeerManagerEvents> {
         ts: msg.ts,
         self: false,
         ...(msg.font ? { font: msg.font } : {}),
+        ...(msg.id ? { id: msg.id } : {}),
       });
+    } else if (msg.type === 'preview') {
+      if (msg.size > 0) {
+        conn.pending = { kind: 'preview', header: msg };
+        return;
+      }
+      conn.pending = null;
+      this.emitPreview(msg, null);
     } else if (msg.type === 'image') {
       conn.pending = { kind: 'image', header: msg };
     } else if (msg.type === 'avatar') {

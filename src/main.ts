@@ -3,6 +3,7 @@ import {
   autoUpdater,
   BrowserWindow,
   ipcMain,
+  nativeImage,
   nativeTheme,
   net,
   Notification,
@@ -29,6 +30,9 @@ import { Conversations } from './main/conversations';
 import { ChatWindows, type ChatWindowEvents, type ChatWindowHandle } from './main/chat-windows';
 import { createTray } from './main/tray';
 import { NowPlayingWatcher, readerFor, type Exec } from './main/now-playing';
+import { LinkPreviewer, type MakeThumbnail } from './main/link-preview';
+import { findLinks } from './shared/links';
+import { imageSize } from './shared/image-size';
 import { trayTooltip } from './main/tray-text';
 import {
   DEFAULT_PORT,
@@ -50,12 +54,15 @@ import {
   type PresenceUpdate,
   type SavedProfile,
   type SelfInfo,
+  type UiChatMessage,
   type WindowLayout,
 } from './shared/api';
 import {
   DEFAULT_FONT,
   MAX_NAME_LENGTH,
   MAX_PERSONAL_MESSAGE_LENGTH,
+  MAX_PREVIEW_IMAGE_BYTES,
+  detectImageMime,
   isPresenceStatus,
   isWinkId,
   validateFont,
@@ -108,6 +115,44 @@ let updater: Updater | null = null;
 const conversations = new Conversations();
 let chats: ChatWindows;
 let tray: Tray | null = null;
+/** Miniatura da prévia: lado maior até 480 px, JPEG até MAX_PREVIEW_IMAGE_BYTES. Imagens gigantes nem são abertas. */
+const makeThumbnail: MakeThumbnail = (data) => {
+  const mime = detectImageMime(data);
+  if (mime !== 'image/jpeg' && mime !== 'image/png') return null;
+  const size = imageSize(data, mime);
+  if (!size || !size.width || !size.height || size.width > 8000 || size.height > 8000) return null;
+  const img = nativeImage.createFromBuffer(Buffer.from(data));
+  if (img.isEmpty()) return null;
+  const { width, height } = img.getSize();
+  const scale = Math.min(1, 480 / Math.max(width, height));
+  const small = scale < 1 ? img.resize({ width: Math.round(width * scale), height: Math.round(height * scale), quality: 'good' }) : img;
+  for (const quality of [80, 65, 50]) {
+    const jpeg = small.toJPEG(quality);
+    if (jpeg.length <= MAX_PREVIEW_IMAGE_BYTES) return { mime: 'image/jpeg', data: new Uint8Array(jpeg) };
+  }
+  return null;
+};
+
+const previews = new LinkPreviewer((url, init) => net.fetch(url, init), makeThumbnail);
+
+/**
+ * Prévia do primeiro link da mensagem que eu enviei: busca (a mensagem já foi, não espera), manda ao contato,
+ * guarda no histórico e mostra na minha janela. Desligada no menu, não acessa a internet.
+ */
+async function sendLinkPreview(peerId: string, message: UiChatMessage) {
+  const ref = message.id;
+  const link = findLinks(message.text)[0];
+  if (!settings.linkPreviews || !ref || !link) return;
+  const preview = await previews.get(link.url);
+  if (!preview) return;
+  try {
+    session?.peers.sendPreview(peerId, ref, preview);
+  } catch {
+    // contato saiu: a prévia fica só do meu lado
+  }
+  if (conversations.attachPreview(peerId, ref, true, preview)) chats.get(peerId)?.send(IPC.chatPreview, { peerId, ref, preview });
+}
+
 /** Música do Spotify ("O que estou ouvindo"); null = sistema sem leitor. */
 let listening: NowPlayingWatcher | null = null;
 /** Saindo de verdade: o "X" da home para de esconder na bandeja. */
@@ -373,6 +418,10 @@ async function login(req: LoginRequest): Promise<SelfInfo> {
   peers.on('scene', (scene) => chats.get(scene.id)?.send(IPC.peerScene, scene));
   // Música do contato: só para a janela de conversa com ele.
   peers.on('listening', (l) => chats.get(l.id)?.send(IPC.peerListening, l));
+  // Prévia de uma mensagem que o contato mandou (só vale para mensagem dele que está no histórico).
+  peers.on('preview', ({ from, ref, preview }) => {
+    if (conversations.attachPreview(from, ref, false, preview)) chats.get(from)?.send(IPC.chatPreview, { peerId: from, ref, preview });
+  });
   peers.on('message', (msg) => {
     chats.receive(msg.from, { kind: 'text', message: msg });
     notifyChat(msg.from, `${msg.fromName} diz:`, msg.text);
@@ -649,6 +698,7 @@ function registerIpc() {
     const peerId = requirePeerId(to);
     const message = requireSession().peers.sendText(peerId, text, settings.font ?? DEFAULT_FONT);
     chats.record(peerId, { kind: 'text', message });
+    void sendLinkPreview(peerId, message);
     return message;
   });
   handle(IPC.sendImage, (to: unknown, image: OutgoingImage) => {
@@ -689,6 +739,13 @@ function registerIpc() {
     mine: listening?.current ?? null,
     peer: typeof peerId === 'string' && peerId ? session?.peers.getPeerListening(peerId) ?? null : null,
   }));
+  handle(IPC.getLinkPreviews, () => settings.linkPreviews);
+  handle(IPC.setLinkPreviews, (on: unknown) => {
+    if (typeof on !== 'boolean') throw new Error('Valor inválido');
+    saveSettings({ ...settings, linkPreviews: on });
+    broadcast(IPC.linkPreviewsChanged, on);
+    return on;
+  });
   handle(IPC.getShareListening, () => settings.shareListening);
   handle(IPC.setShareListening, (on: unknown) => {
     if (typeof on !== 'boolean') throw new Error('Valor inválido');

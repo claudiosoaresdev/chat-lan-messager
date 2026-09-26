@@ -10,7 +10,7 @@ function fakeFetch(routes: Record<string, Route>) {
   return vi.fn(async (url: string) => {
     const r = routes[url];
     if (!r) throw new Error(`sem rota: ${url}`);
-    const res = new Response(r.body, { status: r.status ?? 200, headers: { 'content-type': r.type ?? 'text/html; charset=utf-8' } });
+    const res = new Response(r.body as BodyInit, { status: r.status ?? 200, headers: { 'content-type': r.type ?? 'text/html; charset=utf-8' } });
     Object.defineProperty(res, 'url', { value: r.url ?? url });
     return res;
   });

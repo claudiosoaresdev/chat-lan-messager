@@ -10,16 +10,9 @@ import {
   type ImageMime,
 } from '../shared/protocol';
 import { isYoutubeId, normalizeUrl, youtubeId } from '../shared/links';
+import type { LinkPreview } from '../shared/api';
 
-export interface LinkPreviewData {
-  url: string;
-  title: string;
-  description?: string;
-  siteName?: string;
-  /** Id do vídeo, se o link é do YouTube (vira player na conversa). */
-  youtube?: string;
-  image?: { mime: ImageMime; data: Uint8Array };
-}
+export type LinkPreviewData = LinkPreview;
 
 type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
 /** Reduz a imagem para a miniatura (lado maior ~480 px); null = não deu para decodificar. */

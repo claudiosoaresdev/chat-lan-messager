@@ -65,6 +65,26 @@ export interface UiChatMessage {
   ts: number;
   self: boolean;
   font?: MessageFont;
+  /** Id da mensagem (a prévia do link se refere a ele); versões antigas não mandam. */
+  id?: string;
+}
+
+/** Prévia de link (título, site, miniatura), montada por quem enviou a mensagem. */
+export interface LinkPreview {
+  url: string;
+  title: string;
+  description?: string;
+  siteName?: string;
+  /** Id do vídeo, se o link é do YouTube (vira player na conversa). */
+  youtube?: string;
+  image?: { mime: ImageMime; data: Uint8Array };
+}
+
+/** Prévia que chegou para a mensagem `ref` da conversa com `peerId`. */
+export interface ChatPreview {
+  peerId: string;
+  ref: string;
+  preview: LinkPreview;
 }
 
 export interface UiNudge {
@@ -101,7 +121,7 @@ export interface UiImageMessage extends UiImageMeta {
  * `seq` cresce sempre (evita repetir itens); `at` é a hora local em que o item entrou.
  */
 export type ConversationItem =
-  | { seq: number; at: number; kind: 'text'; message: UiChatMessage }
+  | { seq: number; at: number; kind: 'text'; message: UiChatMessage; preview?: LinkPreview }
   | { seq: number; at: number; kind: 'image'; image: UiImageMessage }
   | { seq: number; at: number; kind: 'wink'; wink: UiWink }
   | { seq: number; at: number; kind: 'nudge'; nudge: UiNudge }
@@ -267,6 +287,8 @@ export interface ChatApi {
   getChatInit(peerId: string): Promise<ChatInit>;
   /** Item novo na conversa desta janela (mensagem, imagem, wink, nudge ou aviso). */
   onChatItem(cb: (item: ConversationItem) => void): Unsubscribe;
+  /** Chegou a prévia do link de uma mensagem desta conversa (minha ou do contato). */
+  onChatPreview(cb: (preview: ChatPreview) => void): Unsubscribe;
   /** Contatos com mensagem não vista (piscam na lista). */
   getUnread(): Promise<string[]>;
   /** Cena do contato (null = ele não mandou: versão antiga ou ainda conectando). */
@@ -274,6 +296,11 @@ export interface ChatApi {
   /** O contato desta janela trocou de cena. */
   onPeerScene(cb: (scene: PeerScene) => void): Unsubscribe;
   onUnreadChanged(cb: (change: { peerId: string; unread: boolean }) => void): Unsubscribe;
+
+  // prévia dos links que eu envio (menu ☰ da home)
+  getLinkPreviews(): Promise<boolean>;
+  setLinkPreviews(on: boolean): Promise<boolean>;
+  onLinkPreviewsChanged(cb: (on: boolean) => void): Unsubscribe;
 
   // "O que estou ouvindo" (Spotify)
   /** A minha música e a do contato (`peerId`), para o letreiro da conversa. */
@@ -370,6 +397,10 @@ export const IPC = {
   getPeerScene: 'scene:peer-get',
   peerScene: 'scene:peer',
   unreadChanged: 'chat:unread-changed',
+  chatPreview: 'chat:preview',
+  getLinkPreviews: 'preview:get',
+  setLinkPreviews: 'preview:set',
+  linkPreviewsChanged: 'preview:changed',
   getListening: 'listening:get',
   myListening: 'listening:mine',
   peerListening: 'listening:peer',

@@ -47,6 +47,7 @@ let selectedId: string | null = null;
 const unread = new Set<string>();
 let soundsOn = true;
 let shareListening = true;
+let linkPreviews = true;
 
 export function setUnread(peerId: string, isUnread: boolean) {
   if (isUnread) unread.add(peerId);
@@ -67,6 +68,10 @@ export function setSoundsOn(on: boolean) {
 
 export function setShareListening(on: boolean) {
   shareListening = on;
+}
+
+export function setLinkPreviews(on: boolean) {
+  linkPreviews = on;
 }
 
 // ---------------------------------------------------------------- eu
@@ -235,6 +240,14 @@ els.menuBtn.addEventListener('click', () =>
         void chat()
           .setSounds(!soundsOn)
           .then(setSoundsOn)
+          .catch((err) => console.warn(errorMessage(err))),
+    },
+    {
+      label: `${linkPreviews ? '✓ ' : ''}Prévia dos links que eu envio`,
+      onSelect: () =>
+        void chat()
+          .setLinkPreviews(!linkPreviews)
+          .then(setLinkPreviews)
           .catch((err) => console.warn(errorMessage(err))),
     },
     {

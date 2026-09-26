@@ -66,6 +66,11 @@ const api: ChatApi = {
   onPeerScene: (cb) => subscribe(IPC.peerScene, cb),
   onUnreadChanged: (cb) => subscribe(IPC.unreadChanged, cb),
 
+  onChatPreview: (cb) => subscribe(IPC.chatPreview, cb),
+  getLinkPreviews: () => call(IPC.getLinkPreviews),
+  setLinkPreviews: (on) => call(IPC.setLinkPreviews, on),
+  onLinkPreviewsChanged: (cb) => subscribe(IPC.linkPreviewsChanged, cb),
+
   getListening: (peerId) => call(IPC.getListening, peerId ?? null),
   onMyListening: (cb) => subscribe(IPC.myListening, cb),
   onPeerListening: (cb) => subscribe(IPC.peerListening, cb),

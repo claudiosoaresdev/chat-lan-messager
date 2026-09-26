@@ -1359,6 +1359,77 @@ button {
   object-fit: contain;
 }
 
+/* Prévia de link embaixo da mensagem (como no WhatsApp). */
+.link-card-wrap {
+  margin: 4px 0 4px 12px;
+}
+
+.link-card {
+  display: flex;
+  flex-direction: column;
+  width: min(360px, calc(100% - 12px));
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--border-strong) 26.95%, var(--surface));
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent-soft) 10%, var(--surface));
+  color: var(--text-strong);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+a.link-card:hover {
+  background: color-mix(in srgb, var(--accent-soft) 22%, var(--surface));
+}
+
+a.link-card:focus-visible {
+  outline: 1px dotted var(--accent);
+  outline-offset: 1px;
+}
+
+.link-card-image {
+  display: block;
+  width: 100%;
+  max-height: 190px;
+  object-fit: cover;
+  background: color-mix(in srgb, var(--muted) 12%, var(--surface));
+}
+
+.link-card-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 6px 9px 7px;
+}
+
+.link-card-site {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.link-card-title,
+.link-card-desc {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  word-break: break-word;
+}
+
+.link-card-title {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.link-card-desc {
+  color: color-mix(in srgb, var(--text) 80%, var(--surface));
+  font-size: 12px;
+}
+
 .said-image.is-gif {
   max-width: min(220px, calc(100% - 12px));
   max-height: 150px;

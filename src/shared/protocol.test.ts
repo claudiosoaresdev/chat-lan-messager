@@ -222,7 +222,7 @@ describe('parseMessage chat id e preview', () => {
     expect(parseMessage(JSON.stringify({ ...chat, id: 'x'.repeat(33) }))).toEqual(chat);
   });
 
-  const base = { type: 'preview', from: 'a', ref: 'm1', url: 'https://a.com/x', title: 'Título', mime: null, size: 0 };
+  const base = { type: 'preview', from: 'a', ref: 'm1', url: 'https://a.com/x', title: 'Título', mime: null as string | null, size: 0 };
 
   it('prévia sem imagem, com imagem e do YouTube', () => {
     expect(parseMessage(JSON.stringify({ ...base, extra: 1 }))).toEqual(base);

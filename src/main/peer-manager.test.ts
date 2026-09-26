@@ -235,6 +235,39 @@ describe('PeerManager', () => {
     expect(await again).toEqual({ id: 'aaa', scene: { kind: 'builtin', id: 'montanhas' } });
   });
 
+  it('mensagem de texto leva id e a prévia chega ligada a ela (com e sem miniatura)', async () => {
+    const a = await create('aaa');
+    const b = await create('bbb');
+    const ready = next(b, 'peer', onlineWith('aaa'));
+    await a.connect(HOST, b.port);
+    await ready;
+
+    const atB = next(b, 'message');
+    const sent = a.sendText('bbb', 'olha https://a.com');
+    expect(sent.id).toMatch(/^[A-Za-z0-9_-]{12}$/);
+    expect((await atB).id).toBe(sent.id);
+
+    const withImage = next(b, 'preview');
+    a.sendPreview('bbb', sent.id as string, { url: 'https://a.com/', title: 'A', siteName: 'a.com', image: { mime: 'image/png', data: new Uint8Array(PNG) } });
+    const got = await withImage;
+    expect(got).toMatchObject({ from: 'aaa', ref: sent.id, preview: { url: 'https://a.com/', title: 'A', siteName: 'a.com', image: { mime: 'image/png' } } });
+    expect(Buffer.from(got.preview.image?.data ?? [])).toEqual(PNG);
+
+    const noImage = next(b, 'preview');
+    a.sendPreview('bbb', sent.id as string, { url: 'https://youtu.be/dQw4w9WgXcQ', title: 'V', youtube: 'dQw4w9WgXcQ' });
+    expect(await noImage).toEqual({ from: 'aaa', ref: sent.id, preview: { url: 'https://youtu.be/dQw4w9WgXcQ', title: 'V', youtube: 'dQw4w9WgXcQ' } });
+  });
+
+  it('prévia com miniatura estragada chega sem imagem', async () => {
+    const b = await create('bbb');
+    const ws = await rawPeer(b);
+    const got = next(b, 'preview');
+    ws.send(JSON.stringify({ type: 'preview', from: 'zzz-raw', ref: 'm1', url: 'https://a.com', title: 'T', mime: 'image/png', size: 4 }));
+    ws.send(Buffer.from('<svg'), { binary: true });
+    expect(await got).toEqual({ from: 'zzz-raw', ref: 'm1', preview: { url: 'https://a.com/', title: 'T' } });
+    ws.close();
+  });
+
   it('"o que estou ouvindo": ao conectar, ao trocar, nada tocando e ao desconectar', async () => {
     const a = await create('aaa');
     a.setListening({ artist: 'Queen', title: 'Bicycle Race' });

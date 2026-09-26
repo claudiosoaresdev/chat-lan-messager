@@ -1,5 +1,5 @@
 // Janela de conversa com um contato, no formato do MSN: "Fulano diz:" e a mensagem recuada embaixo.
-import type { PeerInfo, UiChatMessage, UiImageMeta, UiNudge, UiWink } from '../shared/api';
+import type { LinkPreview, PeerInfo, UiChatMessage, UiImageMeta, UiNudge, UiWink } from '../shared/api';
 import type { PresenceStatus, WinkId } from '../shared/protocol';
 import { IMAGE_MIME_TYPES, MAX_IMAGE_BYTES } from '../shared/protocol';
 import { $, chat, el, errorMessage, timeFmt } from './dom';
@@ -11,6 +11,7 @@ import { applyColorBar, applyFont, onFontChange, openFontDialog } from './font';
 import { playNudgeSound } from './sound';
 import { state } from './state';
 import { STATUS_LABEL } from './status';
+import { linkCard } from './link-card';
 
 const MAX_RENDERED_ITEMS = 300;
 /** Mensagens seguidas do mesmo remetente dentro deste intervalo não repetem o "diz:". */
@@ -109,8 +110,38 @@ export function addText(msg: UiChatMessage) {
   line.title = timeFmt.format(msg.ts);
   // Cada um vê a mensagem na fonte de quem enviou, como no MSN. Recebida: download automático (com limite).
   applyFont(line, msg.font, { auto: !msg.self });
+  if (msg.id) line.dataset.msgId = msg.id;
   li.append(line);
   append(li, msg.self);
+  // A prévia pode ter chegado antes (janela abrindo): aplica agora.
+  const early = msg.id ? pendingPreviews.get(msg.id) : undefined;
+  if (early && msg.id) {
+    pendingPreviews.delete(msg.id);
+    addPreview(msg.id, early);
+  }
+}
+
+/** Prévias que chegaram antes da mensagem aparecer (limitadas). */
+const pendingPreviews = new Map<string, LinkPreview>();
+const MAX_PENDING_PREVIEWS = 50;
+
+/** Cartão da prévia embaixo da mensagem `ref` (uma por mensagem). */
+export function addPreview(ref: string, preview: LinkPreview) {
+  const line = [...els.messages.querySelectorAll<HTMLElement>('.said-line[data-msg-id]')].find((l) => l.dataset.msgId === ref);
+  if (!line) {
+    pendingPreviews.set(ref, preview);
+    while (pendingPreviews.size > MAX_PENDING_PREVIEWS) pendingPreviews.delete(pendingPreviews.keys().next().value as string);
+    return;
+  }
+  if (line.nextElementSibling?.classList.contains('link-card-wrap')) return;
+  const stick = isNearBottom();
+  const keep = () => {
+    if (stick) els.messages.scrollTop = els.messages.scrollHeight;
+  };
+  const wrap = el('div', 'link-card-wrap');
+  wrap.append(linkCard(preview, keep));
+  line.after(wrap);
+  keep();
 }
 
 export function addImage(meta: Pick<UiImageMeta, 'from' | 'fromName' | 'ts' | 'self' | 'name' | 'mime'>, blob: Blob) {

@@ -67,6 +67,32 @@ describe('Conversations', () => {
     expect(kinds).toEqual(['image', 'image']);
   });
 
+  it('liga a prévia só à mensagem certa, do lado certo, uma vez', () => {
+    const c = new Conversations();
+    const mine = { kind: 'text' as const, message: { from: 'me', fromName: 'Eu', text: 'https://a.com', ts: 1, self: true, id: 'm1' } };
+    const theirs = { kind: 'text' as const, message: { ...text('https://b.com').message, id: 'm2' } };
+    c.add('bbb', mine);
+    c.add('bbb', theirs);
+    const preview = { url: 'https://a.com/', title: 'A' };
+    // Contato não põe prévia numa mensagem minha; id desconhecido é ignorado.
+    expect(c.attachPreview('bbb', 'm1', false, preview)).toBeNull();
+    expect(c.attachPreview('bbb', 'zz', true, preview)).toBeNull();
+    expect(c.attachPreview('ccc', 'm1', true, preview)).toBeNull();
+    const item = c.attachPreview('bbb', 'm1', true, preview);
+    expect(item).toMatchObject({ kind: 'text', preview });
+    expect(c.attachPreview('bbb', 'm1', true, { url: 'https://x.com/', title: 'X' })).toBeNull();
+    expect(c.attachPreview('bbb', 'm2', false, { url: 'https://b.com/', title: 'B' })).not.toBeNull();
+    expect(c.get('bbb').map((i) => (i.kind === 'text' ? i.preview?.title : null))).toEqual(['A', 'B']);
+  });
+
+  it('miniaturas das prévias contam no teto de bytes', () => {
+    const c = new Conversations(200, Date.now, 10);
+    c.add('bbb', image(6));
+    c.add('bbb', { kind: 'text', message: { ...text('x').message, id: 'm1' } });
+    c.attachPreview('bbb', 'm1', false, { url: 'https://a.com/', title: 'A', image: { mime: 'image/jpeg', data: new Uint8Array(6) } });
+    expect(c.get('bbb').map((i) => i.kind)).toEqual(['text']);
+  });
+
   it('seq continua crescendo depois do clear', () => {
     const c = new Conversations();
     const a = c.add('bbb', text('oi'));

@@ -3,7 +3,7 @@ import type { ConversationItem, PeerInfo } from '../shared/api';
 import { chat } from './dom';
 import { applyPeerAvatar, initAvatars, loadMyAvatar, loadPeerAvatars, watchMyAvatar } from './avatar';
 import { loadFont, watchFontChanges } from './font';
-import { addImage, addNudge, addSystem, addText, addWink, enterChat, setPeer, setSelfStatus } from './chat';
+import { addImage, addNudge, addPreview, addSystem, addText, addWink, enterChat, setPeer, setSelfStatus } from './chat';
 import { showView, state } from './state';
 import { shouldPlayMessageSound } from './message-alert';
 import { playMessageSound } from './sound';
@@ -30,6 +30,7 @@ function render(item: ConversationItem, live: boolean) {
   switch (item.kind) {
     case 'text':
       addText(item.message);
+      if (item.preview && item.message.id) addPreview(item.message.id, item.preview);
       break;
     case 'image':
       addImage(item.image, new Blob([item.image.data as Uint8Array<ArrayBuffer>], { type: item.image.mime }));
@@ -94,6 +95,9 @@ export async function startChatWindow(peerId: string) {
       lastSeq = item.seq;
       render(item, true);
     }
+  });
+  chat().onChatPreview((p) => {
+    if (p.peerId === peerId) addPreview(p.ref, p.preview);
   });
   chat().onPeer((p) => {
     if (p.id !== peerId) return;
