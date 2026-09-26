@@ -30,6 +30,9 @@ import {
   type MessageFont,
   type PresenceStatus,
   type PreviewHeader,
+  type TogetherMessage,
+  MAX_PREVIEW_TITLE as MAX_TOGETHER_TITLE,
+  MAX_TOGETHER_POSITION,
   type SceneHeader,
   type WinkId,
   isWinkId,
@@ -42,6 +45,9 @@ import type {
   PeerAvatar,
   PeerInfo,
   PeerListening,
+  PeerTogether,
+  PeerTyping,
+  TogetherState,
   PeerScene,
   SharedScene,
   PresenceUpdate,
@@ -138,6 +144,8 @@ export interface PeerManagerEvents {
   listening: [PeerListening];
   /** Prévia do link da mensagem `ref` do contato `from`. */
   preview: [{ from: string; ref: string; preview: LinkPreview }];
+  typing: [PeerTyping];
+  together: [PeerTogether];
 }
 
 /** Cena própria a anunciar: da galeria, bytes JPEG/PNG (mime pela assinatura) ou nenhuma. */
@@ -519,6 +527,27 @@ export class PeerManager extends EventEmitter<PeerManagerEvents> {
     });
   }
 
+  /** "Está digitando": sem erro se o contato estiver offline (é só um aviso). */
+  sendTyping(to: string, typing: boolean) {
+    const ws = this.peers.get(to)?.conn?.ws;
+    if (ws?.readyState === WebSocket.OPEN) ws.send(encodeMessage({ type: 'typing', from: this.id, typing }));
+  }
+
+  /** "Ouvir junto": manda o estado do meu player do YouTube ao contato. */
+  sendTogether(to: string, state: TogetherState) {
+    const ws = this.socketFor(to);
+    const msg: TogetherMessage = {
+      type: 'together',
+      from: this.id,
+      video: state.video,
+      playing: state.playing,
+      position: Math.min(Math.max(Number.isFinite(state.position) ? state.position : 0, 0), MAX_TOGETHER_POSITION),
+      ...(state.title ? { title: state.title.slice(0, MAX_TOGETHER_TITLE) } : {}),
+      ...(state.invite && state.video ? { invite: true } : {}),
+    };
+    ws.send(encodeMessage(msg));
+  }
+
   /** Chama a atenção do contato. Limitado a um a cada NUDGE_COOLDOWN_MS por contato. */
   sendNudge(to: string, now = Date.now()): UiNudge {
     const ws = this.socketFor(to);
@@ -753,6 +782,18 @@ export class PeerManager extends EventEmitter<PeerManagerEvents> {
       }
       conn.pending = null;
       this.receiveScene(msg.from, msg.kind === 'builtin' ? { kind: 'builtin', id: msg.id } : { kind: 'none' });
+    } else if (msg.type === 'typing') {
+      this.emit('typing', { id: msg.from, typing: msg.typing });
+    } else if (msg.type === 'together') {
+      this.emit('together', {
+        from: msg.from,
+        fromName: this.peers.get(msg.from)?.name ?? msg.from,
+        video: msg.video,
+        playing: msg.playing,
+        position: msg.position,
+        ...(msg.title !== undefined ? { title: msg.title } : {}),
+        ...(msg.invite ? { invite: true } : {}),
+      });
     } else if (msg.type === 'listening') {
       conn.pending = null;
       this.receiveListening(msg.from, msg.title === null ? null : { artist: msg.artist ?? '', title: msg.title });

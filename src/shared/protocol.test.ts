@@ -256,6 +256,42 @@ describe('parseMessage chat id e preview', () => {
   });
 });
 
+describe('parseMessage typing e together', () => {
+  it('typing', () => {
+    expect(parseMessage(JSON.stringify({ type: 'typing', from: 'a', typing: true, x: 1 }))).toEqual({ type: 'typing', from: 'a', typing: true });
+    expect(parseMessage(JSON.stringify({ type: 'typing', from: 'a', typing: 'sim' }))).toBeNull();
+    expect(parseMessage(JSON.stringify({ type: 'typing', typing: false }))).toBeNull();
+  });
+
+  const base = { type: 'together', from: 'a', video: 'dQw4w9WgXcQ', playing: true, position: 12.5 };
+
+  it('together: convite, estado e saída', () => {
+    expect(parseMessage(JSON.stringify({ ...base, title: 'Música', invite: true }))).toEqual({ ...base, title: 'Música', invite: true });
+    expect(parseMessage(JSON.stringify({ ...base, playing: false }))).toEqual({ ...base, playing: false });
+    expect(parseMessage(JSON.stringify({ ...base, video: null, playing: false, position: 0, invite: true }))).toEqual({
+      type: 'together',
+      from: 'a',
+      video: null,
+      playing: false,
+      position: 0,
+    });
+  });
+
+  it('together: recusa inválidos', () => {
+    for (const bad of [
+      { video: 'curto' },
+      { position: -1 },
+      { position: 86_401 },
+      { position: 'x' },
+      { playing: 1 },
+      { title: 'x'.repeat(201) },
+      { invite: 'sim' },
+    ]) {
+      expect(parseMessage(JSON.stringify({ ...base, ...bad }))).toBeNull();
+    }
+  });
+});
+
 describe('parseMessage listening', () => {
   const base = { type: 'listening', from: 'a' };
 

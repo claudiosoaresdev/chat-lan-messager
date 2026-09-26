@@ -56,6 +56,7 @@ import {
   type PresenceUpdate,
   type SavedProfile,
   type SelfInfo,
+  type TogetherState,
   type UiChatMessage,
   type VideoRequest,
   type WindowLayout,
@@ -541,6 +542,20 @@ async function login(req: LoginRequest): Promise<SelfInfo> {
   peers.on('avatar', (avatar) => broadcast(IPC.peerAvatar, avatar));
   // Cena do contato: só para a janela de conversa com ele.
   peers.on('scene', (scene) => chats.get(scene.id)?.send(IPC.peerScene, scene));
+  // "Está digitando": só para a janela de conversa com o contato (sem janela, não há o que mostrar).
+  peers.on('typing', (t) => chats.get(t.id)?.send(IPC.peerTyping, t));
+  // "Ouvir junto": o convite entra na conversa (abre a janela, como uma mensagem); o resto vai para a janela aberta.
+  peers.on('together', (t) => {
+    if (t.invite && t.video) {
+      chats.receive(t.from, {
+        kind: 'together',
+        together: { from: t.from, fromName: t.fromName, video: t.video, ...(t.title ? { title: t.title } : {}), position: t.position, ts: Date.now(), self: false },
+      });
+      notifyChat(t.from, 'Chat Live Messenger', `${t.fromName} chamou você para ouvir junto${t.title ? `: ${t.title}` : ''}`);
+      return;
+    }
+    chats.get(t.from)?.send(IPC.peerTogether, t);
+  });
   // Música do contato: só para a janela de conversa com ele.
   peers.on('listening', (l) => chats.get(l.id)?.send(IPC.peerListening, l));
   // Prévia de uma mensagem que o contato mandou (só vale para mensagem dele que está no histórico).
@@ -847,6 +862,31 @@ function registerIpc() {
     const sent = requireSession().peers.sendWink(peerId, wink);
     chats.record(peerId, { kind: 'wink', wink: sent });
     return sent;
+  });
+  ipcMain.on(IPC.sendTyping, (_e, to: unknown, typing: unknown) => {
+    if (typeof to === 'string' && to && typeof typing === 'boolean') session?.peers.sendTyping(to, typing);
+  });
+  handle(IPC.sendTogether, (to: unknown, raw: unknown) => {
+    const peerId = requirePeerId(to);
+    const s = raw as Partial<TogetherState> | null;
+    if (!s || typeof s !== 'object' || typeof s.playing !== 'boolean' || typeof s.position !== 'number') throw new Error('Estado inválido');
+    if (s.video !== null && !isYoutubeId(s.video)) throw new Error('Vídeo inválido');
+    const title = typeof s.title === 'string' ? s.title.trim().slice(0, MAX_PREVIEW_TITLE) : undefined;
+    const state: TogetherState = {
+      video: s.video ?? null,
+      playing: s.playing,
+      position: s.position,
+      ...(title ? { title } : {}),
+      ...(s.invite === true ? { invite: true } : {}),
+    };
+    const peers = requireSession().peers;
+    peers.sendTogether(peerId, state);
+    if (state.invite && state.video) {
+      chats.record(peerId, {
+        kind: 'together',
+        together: { from: localId, fromName: peers.name, video: state.video, ...(title ? { title } : {}), position: state.position, ts: Date.now(), self: true },
+      });
+    }
   });
   ipcMain.on(IPC.openVideo, (_e, id: unknown, start: unknown, peerId: unknown, title: unknown) => {
     const req = parseVideoRequest(id, start, peerId, title);

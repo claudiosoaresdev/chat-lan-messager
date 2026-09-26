@@ -3,12 +3,25 @@ import type { ConversationItem, PeerInfo } from '../shared/api';
 import { chat } from './dom';
 import { applyPeerAvatar, initAvatars, loadMyAvatar, loadPeerAvatars, watchMyAvatar } from './avatar';
 import { loadFont, watchFontChanges } from './font';
-import { addImage, addNudge, addPreview, addSystem, addText, addWink, enterChat, resumeVideo, setPeer, setSelfStatus } from './chat';
+import {
+  addImage,
+  addNudge,
+  addPreview,
+  addSystem,
+  addText,
+  addWink,
+  enterChat,
+  resumeVideo,
+  setPeer,
+  setPeerTyping,
+  setSelfStatus,
+} from './chat';
 import { showView, state } from './state';
 import { shouldPlayMessageSound } from './message-alert';
 import { playMessageSound } from './sound';
 import { setContactScene } from './scene';
 import { setListeningPeerName, startListeningBar } from './listening-bar';
+import { addTogetherInvite, initTogether, togetherPeerOffline } from './together';
 
 /** Wink ou nudge que chegou há menos disso toca ao abrir: foi ele que abriu a janela. */
 const REPLAY_MS = 10_000;
@@ -43,6 +56,9 @@ function render(item: ConversationItem, live: boolean) {
       break;
     case 'system':
       addSystem(item.text);
+      break;
+    case 'together':
+      addTogetherInvite(item.together);
       break;
   }
   maybePlaySound(item, fresh);
@@ -96,6 +112,10 @@ export async function startChatWindow(peerId: string) {
       render(item, true);
     }
   });
+  initTogether(peerId);
+  chat().onPeerTyping((t) => {
+    if (t.id === peerId) setPeerTyping(t.typing);
+  });
   chat().onVideoReturn((v) => {
     if (v.peerId === peerId) resumeVideo(v.id, v.start);
   });
@@ -105,6 +125,7 @@ export async function startChatWindow(peerId: string) {
   chat().onPeer((p) => {
     if (p.id !== peerId) return;
     setPeer(p);
+    if (!p.online) togetherPeerOffline();
     setListeningPeerName(p.name);
   });
   chat().onSelfChanged((self) => {

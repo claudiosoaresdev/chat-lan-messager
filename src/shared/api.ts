@@ -111,6 +111,39 @@ export interface UiWink {
   self: boolean;
 }
 
+/** "Ouvir junto": estado do player do YouTube (null em `video` = saiu). */
+export interface TogetherState {
+  video: string | null;
+  title?: string;
+  playing: boolean;
+  position: number;
+  /** Convite (primeira mensagem): vira item na conversa. */
+  invite?: boolean;
+}
+
+/** Estado do "ouvir junto" vindo do contato `from`. */
+export interface PeerTogether extends TogetherState {
+  from: string;
+  fromName: string;
+}
+
+/** Convite de "ouvir junto" guardado na conversa. */
+export interface UiTogetherInvite {
+  from: string;
+  fromName: string;
+  video: string;
+  title?: string;
+  position: number;
+  ts: number;
+  self: boolean;
+}
+
+/** O contato começou (true) ou parou (false) de digitar. */
+export interface PeerTyping {
+  id: string;
+  typing: boolean;
+}
+
 export interface UiImageMeta {
   from: string;
   fromName: string;
@@ -134,6 +167,7 @@ export type ConversationItem =
   | { seq: number; at: number; kind: 'image'; image: UiImageMessage }
   | { seq: number; at: number; kind: 'wink'; wink: UiWink }
   | { seq: number; at: number; kind: 'nudge'; nudge: UiNudge }
+  | { seq: number; at: number; kind: 'together'; together: UiTogetherInvite }
   | { seq: number; at: number; kind: 'system'; text: string };
 
 /** Item antes de entrar no histórico (o main preenche `seq` e `at`). */
@@ -282,6 +316,14 @@ export interface ChatApi {
   getPeers(): Promise<PeerInfo[]>;
   send(to: string, text: string): Promise<UiChatMessage>;
   sendImage(to: string, image: OutgoingImage): Promise<UiImageMeta>;
+  /** Avisa o contato que estou (true) ou parei (false) de digitar. Offline: ignorado. */
+  sendTyping(to: string, typing: boolean): void;
+  /** O contato desta janela começou ou parou de digitar. */
+  onPeerTyping(cb: (typing: PeerTyping) => void): Unsubscribe;
+  /** "Ouvir junto": manda o estado do meu player (convite, play/pausa/posição ou saída). */
+  sendTogether(to: string, state: TogetherState): Promise<void>;
+  /** "Ouvir junto": estado do player do contato desta janela (os convites chegam como item da conversa). */
+  onPeerTogether(cb: (state: PeerTogether) => void): Unsubscribe;
   /** Chamar atenção do contato (a janela dele treme). */
   nudge(to: string): Promise<UiNudge>;
   /** Envia um wink (animação) para o contato. */
@@ -409,6 +451,10 @@ export const IPC = {
   sendImage: 'chat:send-image',
   sendNudge: 'chat:send-nudge',
   sendWink: 'chat:send-wink',
+  sendTyping: 'chat:send-typing',
+  peerTyping: 'chat:peer-typing',
+  sendTogether: 'together:send',
+  peerTogether: 'together:peer',
   connect: 'chat:connect',
   getSaved: 'chat:get-saved',
   forget: 'chat:forget',

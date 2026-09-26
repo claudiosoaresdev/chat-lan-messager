@@ -268,6 +268,28 @@ describe('PeerManager', () => {
     ws.close();
   });
 
+  it('digitando e ouvir junto chegam ao contato', async () => {
+    const a = await create('aaa', 'Ana');
+    const b = await create('bbb');
+    const ready = next(b, 'peer', onlineWith('aaa'));
+    await a.connect(HOST, b.port);
+    await ready;
+
+    const typing = next(b, 'typing');
+    a.sendTyping('bbb', true);
+    expect(await typing).toEqual({ id: 'aaa', typing: true });
+    // Offline ou desconhecido: sem erro.
+    expect(() => a.sendTyping('zzz', true)).not.toThrow();
+
+    const invite = next(b, 'together');
+    a.sendTogether('bbb', { video: 'dQw4w9WgXcQ', title: 'Música', playing: true, position: 3.2, invite: true });
+    expect(await invite).toEqual({ from: 'aaa', fromName: 'Ana', video: 'dQw4w9WgXcQ', title: 'Música', playing: true, position: 3.2, invite: true });
+    const left = next(b, 'together');
+    a.sendTogether('bbb', { video: null, playing: false, position: 0 });
+    expect(await left).toEqual({ from: 'aaa', fromName: 'Ana', video: null, playing: false, position: 0 });
+    expect(() => a.sendTogether('zzz', { video: null, playing: false, position: 0 })).toThrow();
+  });
+
   it('"o que estou ouvindo": ao conectar, ao trocar, nada tocando e ao desconectar', async () => {
     const a = await create('aaa');
     a.setListening({ artist: 'Queen', title: 'Bicycle Race' });

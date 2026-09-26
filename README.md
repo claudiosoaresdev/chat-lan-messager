@@ -66,13 +66,19 @@ O visual segue o do projeto MSN (`../msn`): janela sem moldura com barra de tít
     tudo (picture-in-picture). Com o mouse sobre ela aparece a faixa de cima, com o título (arraste por ali),
     **Voltar para a conversa** e **×**; **Esc** ou Ctrl/Cmd+W também fecham. Redimensione pelas bordas (fica 16:9)
     e solte perto da borda da tela para encostar nela. A posição fica lembrada.
-13. **O que estou ouvindo** (Spotify), como no WLM: a barra acima da conversa mostra, num letreiro que passa em
+13. **Ouvir junto**: com um vídeo do YouTube tocando na conversa, **Ouvir junto** chama o contato; ele recebe o
+    convite na conversa e, em **Entrar**, o vídeo começa no mesmo ponto. Daí em diante tocar, pausar e pular num
+    lado vale para o outro (quem chamou manda a posição a cada 5 s para corrigir a diferença). Fechar o player,
+    destacar ou tocar outro vídeo sai; o outro lado é avisado. Precisa de internet nos dois lados.
+14. **Está digitando**: enquanto o contato escreve, a barra de status embaixo da conversa mostra "Fulano está
+    digitando uma mensagem.", como no MSN; some quando ele para ou envia.
+15. **O que estou ouvindo** (Spotify), como no WLM: a barra acima da conversa mostra, num letreiro que passa em
     loop, a música que o contato está ouvindo no Spotify (ou a sua, se ele não estiver ouvindo nada); some quando
     nada toca. Clique nela para procurar a música no Spotify. A música é lida do Spotify instalado no computador,
     sem conta e sem internet: AppleScript no Mac (na primeira vez o macOS pede permissão para controlar o Spotify),
     título da janela do Spotify no Windows e `playerctl` no Linux. Para não mostrar a sua, desmarque **Mostrar o
     que estou ouvindo (Spotify)** no menu ☰.
-14. Mensagem chegando fora da conversa gera um aviso no canto da janela e, com a janela em segundo plano, uma notificação do sistema.
+16. Mensagem chegando fora da conversa gera um aviso no canto da janela e, com a janela em segundo plano, uma notificação do sistema.
 
 A rede (servidor, mDNS e reconexões) só sobe depois de **Entrar** e é derrubada em **Sair**. IPs conectados ficam salvos e reconectam sozinhos a cada 3 s enquanto o outro estiver fechado.
 
@@ -188,6 +194,8 @@ Frames de texto são JSON; o conteúdo da imagem vai no frame binário logo apó
 | `chat`  | `from`, `text`, `ts`, `font?`, `id?` | Mensagem de texto; `font` = `{family, size, bold, italic, underline, color}`; `id` = referência da prévia |
 | `preview` | `from`, `ref`, `url`, `title`, `description?`, `siteName?`, `youtube?`, `mime`, `size` | Prévia do link da mensagem `ref` de quem envia; com `size` > 0 o próximo frame binário é a miniatura (até 200 KB) |
 | `listening` | `from`, `artist`, `title` | Música tocando no Spotify (`null`/`null` = nada); enviada ao conectar e quando muda |
+| `typing` | `from`, `typing` | "Está digitando" (`true` reenviado a cada 3 s enquanto digita; `false` ao parar) |
+| `together` | `from`, `video`, `title?`, `playing`, `position`, `invite?` | "Ouvir junto": estado do player do YouTube; `invite` vira item na conversa; `video` null = saiu |
 | `scene` | `from`, `kind`, …                   | Cena da conversa (galeria, imagem no frame binário seguinte, ou nenhuma) |
 | `image` | `from`, `name`, `mime`, `size`, `ts`| Cabeçalho; o próximo frame binário é a imagem   |
 

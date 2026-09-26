@@ -65,9 +65,64 @@ let peer: PeerInfo | null = null;
 
 const dateFmt = new Intl.DateTimeFormat(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' });
 
+/** Texto normal da barra de status (volta quando o contato para de digitar). */
+let statusText = '';
+
 /** Barra de status embaixo, como no Messenger: "Última mensagem recebida em … às …". */
 function noteReceived(ts: number) {
-  els.statusbar.textContent = `Última mensagem recebida em ${dateFmt.format(ts)} às ${timeFmt.format(ts)}.`;
+  setPeerTyping(false);
+  statusText = `Última mensagem recebida em ${dateFmt.format(ts)} às ${timeFmt.format(ts)}.`;
+  els.statusbar.textContent = statusText;
+}
+
+// ---------------------------------------------------------------- "está digitando" (#18)
+
+/** Sem novo aviso nesse tempo, o "está digitando" some sozinho (o contato fechou a janela, caiu a rede…). */
+const TYPING_EXPIRE_MS = 7000;
+let typingExpire = 0;
+
+/** Como no MSN: "Fulano está digitando uma mensagem." na barra de status. */
+export function setPeerTyping(on: boolean) {
+  window.clearTimeout(typingExpire);
+  const was = els.statusbar.classList.contains('is-typing');
+  if (!on || !peer?.online) {
+    if (was) {
+      els.statusbar.classList.remove('is-typing');
+      els.statusbar.textContent = statusText;
+    }
+    return;
+  }
+  els.statusbar.classList.add('is-typing');
+  els.statusbar.textContent = `${peer.name} está digitando uma mensagem.`;
+  typingExpire = window.setTimeout(() => setPeerTyping(false), TYPING_EXPIRE_MS);
+}
+
+/** Aviso ao contato: reenviado a cada TYPING_REFRESH_MS enquanto digito; "parou" depois de TYPING_IDLE_MS parado. */
+const TYPING_REFRESH_MS = 3000;
+const TYPING_IDLE_MS = 5000;
+let typingSentAt = 0;
+let typingIdle = 0;
+
+function stopTyping() {
+  window.clearTimeout(typingIdle);
+  if (!typingSentAt) return;
+  typingSentAt = 0;
+  if (state.peerId) chat().sendTyping(state.peerId, false);
+}
+
+function noteTyping() {
+  if (!peer?.online || !state.peerId) return;
+  if (!els.text.value.trim()) {
+    stopTyping();
+    return;
+  }
+  const now = Date.now();
+  if (now - typingSentAt > TYPING_REFRESH_MS) {
+    typingSentAt = now;
+    chat().sendTyping(state.peerId, true);
+  }
+  window.clearTimeout(typingIdle);
+  typingIdle = window.setTimeout(stopTyping, TYPING_IDLE_MS);
 }
 
 // ---------------------------------------------------------------- render
@@ -205,6 +260,17 @@ export function addSystem(text: string) {
   append(el('li', 'system', text));
 }
 
+/** Linha própria (ex.: convite do "ouvir junto"): fecha o bloco "diz:" e rola até ela. */
+export function addLine(li: HTMLLIElement, self: boolean, ts: number) {
+  if (!self) noteReceived(ts);
+  last = null;
+  append(li, true);
+}
+
+export const messagesList = () => els.messages;
+export const peerName = () => peer?.name ?? '';
+export const peerOnline = () => !!peer?.online;
+
 /** Cabeçalho, título da janela (aparece na barra de tarefas) e caixa de texto conforme o contato. */
 export function setPeer(p: PeerInfo) {
   peer = p;
@@ -227,6 +293,10 @@ export function setPeer(p: PeerInfo) {
   els.fmtGif.disabled = !p.online;
   els.file.disabled = !p.online;
   els.text.placeholder = p.online ? TEXT_PLACEHOLDER : `${p.name} está offline.`;
+  if (!p.online) {
+    setPeerTyping(false);
+    typingSentAt = 0;
+  }
 }
 
 onPeerAvatarsChange(() => {
@@ -248,6 +318,7 @@ async function sendText() {
   try {
     const msg = await chat().send(to(), text);
     els.text.value = '';
+    stopTyping();
     addText(msg);
   } catch (err) {
     showError(errorMessage(err));
@@ -276,6 +347,8 @@ els.composer.addEventListener('submit', (e) => {
   e.preventDefault();
   void sendText();
 });
+
+els.text.addEventListener('input', noteTyping);
 
 // Enter envia; Shift+Enter quebra linha.
 els.text.addEventListener('keydown', (e) => {

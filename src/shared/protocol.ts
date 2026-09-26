@@ -192,6 +192,30 @@ export interface ListeningMessage {
   title: string | null;
 }
 
+/** "Fulano está digitando": `true` enquanto digita (reenviado a cada poucos segundos), `false` quando para. */
+export interface TypingMessage {
+  type: 'typing';
+  from: string;
+  typing: boolean;
+}
+
+/** Posição máxima (s) aceita no "ouvir junto" (24 h). */
+export const MAX_TOGETHER_POSITION = 86_400;
+
+/**
+ * "Ouvir junto": estado do player do YouTube de quem envia, para o outro lado tocar igual. `invite` = convite (vira
+ * item na conversa); `video` null = saiu. `position` em segundos. Versões antigas ignoram.
+ */
+export interface TogetherMessage {
+  type: 'together';
+  from: string;
+  video: string | null;
+  title?: string;
+  playing: boolean;
+  position: number;
+  invite?: boolean;
+}
+
 export type WireMessage =
   | HelloMessage
   | PresenceMessage
@@ -202,6 +226,8 @@ export type WireMessage =
   | SceneHeader
   | ListeningMessage
   | PreviewHeader
+  | TypingMessage
+  | TogetherMessage
   | WinkMessage;
 
 type Json = Record<string, unknown>;
@@ -349,6 +375,29 @@ export function validateMessage(value: unknown): WireMessage | null {
       // Artista pode vir vazio (podcast, arquivo local); a música não.
       if (!isBoundedString(value.artist, MAX_LISTENING_LENGTH, 0) || !isBoundedString(value.title, MAX_LISTENING_LENGTH)) return null;
       return { type: 'listening', from: value.from, artist: value.artist, title: value.title };
+    }
+
+    case 'typing':
+      if (!isBoundedString(value.from, MAX_ID_LENGTH) || typeof value.typing !== 'boolean') return null;
+      return { type: 'typing', from: value.from, typing: value.typing };
+
+    case 'together': {
+      if (!isBoundedString(value.from, MAX_ID_LENGTH) || typeof value.playing !== 'boolean') return null;
+      if (value.video !== null && !isYoutubeId(value.video)) return null;
+      if (typeof value.position !== 'number' || !Number.isFinite(value.position)) return null;
+      if (value.position < 0 || value.position > MAX_TOGETHER_POSITION) return null;
+      if (value.title !== undefined && !isBoundedString(value.title, MAX_PREVIEW_TITLE)) return null;
+      if (value.invite !== undefined && typeof value.invite !== 'boolean') return null;
+      const title = value.title as string | undefined;
+      return {
+        type: 'together',
+        from: value.from,
+        video: value.video as string | null,
+        playing: value.playing,
+        position: value.position,
+        ...(title !== undefined ? { title } : {}),
+        ...(value.invite === true && value.video !== null ? { invite: true } : {}),
+      };
     }
 
     case 'wink':
