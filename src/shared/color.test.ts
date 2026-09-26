@@ -3,6 +3,8 @@ import {
   averageColor,
   contrast,
   ensureContrast,
+  isDarkNeutral,
+  messageColor,
   hslToRgb,
   luminance,
   mapColors,
@@ -105,5 +107,38 @@ describe('ensureContrast', () => {
     const hsl = rgbToHsl(parseHex(out));
     const lessLight = toHex(hslToRgb({ ...hsl, l: hsl.l - 0.01 }));
     expect(contrast(lessLight, dark)).toBeLessThan(3);
+  });
+});
+
+describe('messageColor', () => {
+  const DARK = '#20262f';
+  const TEXT = '#e3e9f1';
+  const PALETTE = ['#000000', '#595959', '#800000', '#d40000', '#e46c0a', '#7f4f1f', '#808000', '#008000', '#008080',
+    '#006d8f', '#000080', '#0050c8', '#5b2c9f', '#800080', '#c000c0', '#d6337f'];
+
+  it('preto e cinza escuro são neutros; cores e cinzas claros não', () => {
+    expect(isDarkNeutral('#000000')).toBe(true);
+    expect(isDarkNeutral('#595959')).toBe(true);
+    expect(isDarkNeutral('#000080')).toBe(false);
+    expect(isDarkNeutral('#808080')).toBe(false);
+  });
+
+  it('no escuro, neutros viram o texto do tema', () => {
+    expect(messageColor('#000000', DARK, 'dark', TEXT)).toBe(TEXT);
+    expect(messageColor('#595959', DARK, 'dark', 'var(--text)')).toBe('var(--text)');
+  });
+
+  it('no escuro, as demais cores ficam com 4,5:1 e o mesmo matiz', () => {
+    for (const c of PALETTE.filter((c) => !isDarkNeutral(c))) {
+      const out = messageColor(c, DARK, 'dark', TEXT);
+      expect(contrast(out, DARK)).toBeGreaterThanOrEqual(4.5);
+      expect(Math.abs(rgbToHsl(parseHex(out)).h - rgbToHsl(parseHex(c)).h)).toBeLessThan(2);
+    }
+  });
+
+  it('no claro, a paleta fica como escolhida no fundo branco (3:1) e o preto continua preto', () => {
+    for (const c of PALETTE) expect(messageColor(c, '#ffffff', 'light', TEXT)).toBe(c);
+    const yellow = messageColor('#ffff66', '#ffffff', 'light', TEXT);
+    expect(contrast(yellow, '#ffffff')).toBeGreaterThanOrEqual(3);
   });
 });

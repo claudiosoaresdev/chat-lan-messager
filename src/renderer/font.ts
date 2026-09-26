@@ -1,6 +1,6 @@
 // "Alterar fonte" das mensagens, como no MSN: fonte, estilo, tamanho, sublinhado e cor.
 // A fonte vai junto com cada mensagem e é aplicada só via propriedades de estilo (CSSOM).
-import { averageColor, ensureContrast } from '../shared/color';
+import { averageColor, messageColor } from '../shared/color';
 import { DEFAULT_FONT, type MessageFont } from '../shared/protocol';
 import { onAppearanceApplied } from './appearance';
 import { $, chat, el, errorMessage } from './dom';
@@ -41,9 +41,6 @@ const COLORS = [
 let current: MessageFont = { ...DEFAULT_FONT };
 const listeners: Array<(f: MessageFont) => void> = [];
 
-/** Contraste mínimo da cor da mensagem sobre o fundo da conversa (texto grande o bastante para 3:1). */
-const MIN_MESSAGE_CONTRAST = 3;
-
 /** Fundo da conversa no tema e modo atuais. */
 function surfaceColor() {
   try {
@@ -54,12 +51,14 @@ function surfaceColor() {
 }
 
 /**
- * Cor legível no fundo atual: preto no modo escuro clareia, amarelo-claro no claro escurece (mesmo matiz).
- * A cor original fica em data-font-color para reajustar quando o modo ou o tema mudam.
+ * Cor legível no fundo atual (regras em messageColor): no escuro o preto vira o texto do tema e as demais cores
+ * ganham contraste; no claro só cores claras demais escurecem (mesmo matiz). A cor original fica em
+ * data-font-color para reajustar quando o modo ou o tema mudam.
  */
 export function readableColor(hex: string) {
+  const mode = document.documentElement.dataset.mode === 'dark' ? 'dark' : 'light';
   try {
-    return ensureContrast(hex, surfaceColor(), MIN_MESSAGE_CONTRAST);
+    return messageColor(hex, surfaceColor(), mode, 'var(--text)');
   } catch {
     return hex;
   }

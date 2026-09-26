@@ -144,3 +144,19 @@ export function ensureContrast(hex: string, bgHex: string, min: number): string 
   }
   return out;
 }
+
+/** Pretos e cinzas escuros (quase sem saturação e bem escuros): a cor "neutra" das mensagens. */
+export function isDarkNeutral(hex: string): boolean {
+  const rgb = parseHex(hex);
+  return rgbToHsl(rgb).s < 0.12 && luminance(rgb) < 0.2;
+}
+
+/**
+ * Cor de uma mensagem no fundo `surface` do tema. No escuro: preto e cinzas escuros viram o texto do tema
+ * (`text`, a mensagem padrão fica igual ao texto normal) e as demais cores ganham contraste de 4,5:1. No claro:
+ * 3:1, o que mantém a paleta do "Alterar fonte" como escolhida no Azul clássico.
+ */
+export function messageColor(hex: string, surface: string, mode: 'light' | 'dark', text: string): string {
+  if (mode === 'dark' && isDarkNeutral(hex)) return text;
+  return ensureContrast(hex, surface, mode === 'dark' ? 4.5 : 3);
+}

@@ -826,6 +826,7 @@ button {
   right: 7px;
   width: 14px;
   height: 14px;
+  color: var(--muted);
   pointer-events: none;
 }
 
@@ -849,6 +850,12 @@ button {
 .tool-btn svg {
   width: 20px;
   height: 16px;
+  /* "+" do adicionar contato */
+  color: var(--link);
+}
+
+.tool-btn .icon-menu {
+  color: color-mix(in srgb, var(--title-text) 86%, var(--bg));
 }
 
 .tool-btn-text {

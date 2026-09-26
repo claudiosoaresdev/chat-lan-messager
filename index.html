@@ -47,12 +47,13 @@
         <circle cx="50" cy="37" r="20" fill="url(#g-person-head)" stroke="#8d949c" stroke-width=".8" />
         <ellipse cx="44" cy="28" rx="9" ry="6" fill="#fff" opacity=".7" />
       </symbol>
+      <!-- Ícones da interface (busca, menu, "+"): traço em currentColor, cor vinda dos tokens no CSS. -->
       <symbol id="i-search" viewBox="0 0 16 16">
-        <circle cx="6.5" cy="6.5" r="4.6" fill="none" stroke="#5a6f8c" stroke-width="1.6" />
-        <path d="M10 10l4.2 4.2" stroke="#5a6f8c" stroke-width="2" stroke-linecap="round" />
+        <circle cx="6.5" cy="6.5" r="4.6" fill="none" stroke="currentColor" stroke-width="1.6" />
+        <path d="M10 10l4.2 4.2" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
       </symbol>
       <symbol id="i-menu" viewBox="0 0 20 16">
-        <path d="M4 4.5h12M4 8h12M4 11.5h12" stroke="#3d5a80" stroke-width="1.6" stroke-linecap="round" />
+        <path d="M4 4.5h12M4 8h12M4 11.5h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
       </symbol>
       <symbol id="i-nudge" viewBox="0 0 20 16">
         <rect x="5.5" y="2.5" width="9" height="11" rx="1.5" fill="#fff" stroke="#3c7fb1" stroke-width="1.3" />
@@ -67,7 +68,7 @@
       <symbol id="i-add" viewBox="0 0 20 16">
         <circle cx="7" cy="4.6" r="3.4" fill="#4cb122" />
         <path d="M.6 15c0-3.9 2.9-6.4 6.4-6.4s6.4 2.5 6.4 6.4z" fill="#4cb122" />
-        <path d="M15.5 4v8M11.5 8h8" stroke="#0b4fa5" stroke-width="2.2" stroke-linecap="round" />
+        <path d="M15.5 4v8M11.5 8h8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
       </symbol>
       <!-- Modo da aparência (traço na cor do texto) -->
       <symbol id="i-mode-system" viewBox="0 0 20 16">
@@ -218,7 +219,7 @@
             <svg><use href="#i-add" /></svg>
           </button>
           <button type="button" class="tool-btn" id="home-menu" title="Menu" aria-haspopup="menu">
-            <svg><use href="#i-menu" /></svg>
+            <svg class="icon-menu"><use href="#i-menu" /></svg>
           </button>
         </div>
 
