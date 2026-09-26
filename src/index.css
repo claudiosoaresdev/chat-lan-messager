@@ -1,28 +1,76 @@
 /* Visual inspirado no MSN Messenger clássico — mesma paleta do projeto msn (msn_colors.dart). */
+/* Tokens de cor: padrão do tema Azul clássico (modo claro), espelhando CLASSIC_LIGHT em src/shared/theme-tokens.ts.
+   Fora deste bloco o CSS só usa var(--…) ou tons derivados com color-mix(); cor literal só com cor-fixa. */
 :root {
-  --title-start: #1c5ec2;
-  --title-end: #0b3f92;
-  /* Barra de título "vidro" azul-claro (Windows 7 / Live Messenger). */
+  /* superfícies e texto */
+  --bg: #fff;
+  --surface: #fff;
+  --field-bg: #fff;
+  --text: #1a2b45;
+  --text-strong: #1e1e1e;
+  --muted: #6b7a90;
+  --link: #0b4fa5;
+  --accent: #0b3f92;
+  --accent-soft: #a9c6e8;
+  --accent-text: #fff;
+  --selection: #3399ff;
+  /* efeitos (brilho, sombra, véu) */
+  --sheen: #fff;
+  --shadow: #000;
+  --overlay: rgba(11, 30, 60, 0.25);
+  --glow: #5cc1e8;
+  --window-glow: linear-gradient(180deg, var(--glow) 0%, #ffffff 34%);
+  /* bordas */
+  --border-strong: #6f95c2;
+  --panel-line: #d5e1ee;
+  --field-border: #9db6d9;
+  --box-border: #abbdd3;
+  --select-border: #7da2ce;
+  /* linhas de lista e menus */
+  --row-hover: linear-gradient(180deg, #fafbfd, #ebf3fd);
+  --row-hover-border: #b8d6fb;
+  --row-focus: linear-gradient(180deg, #dcebfc, #c1dbfc);
+  --row-selected: #cfe2fa;
+  --menu-hover: linear-gradient(180deg, #eaf6fd, #d9f0fc);
+  --menu-hover-border: #a8d8f8;
+  /* botões */
+  --btn-face: linear-gradient(180deg, #fafafa, #ececec 55%, #e2e2e2);
+  --btn-border: #aca899;
+  --btn-focus: #3c7fb1;
+  /* barra de título "vidro" azul-claro (Windows 7 / Live Messenger) */
   --title-glass: linear-gradient(180deg, #eaf4fd 0%, #d3e7fa 46%, #bad8f6 50%, #c9e2f9 78%, #d9ebfb 100%);
   --title-text: #1e3a5f;
   --title-line: #93b8df;
-  --glow: #5cc1e8;
+  --titlebtn-bg: linear-gradient(180deg, #f4f9fe 0%, #dcebfa 48%, #c3dbf4 52%, #d6e8fa 100%);
+  --titlebtn-bg-hover: linear-gradient(180deg, #fbfdff 0%, #e6f2fd 48%, #cfe5fb 52%, #e5f2fe 100%);
+  --titlebtn-icon: #2a4a72;
+  /* cabeçalhos (lista, conversa, login) */
+  --header-bg:
+    radial-gradient(60% 90% at 100% 0%, rgba(111, 190, 68, 0.22), rgba(111, 190, 68, 0) 70%),
+    radial-gradient(80% 120% at 0% 0%, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0) 60%),
+    linear-gradient(180deg, #a8dbf1 0%, #d4effa 55%, #eef9fd 100%);
+  --header-line: #b9d7ea;
+  --login-bg:
+    radial-gradient(90% 55% at 18% 0%, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0) 60%),
+    radial-gradient(70% 40% at 85% 8%, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0) 70%),
+    linear-gradient(180deg, #9fd8f1 0%, #cdeef9 20%, #eef9fd 38%, #ffffff 55%);
   --accent-green: #6fbe44;
-  --field-border: #9db6d9;
-  --link: #0b4fa5;
-  --text: #1a2b45;
-  --muted: #6b7a90;
+  /* avisos (barra de atualização) */
+  --warning-bg: linear-gradient(180deg, #fffbe0, #fff3b8);
+  --warning-bg-hover: linear-gradient(180deg, #fffdf0, #fff6c8);
+  --warning-border: #e0c65a;
+  --error-bg: linear-gradient(180deg, #fff1f0, #fde0de);
+  --error-border: #e3a19c;
+  /* não lida e "chamar atenção" (laranja) */
+  --unread: #e8a13a;
+  --unread-soft: #fff4e0;
+  --unread-strong: #ffc76b;
+  --unread-text: #7a5a00;
+  /* status: iguais em todos os temas */
   --st-available: #4cb122;
   --st-away: #f2b50d;
   --st-busy: #d8342b;
   --st-offline: #9aa0a6;
-  --btn-face: #ececec;
-  --btn-border: #aca899;
-  --btn-focus: #3c7fb1;
-  --panel-line: #c5d6ee;
-  --row-hover: #e6f0fc;
-  --row-selected: #cfe2fa;
-  --window-glow: linear-gradient(180deg, var(--glow) 0%, #ffffff 34%);
   color-scheme: light;
 }
 
@@ -40,7 +88,7 @@ body {
   font-family: 'Segoe UI', Tahoma, 'Lucida Grande', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 12px;
   color: var(--text);
-  background: #fff;
+  background: var(--bg);
   overflow: hidden;
   user-select: none;
 }
@@ -95,8 +143,8 @@ button {
   min-height: 28px;
   padding: 4px 10px;
   border: 0;
-  border-bottom: 1px solid #e0c65a;
-  background: linear-gradient(180deg, #fffbe0, #fff3b8);
+  border-bottom: 1px solid var(--warning-border);
+  background: var(--warning-bg);
   color: var(--text);
   font: inherit;
   font-size: 12px;
@@ -105,7 +153,7 @@ button {
 }
 
 .update-bar:hover:not(:disabled) {
-  background: linear-gradient(180deg, #fffdf0, #fff6c8);
+  background: var(--warning-bg-hover);
 }
 
 .update-bar:disabled {
@@ -113,8 +161,8 @@ button {
 }
 
 .update-bar.is-error {
-  border-bottom-color: #e3a19c;
-  background: linear-gradient(180deg, #fff1f0, #fde0de);
+  border-bottom-color: var(--error-border);
+  background: var(--error-bg);
 }
 
 .update-bar-icon {
@@ -149,7 +197,7 @@ button {
   border-bottom: 1px solid var(--title-line);
   background: var(--title-glass);
   color: var(--title-text);
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
+  text-shadow: 0 1px 0 color-mix(in srgb, var(--sheen) 80%, transparent);
   -webkit-app-region: drag;
 }
 
@@ -173,10 +221,10 @@ button {
   align-self: flex-start;
   margin-right: 6px;
   overflow: hidden;
-  border: 1px solid #6f95c2;
+  border: 1px solid var(--border-strong);
   border-top: 0;
   border-radius: 0 0 5px 5px;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--sheen) 70%, transparent);
   -webkit-app-region: no-drag;
 }
 
@@ -188,8 +236,8 @@ button {
   height: 20px;
   padding: 0;
   border: 0;
-  border-left: 1px solid #8fb0d6;
-  background: linear-gradient(180deg, #f4f9fe 0%, #dcebfa 48%, #c3dbf4 52%, #d6e8fa 100%);
+  border-left: 1px solid color-mix(in srgb, var(--link) 45.48%, var(--bg));
+  background: var(--titlebtn-bg);
 }
 
 .tb-btn:first-child {
@@ -197,35 +245,35 @@ button {
 }
 
 .tb-btn:hover {
-  background: linear-gradient(180deg, #fbfdff 0%, #e6f2fd 48%, #cfe5fb 52%, #e5f2fe 100%);
+  background: var(--titlebtn-bg-hover);
 }
 
 .tb-btn:active {
-  background: linear-gradient(180deg, #c7ddf4, #b0cdee);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent-soft) 61.47%, var(--bg)), color-mix(in srgb, var(--accent-soft) 88.08%, var(--bg)));
 }
 
 .tb-btn svg {
   width: 9px;
   height: 9px;
   fill: none;
-  stroke: #2a4a72;
+  stroke: var(--titlebtn-icon);
   stroke-width: 1.6;
 }
 
 .tb-close {
   width: 44px;
-  border-left-color: #9c3a2c;
-  background: linear-gradient(180deg, #f4b1a3 0%, #e3735c 46%, #cd4527 52%, #dc6b4f 100%);
+  border-left-color: #9c3a2c; /* cor-fixa */
+  background: linear-gradient(180deg, #f4b1a3 0%, #e3735c 46%, #cd4527 52%, #dc6b4f 100%); /* cor-fixa */
 }
 
 .tb-close:hover {
-  background: linear-gradient(180deg, #f9c4b8 0%, #ee8a72 46%, #e0512f 52%, #ea8062 100%);
+  background: linear-gradient(180deg, #f9c4b8 0%, #ee8a72 46%, #e0512f 52%, #ea8062 100%); /* cor-fixa */
 }
 
 .tb-close svg {
-  stroke: #fff;
+  stroke: #fff; /* cor-fixa */
   stroke-width: 1.8;
-  filter: drop-shadow(0 0 1px rgba(90, 20, 0, 0.6));
+  filter: drop-shadow(0 0 1px rgba(90, 20, 0, 0.6)); /* cor-fixa */
 }
 
 .view {
@@ -262,7 +310,7 @@ button {
   padding: 0 10px;
   border: 1px solid var(--field-border);
   border-radius: 3px;
-  background: #fff;
+  background: var(--field-bg);
   color: var(--text);
   font-size: 14px;
   outline: none;
@@ -270,7 +318,7 @@ button {
 }
 
 .msn-input::placeholder {
-  color: #9a9a9a;
+  color: color-mix(in srgb, var(--text-strong) 44.89%, var(--field-bg));
 }
 
 .msn-input:focus {
@@ -290,18 +338,18 @@ button {
   padding: 0 12px;
   border: 1px solid var(--btn-border);
   border-radius: 3px;
-  background: linear-gradient(180deg, #fafafa, var(--btn-face) 55%, #e2e2e2);
+  background: var(--btn-face);
   color: var(--text);
   font-size: 13px;
 }
 
 .win-btn:hover:not(:disabled) {
-  border-color: #7da2ce;
-  background: linear-gradient(180deg, #fbfdff, #e5f1fb 55%, #d9eaf8);
+  border-color: var(--select-border);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent-soft) 3.67%, var(--bg)), color-mix(in srgb, var(--accent-soft) 27.53%, var(--bg)) 55%, color-mix(in srgb, var(--accent-soft) 41.26%, var(--bg)));
 }
 
 .win-btn:active:not(:disabled) {
-  background: #d6e7f7;
+  background: color-mix(in srgb, var(--accent-soft) 44.96%, var(--bg));
 }
 
 .win-btn:focus-visible,
@@ -311,7 +359,7 @@ button {
 }
 
 .win-btn:disabled {
-  color: #a0a0a0;
+  color: color-mix(in srgb, var(--text-strong) 42.22%, var(--bg));
   cursor: default;
 }
 
@@ -387,7 +435,7 @@ button {
   padding: 3px;
   border-radius: 8px;
   background: var(--st-color);
-  box-shadow: 0 1px 3px rgba(11, 63, 146, 0.25);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
 .avatar-inner {
@@ -396,7 +444,7 @@ button {
   width: 100%;
   height: 100%;
   border-radius: 5px;
-  background: linear-gradient(180deg, #f2f2f2, #cfcfcf);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--text-strong) 5.78%, var(--bg)), color-mix(in srgb, var(--text-strong) 21.33%, var(--bg)));
   color: var(--st-offline);
 }
 
@@ -404,10 +452,7 @@ button {
 
 .view-login {
   position: relative;
-  background:
-    radial-gradient(90% 55% at 18% 0%, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0) 60%),
-    radial-gradient(70% 40% at 85% 8%, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0) 70%),
-    linear-gradient(180deg, #9fd8f1 0%, #cdeef9 20%, #eef9fd 38%, #ffffff 55%);
+  background: var(--login-bg);
 }
 
 .login-scroll {
@@ -425,7 +470,7 @@ button {
 
 .login-heading {
   margin: 0 0 30px;
-  color: #3a3a3a;
+  color: color-mix(in srgb, var(--text-strong) 87.56%, var(--bg));
   font-family: 'Segoe UI Light', 'Segoe UI', 'Helvetica Neue', -apple-system, sans-serif;
   font-size: 34px;
   font-weight: 300;
@@ -433,7 +478,7 @@ button {
 }
 
 .login-heading b {
-  color: #262626;
+  color: color-mix(in srgb, var(--text-strong) 96.44%, var(--bg));
   font-weight: 600;
 }
 
@@ -445,11 +490,11 @@ button {
   width: 24px;
   height: 24px;
   padding: 0;
-  border: 1px solid #0b3f92;
+  border: 1px solid var(--accent);
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #7fb0f2, var(--link) 55%, #0b3f92);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-  color: #fff;
+  background: radial-gradient(circle at 35% 30%, #7fb0f2, var(--link) 55%, var(--accent)); /* cor-fixa: brilho do ícone */
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow) 30%, transparent);
+  color: var(--accent-text);
   font-size: 13px;
   font-weight: 700;
 }
@@ -462,21 +507,21 @@ button {
 
 /* Moldura "vidro" na cor do status (login e lista de contatos). */
 .avatar-glass {
-  border: 1px solid rgba(0, 0, 0, 0.28);
+  border: 1px solid color-mix(in srgb, var(--shadow) 28%, transparent);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.05) 48%, rgba(0, 0, 0, 0.12)),
+    linear-gradient(180deg, color-mix(in srgb, var(--sheen) 60%, transparent), color-mix(in srgb, var(--sheen) 5%, transparent) 48%, color-mix(in srgb, var(--shadow) 12%, transparent)),
     var(--st-color);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.7),
-    0 2px 6px rgba(0, 0, 0, 0.18);
+    inset 0 1px 0 color-mix(in srgb, var(--sheen) 70%, transparent),
+    0 2px 6px color-mix(in srgb, var(--shadow) 18%, transparent);
 }
 
 .avatar-glass .avatar-inner {
   align-items: end;
   overflow: hidden;
-  border: 1px solid rgba(0, 0, 0, 0.22);
+  border: 1px solid color-mix(in srgb, var(--shadow) 22%, transparent);
   border-radius: 4px;
-  background: linear-gradient(180deg, #fbfbfb, #dfe2e6 60%, #c6cbd1);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--text-strong) 1.78%, var(--bg)), color-mix(in srgb, var(--text) 13.74%, var(--bg)) 60%, color-mix(in srgb, var(--text) 24.72%, var(--bg)));
 }
 
 .avatar-xl {
@@ -504,8 +549,8 @@ button {
 
 .login-fields .msn-input {
   height: 30px;
-  border-color: #a9bdd6;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+  border-color: var(--box-border);
+  box-shadow: inset 0 1px 2px color-mix(in srgb, var(--shadow) 6%, transparent);
 }
 
 .hint {
@@ -539,7 +584,7 @@ button {
 }
 
 .check:has(input:disabled) {
-  color: #a3a3a3;
+  color: color-mix(in srgb, var(--text-strong) 40.89%, var(--bg));
   cursor: default;
 }
 
@@ -567,7 +612,7 @@ button {
   padding: 0;
   border: 0;
   background: none;
-  color: #9aa3ad;
+  color: color-mix(in srgb, var(--text) 43.76%, var(--bg));
   font-size: 12px;
 }
 
@@ -613,7 +658,7 @@ button {
 /* ---------------------------------------------------------------- home (lista de contatos, estilo WLM) */
 
 .view-home {
-  background: #fff;
+  background: var(--bg);
 }
 
 .home-header {
@@ -622,11 +667,8 @@ button {
   align-items: center;
   gap: 12px;
   padding: 14px 12px 12px;
-  background:
-    radial-gradient(60% 90% at 100% 0%, rgba(111, 190, 68, 0.22), rgba(111, 190, 68, 0) 70%),
-    radial-gradient(80% 120% at 0% 0%, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0) 60%),
-    linear-gradient(180deg, #a8dbf1 0%, #d4effa 55%, #eef9fd 100%);
-  border-bottom: 1px solid #b9d7ea;
+  background: var(--header-bg);
+  border-bottom: 1px solid var(--header-line);
 }
 
 .avatar-md {
@@ -665,7 +707,7 @@ button {
   border: 1px solid transparent;
   border-radius: 2px;
   background: transparent;
-  color: #1e1e1e;
+  color: var(--text-strong);
   font: inherit;
   font-size: 15px;
   text-overflow: ellipsis;
@@ -674,13 +716,13 @@ button {
 }
 
 .me-name:hover {
-  border-color: #7da2ce;
-  background: rgba(255, 255, 255, 0.7);
+  border-color: var(--select-border);
+  background: color-mix(in srgb, var(--sheen) 70%, transparent);
 }
 
 .me-name:focus {
   border-color: var(--btn-focus);
-  background: #fff;
+  background: var(--field-bg);
 }
 
 .me-status {
@@ -689,13 +731,13 @@ button {
   border: 1px solid transparent;
   border-radius: 2px;
   background: none;
-  color: #3a3a3a;
+  color: color-mix(in srgb, var(--text-strong) 87.56%, var(--bg));
   font-size: 12px;
 }
 
 .me-status:hover {
-  border-color: #7da2ce;
-  background: rgba(255, 255, 255, 0.6);
+  border-color: var(--select-border);
+  background: color-mix(in srgb, var(--sheen) 60%, transparent);
 }
 
 .personal-msg {
@@ -704,28 +746,28 @@ button {
   border: 1px solid transparent;
   border-radius: 2px;
   background: transparent;
-  color: #3a3a3a;
+  color: color-mix(in srgb, var(--text-strong) 87.56%, var(--bg));
   outline: none;
   user-select: text;
 }
 
 .personal-msg:hover {
-  border-color: #7da2ce;
-  background: rgba(255, 255, 255, 0.7);
+  border-color: var(--select-border);
+  background: color-mix(in srgb, var(--sheen) 70%, transparent);
 }
 
 .personal-msg:focus {
   border-color: var(--btn-focus);
-  background: #fff;
+  background: var(--field-bg);
 }
 
 .personal-msg::placeholder {
-  color: #5f6b7a;
+  color: color-mix(in srgb, var(--text) 70.6%, var(--bg));
 }
 
 .me-addr {
   align-self: flex-start;
-  color: #4d6078;
+  color: color-mix(in srgb, var(--text) 34.62%, var(--muted));
   font-size: 11px;
 }
 
@@ -735,8 +777,8 @@ button {
   align-items: center;
   gap: 2px;
   padding: 6px 8px;
-  border-bottom: 1px solid #e3ebf5;
-  background: linear-gradient(180deg, #f7fbfe, #edf4fb);
+  border-bottom: 1px solid color-mix(in srgb, var(--link) 11.38%, var(--bg));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent-soft) 8.26%, var(--bg)), color-mix(in srgb, var(--accent-soft) 20.19%, var(--bg)));
 }
 
 .search-box {
@@ -750,15 +792,15 @@ button {
   width: 100%;
   height: 24px;
   padding: 0 26px 0 8px;
-  border: 1px solid #abbdd3;
+  border: 1px solid var(--box-border);
   border-radius: 2px;
-  background: #fff;
+  background: var(--field-bg);
   outline: none;
   user-select: text;
 }
 
 .search::placeholder {
-  color: #8a94a3;
+  color: color-mix(in srgb, var(--muted) 80.69%, var(--field-bg));
   font-style: italic;
 }
 
@@ -788,8 +830,8 @@ button {
 }
 
 .tool-btn:hover {
-  border-color: #a9c6e8;
-  background: linear-gradient(180deg, #fbfdff, #e5f1fb);
+  border-color: var(--accent-soft);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent-soft) 3.67%, var(--bg)), color-mix(in srgb, var(--accent-soft) 27.53%, var(--bg)));
 }
 
 .tool-btn svg {
@@ -809,7 +851,7 @@ button {
   min-height: 0;
   padding: 4px 0 8px;
   overflow-y: auto;
-  background: #fff;
+  background: var(--bg);
 }
 
 .group-header {
@@ -820,7 +862,7 @@ button {
   padding: 5px 10px 3px;
   border: 0;
   background: none;
-  color: #4a4a4a;
+  color: color-mix(in srgb, var(--text-strong) 80.44%, var(--bg));
   font-weight: 600;
   text-align: left;
 }
@@ -832,7 +874,7 @@ button {
 .group-arrow {
   display: inline-block;
   width: 10px;
-  color: #6d6d6d;
+  color: color-mix(in srgb, var(--text-strong) 64.89%, var(--bg));
   font-size: 9px;
   transition: transform 0.1s;
 }
@@ -868,15 +910,15 @@ button {
 }
 
 .contact:hover {
-  border-color: #b8d6fb;
-  background: linear-gradient(180deg, #fafbfd, #ebf3fd);
+  border-color: var(--row-hover-border);
+  background: var(--row-hover);
 }
 
 .contact.is-selected,
 .contact:focus-visible {
   outline: none;
-  border-color: #7da2ce;
-  background: linear-gradient(180deg, #dcebfc, #c1dbfc);
+  border-color: var(--select-border);
+  background: var(--row-focus);
 }
 
 .buddy {
@@ -890,7 +932,7 @@ button {
   flex: none;
   max-width: 60%;
   overflow: hidden;
-  color: #1e1e1e;
+  color: var(--text-strong);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -899,18 +941,18 @@ button {
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  color: #8a8a8a;
+  color: color-mix(in srgb, var(--text-strong) 52%, var(--bg));
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
 .contact.offline .contact-name {
-  color: #8f8f8f;
+  color: color-mix(in srgb, var(--text-strong) 49.78%, var(--bg));
 }
 
 /* Mensagem não vista: pisca em laranja, como a janela do MSN na barra de tarefas. */
 .contact.is-unread {
-  border-color: #e8a13a;
+  border-color: var(--unread);
   animation: contact-unread 1s ease-in-out infinite alternate;
 }
 
@@ -920,17 +962,17 @@ button {
 
 @keyframes contact-unread {
   from {
-    background: #fff4e0;
+    background: var(--unread-soft);
   }
   to {
-    background: #ffc76b;
+    background: var(--unread-strong);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .contact.is-unread {
     animation: none;
-    background: #ffd999;
+    background: color-mix(in srgb, var(--unread-soft) 39.5%, var(--unread-strong));
   }
 }
 
@@ -940,7 +982,7 @@ button {
   padding: 1px 6px;
   border-radius: 9px;
   background: var(--accent-green);
-  color: #fff;
+  color: var(--accent-text);
   font-size: 11px;
   font-weight: 700;
   text-align: center;
@@ -1293,9 +1335,9 @@ button {
   z-index: 50;
   min-width: 140px;
   padding: 3px;
-  border: 1px solid #979797;
-  background: #f5f5f5;
-  box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.25);
+  border: 1px solid color-mix(in srgb, var(--text-strong) 46.22%, var(--bg));
+  background: color-mix(in srgb, var(--text-strong) 4.44%, var(--bg));
+  box-shadow: 2px 2px 4px color-mix(in srgb, var(--shadow) 25%, transparent);
 }
 
 .menu-item {
@@ -1314,14 +1356,14 @@ button {
 .menu-item:hover,
 .menu-item:focus-visible {
   outline: none;
-  border-color: #a8d8f8;
-  background: linear-gradient(180deg, #eaf6fd, #d9f0fc);
+  border-color: var(--menu-hover-border);
+  background: var(--menu-hover);
 }
 
 .menu-sep {
   height: 1px;
   margin: 3px 4px;
-  background: #d5d5d5;
+  background: color-mix(in srgb, var(--text-strong) 18.67%, var(--bg));
 }
 
 /* ---------------------------------------------------------------- diálogos */
@@ -1329,15 +1371,15 @@ button {
 .msn-dialog {
   width: min(360px, calc(100vw - 32px));
   padding: 0;
-  border: 1px solid #6f95c2;
+  border: 1px solid var(--border-strong);
   border-radius: 6px;
   background: var(--window-glow);
   color: var(--text);
-  box-shadow: 0 8px 28px rgba(11, 63, 146, 0.35);
+  box-shadow: 0 8px 28px color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
 .msn-dialog::backdrop {
-  background: rgba(11, 30, 60, 0.25);
+  background: var(--overlay);
 }
 
 .dialog-titlebar {
@@ -1349,7 +1391,7 @@ button {
   border-bottom: 1px solid var(--title-line);
   background: var(--title-glass);
   color: var(--title-text);
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
+  text-shadow: 0 1px 0 color-mix(in srgb, var(--sheen) 80%, transparent);
   font-size: 12px;
   font-weight: 500;
 }
@@ -1410,7 +1452,7 @@ button {
 }
 
 .saved-remove:hover {
-  background: #fde3e1;
+  background: color-mix(in srgb, var(--error-border) 25.2%, var(--bg));
   color: var(--st-busy);
 }
 
@@ -2479,10 +2521,10 @@ body.is-resizing * {
 
 .toast {
   overflow: hidden;
-  border: 1px solid #6f95c2;
+  border: 1px solid var(--border-strong);
   border-radius: 4px;
-  background: linear-gradient(180deg, #eaf5fd, #fff 60%);
-  box-shadow: 0 4px 14px rgba(11, 63, 146, 0.3);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--glow) 13.78%, var(--surface)), var(--surface) 60%);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 30%, transparent);
   pointer-events: auto;
   cursor: pointer;
   animation: toast-in 0.25s ease-out;
@@ -2537,7 +2579,7 @@ body.is-resizing * {
   place-items: center;
   border: 2px dashed var(--btn-focus);
   border-radius: 6px;
-  background: rgba(92, 193, 232, 0.18);
+  background: color-mix(in srgb, var(--glow) 18%, transparent);
   color: var(--link);
   font-size: 16px;
   font-weight: 600;
