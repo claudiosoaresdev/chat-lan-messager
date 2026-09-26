@@ -2,6 +2,8 @@
 // Frames de texto carregam JSON; o conteúdo de uma imagem vai no frame
 // binário logo após o cabeçalho `image`.
 
+import { findGoogleFont } from './google-fonts';
+
 export const SERVICE_TYPE = 'chatlan';
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 /** Imagem de exibição: pequena, vai para todos ao conectar. */
@@ -35,8 +37,8 @@ export interface PresenceMessage {
   message: string;
 }
 
-/** Fontes permitidas nas mensagens (as que existem ou têm equivalente no Windows e no Mac). */
-export const FONT_FAMILIES = [
+/** Fontes clássicas (as que existem ou têm equivalente no Windows e no Mac). */
+export const CLASSIC_FONTS = [
   'Segoe UI',
   'Arial',
   'Calibri',
@@ -50,14 +52,19 @@ export const FONT_FAMILIES = [
   'Trebuchet MS',
   'Verdana',
 ] as const;
-export type FontFamily = (typeof FONT_FAMILIES)[number];
+/** @deprecated use `CLASSIC_FONTS` */
+export const FONT_FAMILIES = CLASSIC_FONTS;
+export type ClassicFont = (typeof CLASSIC_FONTS)[number];
 export const MIN_FONT_SIZE = 8;
 export const MAX_FONT_SIZE = 24;
 
 /** Fonte das mensagens, como no "Alterar fonte" do MSN. Tamanho em px. */
 export interface MessageFont {
-  family: FontFamily;
+  /** Clássica (CLASSIC_FONTS) ou família do catálogo do Google Fonts. */
+  family: string;
   size: number;
+  /** 100–900. `bold` acompanha (peso ≥ 600) para versões antigas, que só conhecem negrito. */
+  weight: number;
   bold: boolean;
   italic: boolean;
   underline: boolean;
@@ -68,6 +75,7 @@ export interface MessageFont {
 export const DEFAULT_FONT: MessageFont = {
   family: 'Segoe UI',
   size: 13,
+  weight: 400,
   bold: false,
   italic: false,
   underline: false,
@@ -142,17 +150,24 @@ const isBoundedString = (v: unknown, max: number, min = 1): v is string =>
 
 const isTimestamp = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v > 0;
 
+export const isKnownFont = (family: string) =>
+  (CLASSIC_FONTS as readonly string[]).includes(family) || !!findGoogleFont(family);
+
 /** Valida a fonte; qualquer campo fora do permitido invalida a fonte inteira. */
 export function validateFont(v: unknown): MessageFont | null {
   if (!isObject(v)) return null;
-  if (typeof v.family !== 'string' || !(FONT_FAMILIES as readonly string[]).includes(v.family)) return null;
+  if (typeof v.family !== 'string' || !isKnownFont(v.family)) return null;
   if (typeof v.size !== 'number' || !Number.isInteger(v.size) || v.size < MIN_FONT_SIZE || v.size > MAX_FONT_SIZE) return null;
   if (typeof v.bold !== 'boolean' || typeof v.italic !== 'boolean' || typeof v.underline !== 'boolean') return null;
   if (typeof v.color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(v.color)) return null;
+  // Versões antigas não mandam peso: deduz do negrito.
+  const weight = v.weight === undefined ? (v.bold ? 700 : 400) : v.weight;
+  if (typeof weight !== 'number' || !Number.isInteger(weight) || weight < 100 || weight > 900 || weight % 100 !== 0) return null;
   return {
-    family: v.family as FontFamily,
+    family: v.family,
     size: v.size,
-    bold: v.bold,
+    weight,
+    bold: weight >= 600,
     italic: v.italic,
     underline: v.underline,
     color: v.color.toLowerCase(),

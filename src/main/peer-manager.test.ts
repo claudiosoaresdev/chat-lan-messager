@@ -74,7 +74,15 @@ describe('PeerManager', () => {
     expect(await atA).toMatchObject({ from: 'bbb', text: 'oi' });
 
     // Com fonte: chega junto com a mensagem.
-    const font = { family: 'Verdana', size: 16, bold: true, italic: false, underline: false, color: '#800080' } as const;
+    const font = {
+      family: 'Verdana',
+      size: 16,
+      weight: 700,
+      bold: true,
+      italic: false,
+      underline: false,
+      color: '#800080',
+    } as const;
     const withFont = next(b, 'message');
     expect(a.sendText('bbb', 'formatado', font)).toMatchObject({ font });
     expect(await withFont).toMatchObject({ text: 'formatado', font });

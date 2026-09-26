@@ -5,6 +5,7 @@ import {
   detectImageMime,
   parseMessage,
   shouldInitiate,
+  validateFont,
   validateImageBytes,
 } from './protocol';
 
@@ -60,7 +61,7 @@ describe('parseMessage', () => {
       from: 'a',
       text: 'oi',
       ts: 1,
-      font: { ...font, color: '#c00000' },
+      font: { ...font, color: '#c00000', weight: 700 },
     });
     for (const bad of [
       { ...font, family: 'Papyrus; background:url(x)' },
@@ -77,6 +78,17 @@ describe('parseMessage', () => {
         ts: 1,
       });
     }
+  });
+
+  it('fonte do Google com peso; legado sem peso; peso e família inválidos', () => {
+    const base = { size: 14, bold: false, italic: true, underline: false, color: '#000000' };
+    expect(validateFont({ ...base, family: 'Roboto', weight: 300 })).toEqual({ ...base, family: 'Roboto', weight: 300 });
+    // bold acompanha o peso para versões antigas
+    expect(validateFont({ ...base, family: 'Roboto', weight: 800 })).toEqual({ ...base, family: 'Roboto', weight: 800, bold: true });
+    expect(validateFont({ ...base, family: 'Arial', bold: true })).toEqual({ ...base, family: 'Arial', bold: true, weight: 700 });
+    expect(validateFont({ ...base, family: 'Arial' })).toEqual({ ...base, family: 'Arial', weight: 400 });
+    for (const weight of [0, 150, 1000, '400']) expect(validateFont({ ...base, family: 'Roboto', weight })).toBeNull();
+    expect(validateFont({ ...base, family: 'Fonte Que Nao Existe', weight: 400 })).toBeNull();
   });
 
   it('aceita e valida imagem de exibição', () => {

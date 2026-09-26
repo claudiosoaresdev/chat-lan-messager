@@ -60,7 +60,15 @@ describe('SettingsStore', () => {
     const store = new SettingsStore(dir);
     expect(store.load()).toEqual({ manualPeers: [], profile: null, font: null, giphyKey: null, sounds: true });
 
-    const font = { family: 'Georgia', size: 14, bold: false, italic: true, underline: false, color: '#004080' } as const;
+    const font = {
+      family: 'Georgia',
+      size: 14,
+      weight: 400,
+      bold: false,
+      italic: true,
+      underline: false,
+      color: '#004080',
+    } as const;
     store.save({
       manualPeers: [{ host: '10.0.0.2', port: 47800 }],
       profile: null,
