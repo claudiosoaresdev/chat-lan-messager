@@ -41,8 +41,8 @@ O visual segue o do projeto MSN (`../msn`): janela sem moldura com barra de tít
    - **Entrar como**: Disponível, Ausente ou Ocupado.
    - **Lembrar minhas informações** / **Entrar automaticamente**, e em **Opções** a porta deste computador.
 2. **Contatos**: você no topo (status, mensagem pessoal e endereço), busca, grupos **Online** e **Offline** com status e mensagem pessoal de cada um. O botão com o boneco e o **+** adiciona um contato por IP e mostra os endereços salvos (o **×** esquece um).
-3. **Conversas**: as mensagens aparecem no formato "Fulano diz:". Imagens (PNG, JPEG, WebP, GIF até 10 MB) vão pelo botão **Imagem**, arrastando para a conversa ou colando com Ctrl/Cmd+V.
-4. **Chamar atenção** (botão na barra da conversa ou ao lado do de imagem): a janela do contato treme e toca um som, como no MSN. Um a cada 5 s; chamadas repetidas do mesmo contato nesse intervalo são ignoradas.
+3. **Conversas**: as mensagens aparecem no formato "Fulano diz:". Imagens (PNG, JPEG, WebP, GIF até 10 MB) vão pelo botão de imagem da barra da caixa de escrever, arrastando para a conversa ou colando com Ctrl/Cmd+V.
+4. **Chamar atenção** (botão ao lado do de imagem): a janela do contato treme e toca um som, como no MSN. Um a cada 5 s; chamadas repetidas do mesmo contato nesse intervalo são ignoradas.
    - **Som original do MSN:** ele não vem com o projeto (é da Microsoft). Se você tiver o arquivo, coloque em `public/sounds/nudge.wav` (ou `nudge.mp3` / `nudge.ogg`) e rode o app ou o `npm run make` de novo: ele passa a ser usado e vai junto no instalador. Sem o arquivo, o app toca um chacoalhar sintetizado parecido.
 5. **Imagem de exibição**: clique no seu avatar (no login, na lista ou na conversa) para abrir a janela "Imagem de exibição", com a grade de imagens e o **Procurar...** para enviar uma do computador (recortada em quadrado 128×128). Ela vai para os contatos e aparece na lista (miniatura com moldura na cor do status) e na conversa.
    - **Imagens padrão** vêm de `public/avatars/`: qualquer PNG, JPEG, WebP, GIF ou SVG colocado lá aparece na grade (o nome do arquivo vira o título; `01-girassol.svg` → "Girassol").
@@ -56,7 +56,23 @@ O visual segue o do projeto MSN (`../msn`): janela sem moldura com barra de tít
 8. **Divisor da conversa**: arraste a faixa pontilhada entre a conversa e a caixa de texto para aumentar uma ou outra (setas ↑/↓ com o divisor em foco; clique duplo volta ao padrão). O tamanho fica lembrado.
 9. **Winks**: o botão **Winks** abre a grade com 6 animações (Beijo, Corações, Risada, Fogos, Parabéns e Chuva de estrelas) que tocam na janela daquela conversa, com som, como no MSN. Se a conversa estiver fechada, a janela abre e o wink toca nela; "Ver de novo" repete. Um a cada 3 s. As animações são próprias (SVG + CSS); os winks originais eram animações Flash da Microsoft.
 10. **GIFs do GIPHY** (opcional, precisa de internet): o botão **GIF** abre a busca. Na primeira vez, cole uma API Key gratuita criada em [developers.giphy.com](https://developers.giphy.com/dashboard/) (fica salva só neste computador). A busca e o download são feitos pelo processo principal (a interface continua sem acesso à internet) e o GIF escolhido vai como imagem pela rede local, então quem recebe não precisa de internet. Sem internet ou sem chave, o resto do app funciona igual.
-11. Mensagem chegando fora da conversa gera um aviso no canto da janela e, com a janela em segundo plano, uma notificação do sistema.
+11. **Links**: endereços `http(s)://` e `www.` nas mensagens ficam clicáveis e abrem no navegador. Como no
+    WhatsApp, embaixo aparece a **prévia** do primeiro link (miniatura, site, título e descrição, lidos das tags
+    Open Graph / Twitter da página). Quem busca a prévia é o processo principal de quem **envia**; ela vai pronta
+    pela rede local, então quem recebe vê mesmo sem internet. O site do link vê o IP de quem enviou: para
+    desligar, desmarque **Prévia dos links que eu envio** no menu ☰.
+12. **Vídeos do YouTube**: o link vira um cartão com a miniatura e o ▶, que toca o vídeo ali na conversa (tocar
+    precisa de internet). **Destacar** leva o vídeo, do mesmo ponto, para uma janela flutuante sempre por cima de
+    tudo (picture-in-picture): arraste pela faixa que aparece em cima, redimensione (fica 16:9) e solte perto da
+    borda da tela para encostar nela. A posição fica lembrada. **Voltar para a conversa** devolve o vídeo à
+    conversa de onde veio.
+13. **O que estou ouvindo** (Spotify), como no WLM: a barra acima da conversa mostra, num letreiro que passa em
+    loop, a música que o contato está ouvindo no Spotify (ou a sua, se ele não estiver ouvindo nada); some quando
+    nada toca. Clique nela para procurar a música no Spotify. A música é lida do Spotify instalado no computador,
+    sem conta e sem internet: AppleScript no Mac (na primeira vez o macOS pede permissão para controlar o Spotify),
+    título da janela do Spotify no Windows e `playerctl` no Linux. Para não mostrar a sua, desmarque **Mostrar o
+    que estou ouvindo (Spotify)** no menu ☰.
+14. Mensagem chegando fora da conversa gera um aviso no canto da janela e, com a janela em segundo plano, uma notificação do sistema.
 
 A rede (servidor, mDNS e reconexões) só sobe depois de **Entrar** e é derrubada em **Sair**. IPs conectados ficam salvos e reconectam sozinhos a cada 3 s enquanto o outro estiver fechado.
 
@@ -164,7 +180,10 @@ Frames de texto são JSON; o conteúdo da imagem vai no frame binário logo apó
 | `nudge` | `from`, `ts`                        | "Chamar atenção": a janela de quem recebe treme |
 | `wink`  | `from`, `wink`, `ts`                | Animação; `wink` precisa ser um dos ids conhecidos |
 | `avatar` | `from`, `mime`, `size`             | Imagem de exibição (até 256 KB); o próximo frame binário é a imagem. `size` 0 = removeu. Enviada a cada contato ao conectar |
-| `chat`  | `from`, `text`, `ts`, `font?`       | Mensagem de texto; `font` = `{family, size, bold, italic, underline, color}` |
+| `chat`  | `from`, `text`, `ts`, `font?`, `id?` | Mensagem de texto; `font` = `{family, size, bold, italic, underline, color}`; `id` = referência da prévia |
+| `preview` | `from`, `ref`, `url`, `title`, `description?`, `siteName?`, `youtube?`, `mime`, `size` | Prévia do link da mensagem `ref` de quem envia; com `size` > 0 o próximo frame binário é a miniatura (até 200 KB) |
+| `listening` | `from`, `artist`, `title` | Música tocando no Spotify (`null`/`null` = nada); enviada ao conectar e quando muda |
+| `scene` | `from`, `kind`, …                   | Cena da conversa (galeria, imagem no frame binário seguinte, ou nenhuma) |
 | `image` | `from`, `name`, `mime`, `size`, `ts`| Cabeçalho; o próximo frame binário é a imagem   |
 
 Regras: JSON inválido é descartado; nada é aceito antes do `hello`; `from` precisa ser o id do peer da conexão; binário sem cabeçalho pendente é descartado; a imagem é conferida por tamanho e assinatura (não só pelo mime), e SVG não é aceito.
@@ -177,7 +196,7 @@ Regras: JSON inválido é descartado; nada é aceito antes do `hello`; `from` pr
 
 ### Segurança
 
-`contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`; CSP restritiva (`img-src 'self' blob:`); mensagens renderizadas só com `textContent`; navegação e janelas novas bloqueadas; `maxPayload` do ws em 10 MB.
+`contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`; CSP restritiva (`img-src 'self' blob:`, `frame-src` só `https://www.youtube-nocookie.com`, sem `connect-src` externo); mensagens renderizadas só com `textContent` (links só `http`/`https`, abertos no navegador); navegação e janelas novas bloqueadas; `maxPayload` do ws em 10 MB. Internet só no processo principal (fontes, GIPHY, prévia de links), com limite de tempo e de tamanho; prévia recebida só se liga a uma mensagem daquele contato.
 
 ## Rede e firewall
 
