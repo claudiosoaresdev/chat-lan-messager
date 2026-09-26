@@ -48,8 +48,8 @@ const listeners: Array<(f: MessageFont) => void> = [];
 let background: { surface: string; mode: 'light' | 'dark' } | null = null;
 
 /**
- * Fundo efetivo das mensagens: --surface ou, com cena, --surface com o véu sobre a cor média da imagem (o contraste
- * das cores das mensagens é calculado contra ele).
+ * Fundo conferido das mensagens: --surface ou, com cena, --surface com o véu sobre o pior trecho da imagem
+ * (percentil 5 de luminância no claro, 95 no escuro; ver messageBackground). O contraste das cores é medido contra ele.
  */
 function readBackground() {
   const root = document.documentElement;

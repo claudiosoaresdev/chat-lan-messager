@@ -557,8 +557,7 @@ function registerIpc() {
   handle(IPC.listCustomScenes, () => scenes.list());
   handle(IPC.addCustomScene, (data: unknown) => {
     if (!(data instanceof Uint8Array)) throw new Error('Imagem inválida');
-    const { id } = scenes.add(data);
-    return { id, data };
+    return scenes.add(data);
   });
   handle(IPC.getCustomScene, (id: unknown) => (typeof id === 'string' ? scenes.get(id) : null));
   // Apagar a imagem em uso: a aparência (salva e a da prévia) volta para a cena do tema.

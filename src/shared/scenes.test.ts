@@ -24,7 +24,11 @@ describe('galeria de cenas', () => {
     const svg = readFileSync(file, 'utf8');
     expect(svg).toContain('viewBox="0 0 1600 900"');
     expect(svg).not.toMatch(/<script/i);
-    expect(svg).not.toMatch(/href="http/i);
+    // referências só internas (#id): nada de http, data:, // ou caminhos, em href ou xlink:href, nem em url(...)
+    const refs = [...svg.matchAll(/(?:xlink:)?href\s*=\s*["']([^"']*)["']/gi)].map((m) => m[1]);
+    for (const ref of refs) expect(ref, ref).toMatch(/^#[\w-]+$/);
+    const urls = [...svg.matchAll(/url\(\s*["']?([^)"']*)/gi)].map((m) => m[1]);
+    for (const u of urls) expect(u, u).toMatch(/^#[\w-]+$/);
     expect(svg).not.toMatch(/<image/i);
     expect(svg).not.toMatch(/<foreignObject/i);
     expect(svg).not.toMatch(/\son[a-z]+=/i);

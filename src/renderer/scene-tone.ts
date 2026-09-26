@@ -1,8 +1,10 @@
 // Medidas de uma cena a partir dos pixels (RGBA de um canvas), sem DOM: dá para testar.
 //  - tom da faixa de cima: qual cor de texto (clara ou escura) fica mais legível sobre ela, e se a imagem é
 //    "agitada" (o texto precisa de uma faixa translúcida atrás);
-//  - cor média da imagem inteira: com o véu, dá o fundo efetivo das mensagens (messageBackground).
+//  - cores da imagem inteira (média e extremos de luminância): com o véu, dão o fundo efetivo das mensagens
+//    no pior trecho da imagem (messageBackground).
 import { contrast, luminance, toHex, type Rgb } from '../shared/color';
+import type { SceneColors } from '../shared/scene-averages';
 
 export type SceneToneName = 'light' | 'dark';
 
@@ -58,6 +60,15 @@ export function averagePixels(rgba: ArrayLike<number>): string {
   if (px.length === 0) return '#808080';
   const sum = px.reduce((a, p) => ({ r: a.r + p.r, g: a.g + p.g, b: a.b + p.b }), { r: 0, g: 0, b: 0 });
   return toHex({ r: sum.r / px.length, g: sum.g / px.length, b: sum.b / px.length });
+}
+
+/** Média sRGB e os pixels nos percentis 5 e 95 de luminância (amostragem da imagem inteira). */
+export function sceneColors(rgba: ArrayLike<number>): SceneColors {
+  const px = pixels(rgba);
+  if (px.length === 0) return { average: '#808080', dark: '#808080', light: '#808080' };
+  const sorted = px.map((p) => ({ p, l: luminance(p) })).sort((a, b) => a.l - b.l);
+  const at = (q: number) => toHex(sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))].p);
+  return { average: averagePixels(rgba), dark: at(0.05), light: at(0.95) };
 }
 
 /**

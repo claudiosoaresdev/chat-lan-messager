@@ -114,12 +114,17 @@ function renderThemes() {
 
 // ---------------------------------------------------------------- cenas
 
-/** Imagens próprias (miniaturas em blob:, revogadas ao recarregar a lista ou fechar). */
+/** Imagens próprias (miniaturas em blob:, revogadas ao recarregar a lista e quando a janela fecha). */
 let customs: Array<{ id: string; url: string }> = [];
+
+function releaseCustoms() {
+  customs.forEach((c) => URL.revokeObjectURL(c.url));
+  customs = [];
+}
 
 async function loadCustoms() {
   const list = await chat().listCustomScenes();
-  customs.forEach((c) => URL.revokeObjectURL(c.url));
+  releaseCustoms();
   customs = list.map((c) => ({
     id: c.id,
     url: URL.createObjectURL(new Blob([c.data as Uint8Array<ArrayBuffer>], { type: 'image/jpeg' })),
@@ -359,7 +364,14 @@ onAppearanceApplied((_a, mode) => {
   render();
 });
 
+// Fechou (OK, Cancelar, Esc): solta as miniaturas das imagens próprias.
+els.dialog.addEventListener('close', () => {
+  releaseCustoms();
+  els.scenes.replaceChildren();
+});
+
 export async function openAppearanceDialog() {
+  if (els.dialog.open) return;
   original = currentAppearance();
   originalFont = currentFont();
   draft = { ...original };
@@ -371,6 +383,8 @@ export async function openAppearanceDialog() {
   } catch (err) {
     els.sceneError.textContent = errorMessage(err);
   }
+  // Pedido em dobro (clique duplo no menu) enquanto a lista carregava: o primeiro já abriu.
+  if (els.dialog.open) return;
   renderThemes();
   renderScenes();
   render();

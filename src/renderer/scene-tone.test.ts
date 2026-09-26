@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { averagePixels, coverTopBand, sceneTone } from './scene-tone';
+import { averagePixels, coverTopBand, sceneColors, sceneTone } from './scene-tone';
 
 const ON_DARK = '#ffffff';
 const ON_LIGHT = '#14181e';
@@ -64,5 +64,22 @@ describe('coverTopBand', () => {
     expect(r.sw).toBeCloseTo(900);
     expect(r.sx).toBeCloseTo(350);
     expect(r.sh).toBeCloseTo(450);
+  });
+});
+
+describe('sceneColors', () => {
+  it('metade preta, metade branca: média cinza, extremos puros', () => {
+    expect(sceneColors(image(100, (i) => (i < 50 ? [0, 0, 0] : [255, 255, 255])))).toEqual({
+      average: '#808080',
+      dark: '#000000',
+      light: '#ffffff',
+    });
+  });
+
+  it('extremos são percentis (5 e 95), não o mínimo e o máximo', () => {
+    // 2% de pixels pretos e 2% brancos num fundo cinza: ficam de fora
+    const c = sceneColors(image(100, (i) => (i < 2 ? [0, 0, 0] : i >= 98 ? [255, 255, 255] : [100, 100, 100])));
+    expect(c.dark).toBe('#646464');
+    expect(c.light).toBe('#646464');
   });
 });

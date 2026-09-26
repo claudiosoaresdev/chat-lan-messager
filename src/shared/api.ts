@@ -271,7 +271,7 @@ export interface ChatApi {
   /** Mais recentes primeiro. */
   listCustomScenes(): Promise<CustomScene[]>;
   /** Guarda um JPEG (já recortado em 1600×900, até 400 KB); a mesma imagem não duplica. */
-  addCustomScene(data: Uint8Array): Promise<CustomScene>;
+  addCustomScene(data: Uint8Array): Promise<{ id: string }>;
   /** Apaga; se era a cena em uso (ou em prévia), a aparência volta para a cena do tema. */
   removeCustomScene(id: string): Promise<void>;
   /** Bytes da imagem, ou null se ela não existe mais. */

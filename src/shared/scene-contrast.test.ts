@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { averageColor, contrast, isDarkNeutral, messageColor, mixColors } from './color';
-import { SCENE_AVERAGES } from './scene-averages';
+import { averageColor, contrast, isDarkNeutral, luminance, messageColor, mixColors } from './color';
+import { SCENE_COLORS, type SceneColors } from './scene-averages';
 import { SCENE_PLATE, SCENE_TOOL_PLATE, SCENE_VEIL, messageBackground, sceneSecondaryColors } from './scene-contrast';
 import { BUILTIN_SCENES } from './scenes';
 import { CLASSIC_DARK, CLASSIC_LIGHT } from './theme-tokens';
@@ -16,9 +16,20 @@ const PALETTE = ['#000000', '#595959', '#800000', '#d40000', '#e46c0a', '#7f4f1f
 const c = (tokens: Record<string, string>, name: string) => averageColor(tokens[name]);
 
 describe('tabela de cores médias', () => {
-  it('toda cena da galeria tem cor média, e só elas', () => {
-    expect(Object.keys(SCENE_AVERAGES).sort()).toEqual(BUILTIN_SCENES.map((s) => s.id).sort());
-    for (const v of Object.values(SCENE_AVERAGES)) expect(v).toMatch(/^#[0-9a-f]{6}$/);
+  it('toda cena da galeria tem cores (média e extremos), e só elas', () => {
+    expect(Object.keys(SCENE_COLORS).sort()).toEqual(BUILTIN_SCENES.map((s) => s.id).sort());
+    for (const v of Object.values(SCENE_COLORS)) {
+      for (const hex of [v.average, v.dark, v.light]) expect(hex).toMatch(/^#[0-9a-f]{6}$/);
+      // o escuro é mais escuro que a média, que é mais escura que o claro
+      expect(luminance(v.dark)).toBeLessThanOrEqual(luminance(v.average));
+      expect(luminance(v.average)).toBeLessThanOrEqual(luminance(v.light));
+    }
+  });
+
+  it('o fundo conferido é o pior trecho: escuro no claro, claro no escuro', () => {
+    const colors = { average: '#808080', dark: '#000000', light: '#ffffff' };
+    expect(messageBackground('#ffffff', colors, 'light')).toBe(mixColors('#ffffff', '#000000', SCENE_VEIL.light / 100));
+    expect(messageBackground('#20262f', colors, 'dark')).toBe(mixColors('#20262f', '#ffffff', SCENE_VEIL.dark / 100));
   });
 
   it('sem cena, o fundo das mensagens é a própria superfície', () => {
@@ -31,14 +42,17 @@ describe('tabela de cores médias', () => {
   });
 });
 
-// Fundo efetivo = mistura sRGB de --surface (véu%) com a cor média da cena, o mesmo que o renderer usa.
-const cases = THEMES.flatMap((t) =>
-  MODES.flatMap((m) => BUILTIN_SCENES.map((s) => [t.id, m, s.id] as const)),
-);
+/** Imagem própria sintética: metade preta, metade branca (média cinza, extremos puros). */
+const HALF: SceneColors = { average: '#808080', dark: '#000000', light: '#ffffff' };
+const SCENES: Record<string, SceneColors> = { ...SCENE_COLORS, 'meio-preto-meio-branco': HALF };
+
+// Fundo conferido = mistura sRGB de --surface (véu%) com o pior trecho da cena (p5 no claro, p95 no escuro), o
+// mesmo que o renderer usa.
+const cases = THEMES.flatMap((t) => MODES.flatMap((m) => Object.keys(SCENES).map((s) => [t.id, m, s] as const)));
 
 describe.each(cases)('mensagens: %s / %s / cena %s', (theme, mode, scene) => {
   const tokens = themeTokens(theme, mode);
-  const bg = messageBackground(tokens.surface, SCENE_AVERAGES[scene], mode);
+  const bg = messageBackground(tokens.surface, SCENES[scene], mode);
   const colorMin = mode === 'dark' ? 4.5 : 3;
 
   it('texto do tema ≥ 4,5', () => expect(contrast(c(tokens, 'text'), bg)).toBeGreaterThanOrEqual(4.5));
