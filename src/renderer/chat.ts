@@ -25,7 +25,6 @@ const els = {
   meAvatar: $('chat-me-avatar'),
   statusbar: $('chat-statusbar'),
   fmtImage: $<HTMLButtonElement>('fmt-image'),
-  nudge: $<HTMLButtonElement>('chat-nudge'),
   fmtNudge: $<HTMLButtonElement>('fmt-nudge'),
   fmtFont: $<HTMLButtonElement>('fmt-font'),
   fmtEmoticon: $<HTMLButtonElement>('fmt-emoticon'),
@@ -183,7 +182,6 @@ export function setPeer(p: PeerInfo) {
   // Offline: dá para ler a conversa, mas não enviar.
   els.text.disabled = !p.online;
   els.sendBtn.disabled = !p.online;
-  els.nudge.disabled = !p.online;
   els.fmtNudge.disabled = !p.online;
   els.fmtImage.disabled = !p.online;
   els.fmtWink.disabled = !p.online;
@@ -286,7 +284,6 @@ window.addEventListener('drop', (e) => {
 });
 
 els.fmtImage.addEventListener('click', () => els.file.click());
-els.nudge.addEventListener('click', () => void sendNudge());
 els.fmtNudge.addEventListener('click', () => void sendNudge());
 els.fmtFont.addEventListener('click', () => openFontDialog());
 

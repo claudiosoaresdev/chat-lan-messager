@@ -258,15 +258,7 @@
             </div>
           </div>
 
-          <div class="chat-toolbar">
-            <label class="chat-tool" title="Enviar imagem (PNG, JPEG, WebP, GIF até 10 MB)">
-              <input type="file" id="file-input" accept="image/png,image/jpeg,image/webp,image/gif" hidden />
-              <svg><use href="#i-image" /></svg><span>Enviar imagem</span>
-            </label>
-            <button type="button" class="chat-tool" id="chat-nudge" title="Chamar a atenção do contato">
-              <svg><use href="#i-nudge" /></svg><span>Chamar atenção</span>
-            </button>
-          </div>
+          <div class="chat-toolbar" id="chat-toolbar" hidden></div>
         </div>
 
         <div class="chat-main">
@@ -347,9 +339,10 @@
                 <button type="button" class="fmt-btn fmt-font" id="fmt-font" title="Alterar fonte">
                   <span class="fmt-font-a">A</span><span class="fmt-font-bar" id="fmt-font-bar"></span>
                 </button>
-                <button type="button" class="fmt-btn" id="fmt-image" title="Enviar imagem">
+                <button type="button" class="fmt-btn" id="fmt-image" title="Enviar imagem (PNG, JPEG, WebP, GIF até 10 MB)">
                   <svg><use href="#i-image" /></svg>
                 </button>
+                <input type="file" id="file-input" accept="image/png,image/jpeg,image/webp,image/gif" hidden />
                 <button type="button" class="fmt-btn" id="fmt-nudge" title="Chamar atenção">
                   <svg><use href="#i-nudge" /></svg>
                 </button>

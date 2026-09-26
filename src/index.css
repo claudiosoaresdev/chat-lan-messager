@@ -1149,32 +1149,7 @@ button {
   background: linear-gradient(180deg, color-mix(in srgb, var(--accent-soft) 6.42%, var(--bg)), color-mix(in srgb, var(--accent-soft) 25.18%, var(--bg)));
 }
 
-.chat-tool {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  height: 26px;
-  padding: 0 8px;
-  border: 1px solid transparent;
-  border-radius: 3px;
-  background: none;
-  color: var(--text-strong);
-  cursor: pointer;
-}
-
-.chat-tool:hover {
-  border-color: var(--accent-soft);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--accent-soft) 3.67%, var(--bg)), color-mix(in srgb, var(--accent-soft) 31.2%, var(--bg)));
-}
-
-.chat-tool svg {
-  width: 18px;
-  height: 15px;
-}
-
-/* Contato offline: ferramentas de envio (barra de cima e de formatação) ficam apagadas. */
-.chat-tool:disabled,
-.chat-tool:has(input:disabled),
+/* Contato offline: ferramentas de envio da barra de formatação ficam apagadas. */
 .fmt-btn:disabled {
   opacity: 0.45;
   cursor: default;
@@ -1398,10 +1373,6 @@ button {
 /* Janela estreita: esconde a coluna de fotos. */
 @media (max-width: 560px) {
   .chat-pictures {
-    display: none;
-  }
-
-  .chat-tool span {
     display: none;
   }
 }
@@ -3107,7 +3078,7 @@ body.is-resizing * {
 }
 
 /* Botões na transição: placa do fundo do tema, com as cores normais do tema. */
-:root[data-scene='on'] :is(.tool-btn, .chat-tool):not(:hover) {
+:root[data-scene='on'] .tool-btn:not(:hover) {
   background: color-mix(in srgb, var(--bg) var(--scene-tool-plate), transparent);
 }
 
