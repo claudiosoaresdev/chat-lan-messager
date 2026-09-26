@@ -1096,8 +1096,7 @@ button {
 .conversation {
   flex: 1;
   margin: 0;
-  /* Margem lateral que cresce com a janela: o conteúdo fica mais centralizado. */
-  padding: 10px clamp(16px, 6vw, 56px);
+  padding: 8px 10px;
   list-style: none;
   overflow-y: auto;
   user-select: text;

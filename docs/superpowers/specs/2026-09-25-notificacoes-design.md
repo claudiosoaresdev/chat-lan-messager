@@ -12,7 +12,7 @@ Issues: #6 (notificação visual), #7 (notificação sonora)
 | Quando toca o som | Cada mensagem ou imagem **recebida** com a conversa fora de foco. Mensagem própria não toca. Nudge e wink mantêm o som próprio. No máximo um som por segundo em cada janela de conversa. |
 | Arquivo do som | `public/sounds/message.wav` (ou `.mp3`/`.ogg`) se existir; senão "plim" sintetizado em dois tons. O som original do MSN não vem com o projeto. |
 | Silenciar | Item "Sons de mensagem" com ✓ no menu ☰ da home; salvo em `settings.json` (`sounds`, padrão ligado); vale para todas as janelas na hora. Silencia só o som de nova mensagem (nudge e wink continuam com o som deles). |
-| Conversa | Padding horizontal na lista de mensagens: `clamp(16px, 6vw, 56px)`. |
+| Conversa | Sem padding horizontal extra na lista de mensagens (8px 10px, como antes). |
 
 ## Main
 
