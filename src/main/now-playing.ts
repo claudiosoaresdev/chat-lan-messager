@@ -46,15 +46,19 @@ const MAC_SCRIPT = [
   'return ""',
 ];
 
+/** Permissão de Automação negada: espera isto antes de tentar de novo (o usuário pode liberar nos Ajustes). */
+export const MAC_DENIED_RETRY_MS = 60_000;
+
 /**
  * macOS: só chama o AppleScript com o Spotify aberto (`pgrep`), senão o `tell` abriria o app ou perguntaria onde ele
- * está. Na primeira vez o sistema pede permissão de Automação; negada, para de tentar até reiniciar o app.
+ * está. Na primeira vez o sistema pede permissão de Automação; negada, tenta de novo a cada MAC_DENIED_RETRY_MS
+ * (sem precisar reabrir o app depois de liberar nos Ajustes).
  */
-export function macReader(exec: Exec): NowPlayingReader {
-  let denied = false;
+export function macReader(exec: Exec, now: () => number = Date.now): NowPlayingReader {
+  let deniedUntil = 0;
   return {
     async read() {
-      if (denied) return null;
+      if (now() < deniedUntil) return null;
       try {
         await exec('pgrep', ['-x', 'Spotify']);
       } catch {
@@ -66,7 +70,7 @@ export function macReader(exec: Exec): NowPlayingReader {
         return nowPlaying(artist, title);
       } catch (err) {
         // -1743: o usuário não autorizou o controle do Spotify.
-        if (/-1743|not authori[sz]ed/i.test(String((err as Error).message))) denied = true;
+        if (/-1743|not authori[sz]ed/i.test(String((err as Error).message))) deniedUntil = now() + MAC_DENIED_RETRY_MS;
         return null;
       }
     },

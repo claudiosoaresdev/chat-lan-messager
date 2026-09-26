@@ -53,14 +53,24 @@ describe('macReader', () => {
     expect(await reader.read()).toBeNull();
   });
 
-  it('permissão negada: para de tentar', async () => {
+  it('permissão negada: espera um minuto e tenta de novo (liberada nos Ajustes, volta a funcionar)', async () => {
+    let allowed = false;
+    let t = 0;
     const exec = vi.fn<Exec>((file) =>
-      file === 'pgrep' ? Promise.resolve('1') : fail('execution error: Not authorized to send Apple events to Spotify. (-1743)'),
+      file === 'pgrep'
+        ? Promise.resolve('1')
+        : allowed
+          ? Promise.resolve('Queen\tInnuendo\n')
+          : fail('execution error: Not authorized to send Apple events to Spotify. (-1743)'),
     );
-    const reader = macReader(exec);
+    const reader = macReader(exec, () => t);
     expect(await reader.read()).toBeNull();
+    t = 30_000;
     expect(await reader.read()).toBeNull();
     expect(exec).toHaveBeenCalledTimes(2);
+    allowed = true;
+    t = 60_000;
+    expect(await reader.read()).toEqual({ artist: 'Queen', title: 'Innuendo' });
   });
 });
 
