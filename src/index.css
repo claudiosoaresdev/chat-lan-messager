@@ -16,6 +16,8 @@
   --selection: #3399ff;
   /* efeitos (brilho, sombra, véu) */
   --sheen: #fff;
+  --text-halo: #fff;
+  --hover-veil: #fff;
   --shadow: #000;
   --overlay: rgba(11, 30, 60, 0.25);
   --glow: #5cc1e8;
@@ -66,6 +68,10 @@
   --unread-soft: #fff4e0;
   --unread-strong: #ffc76b;
   --unread-text: #7a5a00;
+  /* winks e GIFs */
+  --wink-bg: #f7eefc;
+  --wink-text: #5b2c7a;
+  --gif-text: #6b3fa0;
   /* status: iguais em todos os temas */
   --st-available: #4cb122;
   --st-away: #f2b50d;
@@ -197,7 +203,7 @@ button {
   border-bottom: 1px solid var(--title-line);
   background: var(--title-glass);
   color: var(--title-text);
-  text-shadow: 0 1px 0 color-mix(in srgb, var(--sheen) 80%, transparent);
+  text-shadow: 0 1px 0 color-mix(in srgb, var(--text-halo) 80%, transparent);
   -webkit-app-region: drag;
 }
 
@@ -718,7 +724,7 @@ button {
 
 .me-name:hover {
   border-color: var(--select-border);
-  background: color-mix(in srgb, var(--sheen) 70%, transparent);
+  background: color-mix(in srgb, var(--hover-veil) 70%, transparent);
 }
 
 .me-name:focus {
@@ -738,7 +744,7 @@ button {
 
 .me-status:hover {
   border-color: var(--select-border);
-  background: color-mix(in srgb, var(--sheen) 60%, transparent);
+  background: color-mix(in srgb, var(--hover-veil) 60%, transparent);
 }
 
 .personal-msg {
@@ -754,7 +760,7 @@ button {
 
 .personal-msg:hover {
   border-color: var(--select-border);
-  background: color-mix(in srgb, var(--sheen) 70%, transparent);
+  background: color-mix(in srgb, var(--hover-veil) 70%, transparent);
 }
 
 .personal-msg:focus {
@@ -1389,7 +1395,7 @@ button {
   border-bottom: 1px solid var(--title-line);
   background: var(--title-glass);
   color: var(--title-text);
-  text-shadow: 0 1px 0 color-mix(in srgb, var(--sheen) 80%, transparent);
+  text-shadow: 0 1px 0 color-mix(in srgb, var(--text-halo) 80%, transparent);
   font-size: 12px;
   font-weight: 500;
 }
@@ -1548,9 +1554,9 @@ button {
 
 .fmt-gif-label {
   padding: 0 3px;
-  border: 1.5px solid #6b3fa0; /* cor-fixa: roxo do GIF */
+  border: 1.5px solid var(--gif-text);
   border-radius: 3px;
-  color: #6b3fa0; /* cor-fixa */
+  color: var(--gif-text);
   font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.04em;
@@ -1736,8 +1742,8 @@ button {
   margin: 8px 0;
   padding: 3px 8px;
   border-left: 3px solid #8e24aa; /* cor-fixa: roxo dos winks */
-  background: #f7eefc; /* cor-fixa */
-  color: #5b2c7a; /* cor-fixa */
+  background: var(--wink-bg);
+  color: var(--wink-text);
   font-weight: 600;
 }
 
