@@ -1,8 +1,8 @@
 // Atualiza o catálogo do Google Fonts (src/shared/google-fonts.json) e as favoritas embutidas (public/fonts).
 // Uso: node scripts/update-google-fonts.mjs   (precisa de internet; Node 24 importa o .ts direto)
 import { createHash } from 'node:crypto';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { GOOGLE_USER_AGENT, css2Url, fontSlug, parseFontFaces } from '../src/main/google-css.ts';
+import { mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { GOOGLE_USER_AGENT, css2Url, fontSlug, parseFontFaces } from '../src/shared/google-css.ts';
 
 const FAVORITES = 20;
 const CATEGORY = { 'Sans Serif': 'sans', Serif: 'serif', Display: 'display', Handwriting: 'handwriting', Monospace: 'mono' };
@@ -40,28 +40,40 @@ writeFileSync(new URL('../src/shared/google-fonts.json', import.meta.url), JSON.
 console.log(`catálogo: ${entries.length} famílias; favoritas: ${favorites.join(', ')}`);
 
 // Favoritas embutidas: woff2 latin/latin-ext em public/fonts/<slug>/, manifesto único.
-const outDir = new URL('../public/fonts/', import.meta.url);
-rmSync(outDir, { recursive: true, force: true });
-mkdirSync(outDir, { recursive: true });
+// Monta tudo numa pasta temporária e só troca pela definitiva no final, para nunca deixar
+// public/fonts pela metade se o script falhar (ou for interrompido) no meio do caminho.
+const finalDir = new URL('../public/fonts/', import.meta.url);
+const tmpDir = new URL('../public/fonts.tmp/', import.meta.url);
+rmSync(tmpDir, { recursive: true, force: true });
+mkdirSync(tmpDir, { recursive: true });
 const manifest = {};
 let total = 0;
 for (const name of favorites) {
-  const css = await (await fetch(css2Url(byName.get(name)), { headers: { 'User-Agent': GOOGLE_USER_AGENT } })).text();
+  const cssRes = await fetch(css2Url(byName.get(name)), { headers: { 'User-Agent': GOOGLE_USER_AGENT } });
+  if (!cssRes.ok) throw new Error(`CSS de ${name}: HTTP ${cssRes.status}`);
+  const css = await cssRes.text();
+  const faces = parseFontFaces(css);
+  if (!faces.length) throw new Error(`Nenhuma face válida para a favorita ${name}`);
   const slug = fontSlug(name);
-  mkdirSync(new URL(`${slug}/`, outDir), { recursive: true });
+  mkdirSync(new URL(`${slug}/`, tmpDir), { recursive: true });
   const saved = new Map();
   manifest[name] = [];
-  for (const face of parseFontFaces(css)) {
+  for (const face of faces) {
     let file = saved.get(face.src);
     if (!file) {
+      const fileRes = await fetch(face.src);
+      if (!fileRes.ok) throw new Error(`Arquivo de ${name} (${face.src}): HTTP ${fileRes.status}`);
       file = `${createHash('sha1').update(face.src).digest('hex').slice(0, 16)}.woff2`;
-      const data = Buffer.from(await (await fetch(face.src)).arrayBuffer());
-      writeFileSync(new URL(`${slug}/${file}`, outDir), data);
+      const data = Buffer.from(await fileRes.arrayBuffer());
+      writeFileSync(new URL(`${slug}/${file}`, tmpDir), data);
       saved.set(face.src, file);
       total += data.length;
     }
     manifest[name].push({ weight: face.weight, style: face.style, unicodeRange: face.unicodeRange, file: `${slug}/${file}` });
   }
 }
-writeFileSync(new URL('manifest.json', outDir), JSON.stringify(manifest) + '\n');
+writeFileSync(new URL('manifest.json', tmpDir), JSON.stringify(manifest) + '\n');
+
+rmSync(finalDir, { recursive: true, force: true });
+renameSync(tmpDir, finalDir);
 console.log(`favoritas embutidas: ${(total / 1024 / 1024).toFixed(1)} MB`);
