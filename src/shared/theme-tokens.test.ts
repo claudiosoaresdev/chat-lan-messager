@@ -58,18 +58,7 @@ describe('tokens de cor', () => {
     for (const n of TOKEN_NAMES) expect(n).toMatch(/^[a-z]+(-[a-z]+)*$/);
   });
 
-  // Parte B (conversa, emoticons, GIFs, winks, divisor, alterar fonte, imagem de exibição) migra na próxima etapa.
-  const PART_B = ['conversa', 'emoticons', 'GIFs', 'winks', 'divisor', 'alterar fonte', 'imagem de exibição'];
-  const sections = [...CSS.matchAll(/^\/\* -{10,} (.+?) \*\//gm)].map((m) => ({
-    title: m[1],
-    line: lineAt(CSS, m.index ?? 0),
-  }));
-  const inPartB = (line: number) => {
-    const current = sections.filter((s) => s.line <= line).at(-1);
-    return !!current && PART_B.some((t) => current.title.startsWith(t));
-  };
-
-  it('fora do :root não há cor literal (salvo linhas com /* cor-fixa */) — parte A', () => {
+  it('fora do :root não há cor literal (salvo linhas com /* cor-fixa */)', () => {
     const outside = text.slice(0, root.start) + text.slice(root.start, root.end + 1).replace(/[^\n]/g, ' ') + text.slice(root.end + 1);
     const offenders = declarations(outside)
       .filter((d) => LITERAL.test(d.value))
@@ -77,10 +66,7 @@ describe('tokens de cor', () => {
         for (let l = d.from; l <= d.to; l++) if (fixed.has(l)) return false;
         return true;
       })
-      .filter((d) => !inPartB(d.from))
       .map((d) => `${d.from}: ${d.name}: ${squash(d.value)}`);
     expect(offenders).toEqual([]);
   });
-
-  it.todo('fora do :root não há cor literal — parte B');
 });
