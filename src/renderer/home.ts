@@ -2,6 +2,7 @@
 import type { PeerInfo, SavedPeer, SelfInfo } from '../shared/api';
 import type { PresenceStatus } from '../shared/protocol';
 import { $, chat, copyWithFeedback, el, errorMessage, formatTarget, icon } from './dom';
+import { openAppearanceDialog } from './appearance-dialog';
 import { onPeerAvatarsChange, peerAvatarUrl } from './avatar';
 import { renderRichText } from './emoticons';
 import { STATUS_LABEL, openMenu, openStatusMenu } from './status';
@@ -222,6 +223,7 @@ document.querySelectorAll<HTMLButtonElement>('.group-header').forEach((btn) =>
 els.menuBtn.addEventListener('click', () =>
   openMenu(els.menuBtn, [
     { label: 'Adicionar contato por IP...', onSelect: () => void openAddDialog() },
+    { label: 'Aparência...', onSelect: () => openAppearanceDialog() },
     {
       label: `${soundsOn ? '✓ ' : ''}Sons de mensagem`,
       onSelect: () =>

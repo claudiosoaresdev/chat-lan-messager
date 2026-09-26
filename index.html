@@ -69,6 +69,18 @@
         <path d="M.6 15c0-3.9 2.9-6.4 6.4-6.4s6.4 2.5 6.4 6.4z" fill="#4cb122" />
         <path d="M15.5 4v8M11.5 8h8" stroke="#0b4fa5" stroke-width="2.2" stroke-linecap="round" />
       </symbol>
+      <!-- Modo da aparência (traço na cor do texto) -->
+      <symbol id="i-mode-system" viewBox="0 0 20 16">
+        <rect x="2.5" y="1.5" width="15" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4" />
+        <path d="M7 14.5h6M10 11.5v3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+      </symbol>
+      <symbol id="i-mode-light" viewBox="0 0 20 16">
+        <circle cx="10" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="1.4" />
+        <path d="M10 1.2v1.6M10 13.2v1.6M3.2 8h1.6M15.2 8h1.6M5.2 3.2l1.1 1.1M13.7 11.7l1.1 1.1M5.2 12.8l1.1-1.1M13.7 4.3l1.1-1.1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+      </symbol>
+      <symbol id="i-mode-dark" viewBox="0 0 20 16">
+        <path d="M12.6 2.1a6 6 0 1 0 4.6 8.7A5 5 0 0 1 12.6 2.1z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" />
+      </symbol>
     </svg>
 
     <div class="window">
@@ -440,6 +452,38 @@
           <span class="button-spacer"></span>
           <button type="button" class="win-btn win-btn-default" id="font-ok">OK</button>
           <button type="button" class="win-btn" id="font-cancel">Cancelar</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Aparência: modo (sistema/claro/escuro) e tema (cor, cena e fonte), com prévia ao vivo -->
+    <dialog class="msn-dialog appearance-dialog" id="appearance-dialog" aria-labelledby="appearance-title">
+      <div class="dialog-titlebar">
+        <svg class="titlebar-logo" aria-hidden="true"><use href="#i-butterfly" /></svg>
+        <span id="appearance-title">Aparência</span>
+      </div>
+      <div class="dialog-body">
+        <span class="font-label" id="appearance-mode-label">Modo</span>
+        <div class="mode-switch" id="appearance-mode" role="radiogroup" aria-labelledby="appearance-mode-label">
+          <button type="button" class="mode-option" role="radio" data-mode="system">
+            <svg aria-hidden="true"><use href="#i-mode-system" /></svg><span>Sistema</span>
+          </button>
+          <button type="button" class="mode-option" role="radio" data-mode="light">
+            <svg aria-hidden="true"><use href="#i-mode-light" /></svg><span>Claro</span>
+          </button>
+          <button type="button" class="mode-option" role="radio" data-mode="dark">
+            <svg aria-hidden="true"><use href="#i-mode-dark" /></svg><span>Escuro</span>
+          </button>
+        </div>
+        <span class="font-label" id="appearance-theme-label">Tema — cor, cena e fonte</span>
+        <div class="theme-grid" id="appearance-themes" role="radiogroup" aria-labelledby="appearance-theme-label"></div>
+        <p class="appearance-custom" id="appearance-custom" hidden>
+          <span title="A fonte das mensagens não é a sugerida pelo tema">Personalizado</span> ·
+          <button type="button" class="link" id="appearance-restore" title="Volta a fonte sugerida do tema">Restaurar tema</button>
+        </p>
+        <div class="button-row button-row-end">
+          <button type="button" class="win-btn win-btn-default" id="appearance-ok">OK</button>
+          <button type="button" class="win-btn" id="appearance-cancel">Cancelar</button>
         </div>
       </div>
     </dialog>

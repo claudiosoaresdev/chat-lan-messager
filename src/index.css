@@ -2594,3 +2594,193 @@ body.is-resizing * {
   font-weight: 600;
   pointer-events: none;
 }
+
+/* ---------------------------------------------------------------- janela "Aparência" */
+
+.appearance-dialog {
+  width: min(560px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+}
+
+.appearance-dialog .dialog-body {
+  gap: 6px;
+}
+
+/* Controle segmentado: Sistema / Claro / Escuro */
+.mode-switch {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin-bottom: 6px;
+  border: 1px solid var(--btn-border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.mode-option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 30px;
+  border: 0;
+  border-left: 1px solid var(--btn-border);
+  background: var(--btn-face);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.mode-option:first-child {
+  border-left: 0;
+}
+
+.mode-option svg {
+  width: 20px;
+  height: 16px;
+}
+
+.mode-option:hover:not(.is-selected) {
+  background: var(--menu-hover);
+}
+
+.mode-option.is-selected {
+  background: var(--row-focus);
+  color: var(--text-strong);
+  box-shadow: inset 0 0 0 1px var(--btn-focus);
+  font-weight: 600;
+}
+
+.mode-option:focus-visible {
+  outline: 2px solid var(--btn-focus);
+  outline-offset: -3px;
+}
+
+/* Grade de temas: 4 colunas; 2 na home (estreita). */
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+@media (max-width: 520px) {
+  .theme-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.theme-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 5px 5px 4px;
+  border: 1px solid var(--box-border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+}
+
+.theme-card:hover:not(.is-selected) {
+  border-color: var(--row-hover-border);
+  background: var(--row-hover);
+}
+
+.theme-card.is-selected {
+  border-color: var(--btn-focus);
+  background: var(--row-selected);
+  box-shadow: inset 0 0 0 1px var(--btn-focus);
+}
+
+.theme-card:focus-visible {
+  outline: 2px solid var(--btn-focus);
+  outline-offset: 2px;
+}
+
+/* Mini-janela pintada com as variáveis do próprio tema (postas no elemento pelo JS). */
+.theme-preview {
+  display: flex;
+  flex-direction: column;
+  height: 54px;
+  margin-bottom: 3px;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  background: var(--surface);
+}
+
+.tp-title {
+  flex: none;
+  height: 9px;
+  border-bottom: 1px solid var(--title-line);
+  background: var(--title-glass);
+}
+
+.tp-header {
+  flex: none;
+  height: 13px;
+  border-bottom: 1px solid var(--header-line);
+  background: var(--header-bg);
+}
+
+.tp-body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  flex: 1;
+  min-height: 0;
+  padding: 0 5px;
+  background: var(--surface);
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.tp-line {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tp-mine {
+  color: var(--text);
+}
+
+.tp-theirs {
+  color: var(--accent);
+}
+
+.theme-name {
+  overflow: hidden;
+  color: var(--text-strong);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.theme-font {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.appearance-custom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 4px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.appearance-custom .link {
+  white-space: nowrap;
+}
+
+.appearance-custom[hidden] {
+  display: none;
+}
