@@ -3,7 +3,18 @@
 // vale para todas as janelas abertas sem salvar. Cancelar/Esc pede a volta ao que está salvo; OK salva.
 import type { MessageFont } from '../shared/protocol';
 import { BUILTIN_SCENES, MAX_SCENE_BYTES, SCENE_HEIGHT, SCENE_WIDTH, type SceneChoice } from '../shared/scenes';
-import { THEMES, effectiveScene, findTheme, themeTokens, type Appearance, type AppearanceMode, type Theme } from '../shared/themes';
+import {
+  CHAT_OPACITY_RANGE,
+  DEFAULT_FRAME_OPACITY,
+  THEMES,
+  effectiveScene,
+  findTheme,
+  themeTokens,
+  type Appearance,
+  type AppearanceMode,
+  type Theme,
+} from '../shared/themes';
+import { chatVeil } from '../shared/scene-contrast';
 import { TOKEN_NAMES } from '../shared/theme-tokens';
 import { applyAppearance, currentAppearance, effectiveMode, onAppearanceApplied } from './appearance';
 import { $, chat, el, errorMessage } from './dom';
@@ -21,6 +32,12 @@ const els = {
   sceneFile: $<HTMLInputElement>('appearance-scene-file'),
   sceneError: $('appearance-scene-error'),
   contactScenes: $<HTMLInputElement>('appearance-contact-scenes'),
+  chatOpacity: $<HTMLInputElement>('appearance-chat-opacity'),
+  chatOpacityValue: $<HTMLOutputElement>('appearance-chat-opacity-value'),
+  frameOpacity: $<HTMLInputElement>('appearance-frame-opacity'),
+  frameOpacityValue: $<HTMLOutputElement>('appearance-frame-opacity-value'),
+  opacitySwap: $<HTMLButtonElement>('appearance-opacity-swap'),
+  opacityDefault: $<HTMLButtonElement>('appearance-opacity-default'),
   restore: $<HTMLButtonElement>('appearance-restore'),
   ok: $<HTMLButtonElement>('appearance-ok'),
   cancel: $<HTMLButtonElement>('appearance-cancel'),
@@ -191,9 +208,58 @@ function render() {
     if (badge) badge.hidden = b.dataset.scene !== `builtin:${theme.scene}`;
   });
   els.contactScenes.checked = draft.showContactScenes;
+  renderOpacity();
   // "Personalizado" é só fonte e cena; a opção de cenas dos contatos não conta.
   els.custom.hidden = draftFont.family === theme.font && normalizeScene(draft.scene, theme) === null;
 }
+
+// ---------------------------------------------------------------- opacidade sobre a cena
+
+/** Padrões (null na aparência): a caixa com o véu conferido pelo teste de contraste; o fundo opaco. */
+const defaultChatOpacity = () => chatVeil(null, false, effectiveMode(draft));
+const chatOpacityShown = () => draft.chatOpacity ?? defaultChatOpacity();
+const frameOpacityShown = () => draft.frameOpacity ?? DEFAULT_FRAME_OPACITY;
+
+function renderOpacity() {
+  const chatValue = chatOpacityShown();
+  const frameValue = frameOpacityShown();
+  els.chatOpacity.value = String(chatValue);
+  els.frameOpacity.value = String(frameValue);
+  els.chatOpacityValue.textContent = `${chatValue}%${draft.chatOpacity === null ? ' (padrão)' : ''}`;
+  els.frameOpacityValue.textContent = `${frameValue}%${draft.frameOpacity === null ? ' (padrão)' : ''}`;
+  els.opacityDefault.disabled = draft.chatOpacity === null && draft.frameOpacity === null;
+}
+
+/** Guarda as opacidades; igual ao padrão vira null (continua acompanhando o padrão do modo). */
+function setOpacity(chat: number, frame: number) {
+  const c = Math.min(CHAT_OPACITY_RANGE.max, Math.max(CHAT_OPACITY_RANGE.min, Math.round(chat)));
+  const f = Math.min(100, Math.max(0, Math.round(frame)));
+  const chatOpacity = c === defaultChatOpacity() ? null : c;
+  const frameOpacity = f === DEFAULT_FRAME_OPACITY ? null : f;
+  if (chatOpacity === draft.chatOpacity && frameOpacity === draft.frameOpacity) return;
+  draft = { ...draft, chatOpacity, frameOpacity };
+  schedulePreview();
+}
+
+/** Arrastar o controle gera muitos eventos: uma prévia por quadro. */
+let previewFrame = 0;
+function schedulePreview() {
+  renderOpacity();
+  if (previewFrame) return;
+  previewFrame = requestAnimationFrame(() => {
+    previewFrame = 0;
+    preview();
+  });
+}
+
+els.chatOpacity.addEventListener('input', () => setOpacity(Number(els.chatOpacity.value), frameOpacityShown()));
+els.frameOpacity.addEventListener('input', () => setOpacity(chatOpacityShown(), Number(els.frameOpacity.value)));
+els.opacitySwap.addEventListener('click', () => setOpacity(frameOpacityShown(), chatOpacityShown()));
+els.opacityDefault.addEventListener('click', () => {
+  if (draft.chatOpacity === null && draft.frameOpacity === null) return;
+  draft = { ...draft, chatOpacity: null, frameOpacity: null };
+  schedulePreview();
+});
 
 // ---------------------------------------------------------------- prévia
 
@@ -326,6 +392,8 @@ els.modes.querySelectorAll<HTMLButtonElement>('.mode-option').forEach((b) =>
 // ---------------------------------------------------------------- abrir, OK e Cancelar
 
 function cancel() {
+  cancelAnimationFrame(previewFrame);
+  previewFrame = 0;
   if (dirty) {
     applyAppearance(original);
     void chat()

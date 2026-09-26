@@ -513,6 +513,24 @@
         <label class="check appearance-contact-scenes" title="Como no Messenger: a conversa usa a cena que o contato escolheu (com as cores do seu tema)">
           <input type="checkbox" id="appearance-contact-scenes" /><span>Mostrar cenas dos contatos nas conversas</span>
         </label>
+        <span class="font-label" id="appearance-opacity-label">Opacidade sobre a cena</span>
+        <div class="opacity-controls" role="group" aria-labelledby="appearance-opacity-label">
+          <label class="opacity-row" for="appearance-chat-opacity" title="Quanto a caixa das mensagens cobre a cena (100% = cena escondida atrás delas)">
+            <span>Caixa da conversa</span>
+            <input type="range" id="appearance-chat-opacity" min="30" max="100" step="1" />
+            <output id="appearance-chat-opacity-value" for="appearance-chat-opacity"></output>
+          </label>
+          <label class="opacity-row" for="appearance-frame-opacity" title="Quanto o fundo em volta da caixa (onde ficam as imagens de exibição) cobre a cena">
+            <span>Fundo em volta</span>
+            <input type="range" id="appearance-frame-opacity" min="0" max="100" step="1" />
+            <output id="appearance-frame-opacity-value" for="appearance-frame-opacity"></output>
+          </label>
+          <p class="opacity-actions">
+            <button type="button" class="link" id="appearance-opacity-swap" title="Troca as duas opacidades: a caixa fica com a do fundo e o fundo com a da caixa">Inverter</button>
+            ·
+            <button type="button" class="link" id="appearance-opacity-default" title="Volta as duas ao padrão">Padrão</button>
+          </p>
+        </div>
         <p class="appearance-custom" id="appearance-custom" hidden>
           <span title="A fonte ou a cena não são as sugeridas pelo tema">Personalizado</span> ·
           <button type="button" class="link" id="appearance-restore" title="Volta a fonte e a cena sugeridas do tema">Restaurar tema</button>

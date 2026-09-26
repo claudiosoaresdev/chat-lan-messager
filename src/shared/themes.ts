@@ -60,9 +60,31 @@ export interface Appearance {
   scene: SceneChoice | null;
   /** Nas conversas, mostrar a cena que o contato escolheu (como no WLM) no lugar da sua. */
   showContactScenes: boolean;
+  /**
+   * Opacidade (%) da caixa da conversa por cima da cena (o véu de --surface atrás das mensagens); null = padrão
+   * (SCENE_VEIL/CONTACT_SCENE_VEIL, conferido pelo teste de contraste).
+   */
+  chatOpacity: number | null;
+  /** Opacidade (%) do fundo em volta da caixa da conversa por cima da cena; null = padrão (100: a cena não aparece). */
+  frameOpacity: number | null;
 }
 
-export const DEFAULT_APPEARANCE: Appearance = { mode: 'system', theme: DEFAULT_THEME, scene: null, showContactScenes: true };
+/** Faixas aceitas nos controles de opacidade (abaixo disso a conversa fica ilegível em cenas agitadas). */
+export const CHAT_OPACITY_RANGE = { min: 30, max: 100 } as const;
+export const FRAME_OPACITY_RANGE = { min: 0, max: 100 } as const;
+export const DEFAULT_FRAME_OPACITY = 100;
+
+export const DEFAULT_APPEARANCE: Appearance = {
+  mode: 'system',
+  theme: DEFAULT_THEME,
+  scene: null,
+  showContactScenes: true,
+  chatOpacity: null,
+  frameOpacity: null,
+};
+
+const opacityIn = (v: unknown, range: { min: number; max: number }): number | null =>
+  typeof v === 'number' && Number.isInteger(v) && v >= range.min && v <= range.max ? v : null;
 
 /** Cena que vale de fato: a escolhida ou, sem escolha, a padrão do tema. */
 export function effectiveScene(a: Appearance): SceneChoice {
@@ -81,7 +103,15 @@ export function validateAppearance(raw: unknown): Appearance | null {
   if (!isAppearanceMode(a.mode) || typeof a.theme !== 'string' || !findTheme(a.theme)) return null;
   // Arquivo antigo, sem a opção: mostra as cenas dos contatos (padrão).
   const showContactScenes = typeof a.showContactScenes === 'boolean' ? a.showContactScenes : true;
-  return { mode: a.mode, theme: a.theme, scene: validateSceneChoice(a.scene), showContactScenes };
+  return {
+    mode: a.mode,
+    theme: a.theme,
+    scene: validateSceneChoice(a.scene),
+    showContactScenes,
+    // Valor fora da faixa (ou arquivo antigo, sem o campo) volta ao padrão.
+    chatOpacity: opacityIn(a.chatOpacity, CHAT_OPACITY_RANGE),
+    frameOpacity: opacityIn(a.frameOpacity, FRAME_OPACITY_RANGE),
+  };
 }
 
 /** Tokens de significado próprio (aviso, erro, não lida, winks, contador verde): não giram com o tema. */

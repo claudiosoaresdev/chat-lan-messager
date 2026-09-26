@@ -110,6 +110,11 @@ No menu ☰ da lista de contatos, **Aparência...** abre a janela de modo e tema
   mensagens) e ele vê a sua, sempre com as cores do seu próprio tema e legível. Se o contato não tem cena ou usa
   uma versão antiga, aparece a sua. Para ver sempre a sua, desmarque **Mostrar cenas dos contatos nas
   conversas** na janela Aparência.
+- **Opacidade sobre a cena** (janela Aparência): quanto a **caixa da conversa** e o **fundo em volta** dela (onde
+  ficam as imagens de exibição) cobrem a cena. O padrão é o de sempre: caixa quase opaca e fundo opaco (a cena só
+  aparece no topo e, bem de leve, atrás das mensagens). **Inverter** troca os dois valores (a cena aparece em volta
+  e a caixa fica sólida); **Padrão** volta ao original. As cores das mensagens são reconferidas para o valor
+  escolhido.
 - Cores de mensagem ilegíveis no fundo atual são ajustadas só na sua tela (no escuro, preto vira a cor de texto
   do tema). O contato continua recebendo a cor que você escolheu.
 

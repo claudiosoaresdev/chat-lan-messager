@@ -24,6 +24,14 @@ export const SCENE_VEIL: Record<Mode, number> = { light: 88, dark: 94 };
  */
 export const CONTACT_SCENE_VEIL: Record<Mode, number> = { light: 92, dark: 96 };
 
+/**
+ * Véu efetivo (%) atrás das mensagens: o escolhido na janela Aparência ou, sem escolha, o padrão (mais forte na
+ * cena do contato). As cores das mensagens são conferidas contra o fundo com este véu, então valem para qualquer um.
+ */
+export function chatVeil(chatOpacity: number | null, contact: boolean, mode: Mode): number {
+  return chatOpacity ?? (contact ? CONTACT_SCENE_VEIL : SCENE_VEIL)[mode];
+}
+
 /** Opacidade (%) da faixa atrás do texto do topo quando a cena é agitada: 4,5:1 garantido sobre qualquer pixel. */
 export const SCENE_PLATE = 78;
 

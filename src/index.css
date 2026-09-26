@@ -3236,6 +3236,45 @@ body.is-resizing * {
   margin-top: 2px;
 }
 
+/* Opacidade da caixa da conversa e do fundo em volta sobre a cena. */
+.opacity-controls {
+  display: grid;
+  gap: 4px;
+}
+
+.opacity-row {
+  display: grid;
+  grid-template-columns: 130px 1fr 92px;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.opacity-row input[type='range'] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.opacity-row output {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.opacity-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.opacity-actions .link:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .appearance-custom {
   display: flex;
   flex-wrap: wrap;
@@ -3355,6 +3394,23 @@ body.is-resizing * {
     linear-gradient(var(--scene-veil-color), var(--scene-veil-color)),
     var(--scene-image) center / cover no-repeat,
     var(--surface);
+}
+
+/* Fundo em volta da caixa da conversa translúcido (Aparência → opacidade abaixo de 100): a cena aparece por trás,
+   presa à janela (fixed) para a imagem continuar igual entre o fundo e a caixa. */
+:root[data-scene='on'][data-scene-frame='see'] .chat-main {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--bg) var(--scene-frame), transparent),
+      color-mix(in srgb, color-mix(in srgb, var(--accent-soft) 20.19%, var(--bg)) var(--scene-frame), transparent)
+    ),
+    var(--scene-image) center / cover no-repeat fixed,
+    var(--bg);
+}
+
+:root[data-scene='on'][data-scene-frame='see'] .chat-body {
+  background-attachment: scroll, fixed, scroll;
 }
 
 :root[data-scene='on'] .chat-body .said-by {

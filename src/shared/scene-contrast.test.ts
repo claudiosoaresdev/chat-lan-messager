@@ -6,6 +6,7 @@ import {
   SCENE_PLATE,
   SCENE_TOOL_PLATE,
   SCENE_VEIL,
+  chatVeil,
   messageBackground,
   sceneSecondaryColors,
 } from './scene-contrast';
@@ -124,4 +125,13 @@ describe('garantias que não dependem da imagem', () => {
       }
     },
   );
+});
+
+describe('chatVeil', () => {
+  it('sem escolha usa o padrão (mais forte na cena do contato); com escolha, a escolhida', () => {
+    expect(chatVeil(null, false, 'light')).toBe(SCENE_VEIL.light);
+    expect(chatVeil(null, false, 'dark')).toBe(SCENE_VEIL.dark);
+    expect(chatVeil(null, true, 'dark')).toBe(CONTACT_SCENE_VEIL.dark);
+    expect(chatVeil(55, true, 'light')).toBe(55);
+  });
 });

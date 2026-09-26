@@ -11,17 +11,10 @@
 // as do meu tema. Imagem do contato só entra por URL blob:.
 import type { SharedScene } from '../shared/api';
 import { SCENE_COLORS, type SceneColors } from '../shared/scene-averages';
-import {
-  CONTACT_SCENE_VEIL,
-  SCENE_PLATE,
-  SCENE_TOOL_PLATE,
-  SCENE_VEIL,
-  messageBackground,
-  sceneSecondaryColors,
-} from '../shared/scene-contrast';
+import { SCENE_PLATE, SCENE_TOOL_PLATE, chatVeil, messageBackground, sceneSecondaryColors } from '../shared/scene-contrast';
 import type { SceneChoice } from '../shared/scenes';
 import { luminance } from '../shared/color';
-import { effectiveScene, themeTokens, type Appearance, type ThemeMode } from '../shared/themes';
+import { DEFAULT_FRAME_OPACITY, effectiveScene, themeTokens, type Appearance, type ThemeMode } from '../shared/themes';
 import { chat } from './dom';
 import { coverTopBand, sceneColors, sceneTone } from './scene-tone';
 
@@ -63,7 +56,8 @@ export function onSceneChanged(fn: () => void) {
 
 /** Fundo conferido das mensagens (pior trecho da cena atual sob o véu, se houver) para uma superfície e modo. */
 export function sceneMessageBackground(surface: string, mode: ThemeMode): string {
-  return messageBackground(surface, shown?.colors ?? null, mode, shown?.contact ? CONTACT_SCENE_VEIL : SCENE_VEIL);
+  const veil = chatVeil(current?.a.chatOpacity ?? null, !!shown?.contact, mode);
+  return messageBackground(surface, shown?.colors ?? null, mode, { light: veil, dark: veil });
 }
 
 /** Sem pixels legíveis: supõe o pior (preto e branco puros), então as cores ficam seguras em qualquer imagem. */
@@ -171,8 +165,11 @@ document.querySelectorAll('.scene-top').forEach((el) => observer.observe(el));
 function paintColors() {
   if (!current) return;
   const tokens = themeTokens(current.a.theme, current.mode);
-  const veil = shown?.contact ? CONTACT_SCENE_VEIL : SCENE_VEIL;
-  root.style.setProperty('--scene-veil', `${veil[current.mode]}%`);
+  root.style.setProperty('--scene-veil', `${chatVeil(current.a.chatOpacity, !!shown?.contact, current.mode)}%`);
+  // Fundo em volta da caixa da conversa: opaco (padrão) esconde a cena; abaixo de 100 ela aparece por trás.
+  const frame = current.a.frameOpacity ?? DEFAULT_FRAME_OPACITY;
+  root.style.setProperty('--scene-frame', `${frame}%`);
+  root.dataset.sceneFrame = frame < 100 ? 'see' : 'solid';
   root.style.setProperty('--scene-plate', `${SCENE_PLATE}%`);
   root.style.setProperty('--scene-tool-plate', `${SCENE_TOOL_PLATE}%`);
   const colors = sceneSecondaryColors(tokens, sceneMessageBackground(tokens.surface, current.mode));

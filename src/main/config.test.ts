@@ -75,7 +75,7 @@ describe('SettingsStore', () => {
       font,
       giphyKey: 'abcDEF1234567890abcd',
       sounds: false,
-      appearance: { mode: 'dark', theme: 'roxo', scene: { kind: 'builtin', id: 'montanhas' }, showContactScenes: false },
+      appearance: { mode: 'dark', theme: 'roxo', scene: { kind: 'builtin', id: 'montanhas' }, showContactScenes: false, chatOpacity: 70, frameOpacity: 40 },
       shareListening: false,
       linkPreviews: false,
       videoBounds: { x: 10, y: 20, width: 480, height: 270 },
@@ -86,7 +86,7 @@ describe('SettingsStore', () => {
       font,
       giphyKey: 'abcDEF1234567890abcd',
       sounds: false,
-      appearance: { mode: 'dark', theme: 'roxo', scene: { kind: 'builtin', id: 'montanhas' }, showContactScenes: false },
+      appearance: { mode: 'dark', theme: 'roxo', scene: { kind: 'builtin', id: 'montanhas' }, showContactScenes: false, chatOpacity: 70, frameOpacity: 40 },
       shareListening: false,
       linkPreviews: false,
       videoBounds: { x: 10, y: 20, width: 480, height: 270 },
@@ -102,7 +102,7 @@ describe('SettingsStore', () => {
       font: null,
       giphyKey: null,
       sounds: true,
-      appearance: { mode: 'system', theme: 'azul-classico', scene: null, showContactScenes: true },
+      appearance: { mode: 'system', theme: 'azul-classico', scene: null, showContactScenes: true, chatOpacity: null, frameOpacity: null },
       shareListening: true,
       linkPreviews: true,
       videoBounds: null,
@@ -130,14 +130,14 @@ describe('aparência', () => {
     return out;
   };
 
-  const DEFAULT = { mode: 'system', theme: 'azul-classico', scene: null as unknown, showContactScenes: true };
+  const DEFAULT = { mode: 'system', theme: 'azul-classico', scene: null as unknown, showContactScenes: true, chatOpacity: null as number | null, frameOpacity: null as number | null };
 
   it('padrão: seguir o sistema com o Azul clássico e a cena do tema', () => {
     expect(load(undefined)).toEqual(DEFAULT);
   });
 
   it('lê modo e tema válidos; arquivo antigo sem cena fica com a do tema (null)', () => {
-    expect(load({ mode: 'light', theme: 'verde' })).toEqual({ mode: 'light', theme: 'verde', scene: null, showContactScenes: true });
+    expect(load({ mode: 'light', theme: 'verde' })).toEqual({ ...DEFAULT, mode: 'light', theme: 'verde' });
   });
 
   it('lê a opção de mostrar cenas dos contatos; ausente ou inválida = ligada', () => {
@@ -157,8 +157,20 @@ describe('aparência', () => {
       theme: 'roxo',
       scene: null,
       showContactScenes: true,
+      chatOpacity: null,
+      frameOpacity: null,
     });
     expect(load({ mode: 'dark', theme: 'roxo', scene: { kind: 'custom', id: '../x' } }).scene).toBeNull();
+  });
+
+  it('lê as opacidades; fora da faixa, fracionária ou ausente = padrão (null)', () => {
+    const base = { mode: 'light', theme: 'verde' };
+    expect(load({ ...base, chatOpacity: 60, frameOpacity: 0 })).toMatchObject({ chatOpacity: 60, frameOpacity: 0 });
+    expect(load({ ...base, chatOpacity: 100, frameOpacity: 100 })).toMatchObject({ chatOpacity: 100, frameOpacity: 100 });
+    for (const bad of [29, 101, 55.5, '80', -1]) {
+      expect(load({ ...base, chatOpacity: bad, frameOpacity: bad === 29 ? 101 : bad })).toMatchObject({ chatOpacity: null, frameOpacity: null });
+    }
+    expect(load({ ...base, frameOpacity: 10 }).frameOpacity).toBe(10);
   });
 
   it('valores inválidos voltam ao padrão', () => {
