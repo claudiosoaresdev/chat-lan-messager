@@ -3,6 +3,7 @@
 import { averageColor, messageColor } from '../shared/color';
 import { DEFAULT_FONT, type MessageFont } from '../shared/protocol';
 import { onAppearanceApplied } from './appearance';
+import { onSceneChanged, sceneMessageBackground } from './scene';
 import { $, chat, el, errorMessage } from './dom';
 import { ensureFontLoaded, fontStack } from './font-loader';
 import {
@@ -46,15 +47,20 @@ const listeners: Array<(f: MessageFont) => void> = [];
 /** Fundo da conversa e modo atuais, lidos uma vez por troca de aparência (não a cada mensagem). */
 let background: { surface: string; mode: 'light' | 'dark' } | null = null;
 
+/**
+ * Fundo efetivo das mensagens: --surface ou, com cena, --surface com o véu sobre a cor média da imagem (o contraste
+ * das cores das mensagens é calculado contra ele).
+ */
 function readBackground() {
   const root = document.documentElement;
+  const mode = root.dataset.mode === 'dark' ? ('dark' as const) : ('light' as const);
   let surface = '#ffffff';
   try {
-    surface = averageColor(getComputedStyle(root).getPropertyValue('--surface').trim() || '#fff');
+    surface = sceneMessageBackground(averageColor(getComputedStyle(root).getPropertyValue('--surface').trim() || '#fff'), mode);
   } catch {
     // mantém o branco
   }
-  return { surface, mode: root.dataset.mode === 'dark' ? ('dark' as const) : ('light' as const) };
+  return { surface, mode };
 }
 
 /**
@@ -86,10 +92,13 @@ function refreshReadableColors() {
     n.style.backgroundColor = readableColor(n.dataset.fontBar ?? '#000000');
   });
 }
-onAppearanceApplied(() => {
+function refreshBackground() {
   background = readBackground();
   refreshReadableColors();
-});
+}
+onAppearanceApplied(refreshBackground);
+// A cena carrega depois da aparência (imagem medida): o fundo efetivo muda de novo.
+onSceneChanged(refreshBackground);
 
 export interface ApplyFontOptions {
   /** Fonte de mensagem recebida: o download entra no limite de downloads automáticos. */

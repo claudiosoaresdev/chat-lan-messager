@@ -72,6 +72,11 @@
   --wink-bg: #f7eefc;
   --wink-text: #5b2c7a;
   --gif-text: #6b3fa0;
+  /* texto sobre a cena do topo (pelo brilho da imagem, não pelo modo) */
+  --scene-text-on-dark: #fff;
+  --scene-shade-on-dark: #000;
+  --scene-text-on-light: #14181e;
+  --scene-shade-on-light: #fff;
   /* status: iguais em todos os temas */
   --st-available: #4cb122;
   --st-away: #f2b50d;
@@ -144,6 +149,10 @@
     --wink-bg: #2d2238;
     --wink-text: #dbb6f2;
     --gif-text: #b98ce6;
+    --scene-text-on-dark: #fff;
+    --scene-shade-on-dark: #000;
+    --scene-text-on-light: #14181e;
+    --scene-shade-on-light: #fff;
     color-scheme: dark;
   }
 }
@@ -2858,4 +2867,110 @@ body.is-resizing * {
 
 .appearance-custom[hidden] {
   display: none;
+}
+
+/* ---------------------------------------------------------------- cena (topo e fundo das mensagens)
+   O renderer (scene.ts) põe a imagem em --scene-image e marca no <html>: data-scene="on|off", data-scene-tone
+   (brilho medido atrás do cabeçalho: "dark" = texto claro, "light" = texto escuro, independente do modo) e
+   data-scene-busy (imagem agitada: o texto ganha uma faixa translúcida). --scene-veil, --scene-plate e
+   --scene-tool-plate vêm de scene-contrast.ts, onde o teste confere o contraste. */
+
+.scene-top {
+  position: relative;
+  flex: none;
+  isolation: isolate;
+  /* a barra de ferramentas é a transição: a cena se desfaz no fundo ao longo dela */
+  --scene-fade: 38px;
+}
+
+.view-chat .scene-top {
+  --scene-fade: 33px;
+}
+
+:root[data-scene='on'] .scene-top::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(to bottom, transparent calc(100% - var(--scene-fade)), var(--bg)),
+    var(--scene-image) center top / cover no-repeat,
+    var(--bg);
+  pointer-events: none;
+}
+
+:root[data-scene-tone='dark'] {
+  --scene-text: var(--scene-text-on-dark);
+  --scene-shade: var(--scene-shade-on-dark);
+}
+
+:root[data-scene-tone='light'] {
+  --scene-text: var(--scene-text-on-light);
+  --scene-shade: var(--scene-shade-on-light);
+}
+
+:root[data-scene='on'] :is(.home-header, .chat-header) {
+  border-bottom-color: transparent;
+  background: none;
+  --scene-halo: 0 0 2px var(--scene-shade), 0 0 6px color-mix(in srgb, var(--scene-shade) 70%, transparent);
+}
+
+:root[data-scene='on'] :is(.home-toolbar, .chat-toolbar) {
+  background: none;
+}
+
+/* Texto sobre a cena: cor pelo tom da imagem, com halo. Campos em edição voltam ao visual normal. */
+:root[data-scene='on'] :is(.me-name:not(:focus), .me-status, .personal-msg:not(:focus), .me-addr, .chat-title, .chat-count, .chat-to, .chat-to span) {
+  color: var(--scene-text);
+  text-shadow: var(--scene-halo);
+}
+
+:root[data-scene='on'] .personal-msg:not(:focus)::placeholder {
+  color: var(--scene-text);
+  opacity: 0.85;
+}
+
+:root[data-scene='on'] :is(.me-name, .me-status, .personal-msg, .me-addr):not(:focus):hover {
+  border-color: color-mix(in srgb, var(--scene-text) 45%, transparent);
+  background: color-mix(in srgb, var(--scene-shade) var(--scene-plate), transparent);
+}
+
+/* Imagem agitada: faixa translúcida atrás do bloco de texto (o box-shadow estende sem mexer no layout). */
+:root[data-scene='on'][data-scene-busy='true'] :is(.me-info, .chat-header-text) {
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--scene-shade) var(--scene-plate), transparent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--scene-shade) var(--scene-plate), transparent);
+}
+
+/* Na conversa a faixa acompanha o texto (não vira uma barra de lado a lado). */
+:root[data-scene='on'][data-scene-busy='true'] .chat-header-text {
+  flex: 0 1 auto;
+}
+
+/* Ícone do contato: contorno do tom oposto ao da cena, para não sumir nela. */
+:root[data-scene='on'] .chat-header-icon {
+  filter: drop-shadow(0 0 1px var(--scene-text)) drop-shadow(0 0 2px var(--scene-shade));
+}
+
+/* Botões na transição: placa do fundo do tema, com as cores normais do tema. */
+:root[data-scene='on'] :is(.tool-btn, .chat-tool):not(:hover) {
+  background: color-mix(in srgb, var(--bg) var(--scene-tool-plate), transparent);
+}
+
+/* Fundo das mensagens: a cena coberta por um véu da superfície (a imagem não rola junto). */
+:root[data-scene='on'] .chat-body {
+  --scene-veil-color: color-mix(in srgb, var(--surface) var(--scene-veil), transparent);
+  --muted: var(--scene-muted);
+  background:
+    linear-gradient(var(--scene-veil-color), var(--scene-veil-color)),
+    var(--scene-image) center / cover no-repeat,
+    var(--surface);
+}
+
+:root[data-scene='on'] .chat-body .said-by {
+  color: var(--scene-said-by);
+}
+
+:root[data-scene='on'] .chat-body .system {
+  color: var(--scene-system);
 }

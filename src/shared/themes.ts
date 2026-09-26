@@ -95,6 +95,10 @@ const SEMANTIC = new Set<TokenName>([
   'wink-bg',
   'wink-text',
   'gif-text',
+  'scene-text-on-dark',
+  'scene-shade-on-dark',
+  'scene-text-on-light',
+  'scene-shade-on-light',
 ]);
 
 /** Abaixo desta saturação HSL a cor é tratada como neutra (cinza, branco, preto) e não gira. */
@@ -147,6 +151,9 @@ export const CONTRAST_PAIRS: readonly ContrastPair[] = [
   text('text-strong', 'unread-strong'),
   text('wink-text', 'wink-bg'),
   text('gif-text', 'bg'),
+  // texto sobre a cena do topo, com a sombra/faixa do mesmo tom
+  text('scene-text-on-dark', 'scene-shade-on-dark'),
+  text('scene-text-on-light', 'scene-shade-on-light'),
   ui('btn-focus', 'surface'),
   ui('btn-focus', 'field-bg'),
   ui('border-strong', 'surface'),

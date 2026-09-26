@@ -120,6 +120,13 @@ export function opaqueColors(value: string): string[] {
   return out;
 }
 
+/** Mistura em sRGB, como color-mix(in srgb, a peso%, b) e como o navegador compõe transparência. */
+export function mixColors(a: string, b: string, weightA: number): string {
+  const [x, y] = [parseHex(a), parseHex(b)];
+  const w = clamp(weightA, 0, 1);
+  return toHex({ r: x.r * w + y.r * (1 - w), g: x.g * w + y.g * (1 - w), b: x.b * w + y.b * (1 - w) });
+}
+
 /** Média (em sRGB) das cores opacas de um valor: a cor "representativa" de um degradê. */
 export function averageColor(value: string): string {
   const colors = opaqueColors(value).map(parseHex);

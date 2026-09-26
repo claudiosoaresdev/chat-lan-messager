@@ -8,6 +8,7 @@ import {
   hslToRgb,
   luminance,
   mapColors,
+  mixColors,
   opaqueColors,
   parseHex,
   rgbToHsl,
@@ -140,5 +141,13 @@ describe('messageColor', () => {
     for (const c of PALETTE) expect(messageColor(c, '#ffffff', 'light', TEXT)).toBe(c);
     const yellow = messageColor('#ffff66', '#ffffff', 'light', TEXT);
     expect(contrast(yellow, '#ffffff')).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe('mixColors', () => {
+  it('mistura em sRGB como color-mix(in srgb)', () => {
+    expect(mixColors('#ffffff', '#000000', 0.5)).toBe('#808080');
+    expect(mixColors('#20262f', '#ffffff', 1)).toBe('#20262f');
+    expect(mixColors('#20262f', '#ffffff', 0)).toBe('#ffffff');
   });
 });

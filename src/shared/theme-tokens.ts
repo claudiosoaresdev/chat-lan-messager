@@ -67,6 +67,11 @@ export const TOKEN_NAMES = [
   'wink-bg',
   'wink-text',
   'gif-text',
+  // texto sobre a cena do topo: a cor vem do brilho medido da imagem, não do modo (iguais em todos os temas)
+  'scene-text-on-dark',
+  'scene-shade-on-dark',
+  'scene-text-on-light',
+  'scene-shade-on-light',
 ] as const;
 
 export type TokenName = (typeof TOKEN_NAMES)[number];
@@ -143,6 +148,11 @@ export const CLASSIC_LIGHT: Tokens = {
   'wink-bg': '#f7eefc',
   'wink-text': '#5b2c7a',
   'gif-text': '#6b3fa0',
+  // Sobre a cena: texto claro com sombra/faixa preta (cena escura) ou texto escuro com sombra/faixa branca.
+  'scene-text-on-dark': '#fff',
+  'scene-shade-on-dark': '#000',
+  'scene-text-on-light': '#14181e',
+  'scene-shade-on-light': '#fff',
 };
 
 /**
@@ -223,6 +233,11 @@ export const CLASSIC_DARK: Tokens = {
   'wink-bg': '#2d2238',
   'wink-text': '#dbb6f2',
   'gif-text': '#b98ce6',
+  // Sobre a cena: texto claro com sombra/faixa preta (cena escura) ou texto escuro com sombra/faixa branca.
+  'scene-text-on-dark': '#fff',
+  'scene-shade-on-dark': '#000',
+  'scene-text-on-light': '#14181e',
+  'scene-shade-on-light': '#fff',
 };
 
 /** Cores de status (disponível, ausente, ocupado, offline): iguais em todos os temas. */

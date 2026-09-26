@@ -1,8 +1,10 @@
-// Aparência no renderer: modo (claro/escuro) em data-mode no <html> e tokens do tema como propriedades CSS.
+// Aparência no renderer: modo (claro/escuro) em data-mode no <html>, tokens do tema como propriedades CSS e a
+// cena (scene.ts).
 // "Sistema" segue o prefers-color-scheme (o main ajusta o nativeTheme, então o matchMedia acompanha).
 import { DEFAULT_APPEARANCE, themeTokens, validateAppearance, type Appearance, type ThemeMode } from '../shared/themes';
 import { TOKEN_NAMES } from '../shared/theme-tokens';
 import { chat } from './dom';
+import { applyScene } from './scene';
 
 const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
@@ -33,11 +35,12 @@ export function applyAppearance(a: Appearance) {
   shown = a;
   const mode = effectiveMode(a);
   paint(a.theme, mode);
+  applyScene(a, mode);
   listeners.forEach((fn) => fn(a, mode));
 }
 
 /**
- * Chamado antes de qualquer tela. Pinta já com o modo efetivo e o tema que o main pôs na URL (sem flash), depois
+ * Chamado antes de qualquer tela. Pinta já com o modo efetivo, o tema e a cena que o main pôs na URL (sem flash), depois
  * confirma pela IPC e passa a seguir as mudanças (outra janela, prévia da janela "Aparência", sistema).
  */
 export function initAppearance() {
@@ -45,8 +48,17 @@ export function initAppearance() {
   const mode = params.get('mode');
   const theme = params.get('theme');
   if ((mode === 'light' || mode === 'dark') && theme) {
-    const initial = validateAppearance({ mode, theme });
-    if (initial) paint(initial.theme, initial.mode as ThemeMode);
+    let scene: unknown = null;
+    try {
+      scene = JSON.parse(params.get('scene') ?? 'null');
+    } catch {
+      // sem cena na URL: a do tema
+    }
+    const initial = validateAppearance({ mode, theme, scene });
+    if (initial) {
+      paint(initial.theme, initial.mode as ThemeMode);
+      applyScene(initial, initial.mode as ThemeMode);
+    }
   }
   chat().onAppearanceChanged(applyAppearance);
   darkQuery.addEventListener('change', () => {

@@ -181,46 +181,49 @@
 
       <!-- ============================================================ HOME -->
       <section class="view view-home" id="view-home" hidden>
-        <div class="home-header">
-          <div class="avatar avatar-glass avatar-md" id="me-avatar" role="button" tabindex="0" title="Alterar imagem de exibição" data-status="available">
-            <div class="avatar-inner"><svg><use href="#i-person-3d" /></svg></div>
-          </div>
-          <div class="me-info">
-            <div class="me-line">
-              <input
-                class="me-name"
-                id="me-name"
-                maxlength="64"
-                spellcheck="false"
-                title="Clique para mudar o seu nome"
-                aria-label="Seu nome"
-              />
-              <button type="button" class="status-picker me-status" id="me-status" aria-haspopup="menu">
-                (<span id="me-status-label">Disponível</span>)<span class="caret">▾</span>
-              </button>
+        <!-- Topo com a cena (imagem atrás do cabeçalho; desfaz no fundo ao longo da barra de busca) -->
+        <div class="scene-top">
+          <div class="home-header">
+            <div class="avatar avatar-glass avatar-md" id="me-avatar" role="button" tabindex="0" title="Alterar imagem de exibição" data-status="available">
+              <div class="avatar-inner"><svg><use href="#i-person-3d" /></svg></div>
             </div>
-            <input
-              class="personal-msg"
-              id="me-message"
-              maxlength="128"
-              placeholder="<Compartilhe uma mensagem pessoal>"
-              aria-label="Mensagem pessoal"
-            />
-            <button type="button" class="link mono me-addr" id="me-addr" title="Clique para copiar"></button>
+            <div class="me-info">
+              <div class="me-line">
+                <input
+                  class="me-name"
+                  id="me-name"
+                  maxlength="64"
+                  spellcheck="false"
+                  title="Clique para mudar o seu nome"
+                  aria-label="Seu nome"
+                />
+                <button type="button" class="status-picker me-status" id="me-status" aria-haspopup="menu">
+                  (<span id="me-status-label">Disponível</span>)<span class="caret">▾</span>
+                </button>
+              </div>
+              <input
+                class="personal-msg"
+                id="me-message"
+                maxlength="128"
+                placeholder="<Compartilhe uma mensagem pessoal>"
+                aria-label="Mensagem pessoal"
+              />
+              <button type="button" class="link mono me-addr" id="me-addr" title="Clique para copiar"></button>
+            </div>
           </div>
-        </div>
 
-        <div class="home-toolbar">
-          <div class="search-box">
-            <input class="search" id="contact-search" placeholder="Pesquisar contatos..." aria-label="Pesquisar contatos" />
-            <svg class="search-icon" aria-hidden="true"><use href="#i-search" /></svg>
+          <div class="home-toolbar">
+            <div class="search-box">
+              <input class="search" id="contact-search" placeholder="Pesquisar contatos..." aria-label="Pesquisar contatos" />
+              <svg class="search-icon" aria-hidden="true"><use href="#i-search" /></svg>
+            </div>
+            <button type="button" class="tool-btn" id="add-contact" title="Adicionar contato por IP">
+              <svg><use href="#i-add" /></svg>
+            </button>
+            <button type="button" class="tool-btn" id="home-menu" title="Menu" aria-haspopup="menu">
+              <svg class="icon-menu"><use href="#i-menu" /></svg>
+            </button>
           </div>
-          <button type="button" class="tool-btn" id="add-contact" title="Adicionar contato por IP">
-            <svg><use href="#i-add" /></svg>
-          </button>
-          <button type="button" class="tool-btn" id="home-menu" title="Menu" aria-haspopup="menu">
-            <svg class="icon-menu"><use href="#i-menu" /></svg>
-          </button>
         </div>
 
         <div class="contact-list" id="contact-list">
@@ -246,22 +249,24 @@
 
       <!-- ============================================================ CONVERSA -->
       <section class="view view-chat" id="view-chat" hidden>
-        <div class="chat-header">
-          <svg class="chat-header-icon" aria-hidden="true"><use href="#i-buddy" /></svg>
-          <div class="chat-header-text">
-            <div class="chat-title"><span id="chat-peer-name"></span> <span class="chat-count" id="chat-peer-status"></span></div>
-            <div class="chat-to" id="chat-peer-message"></div>
+        <div class="scene-top">
+          <div class="chat-header">
+            <svg class="chat-header-icon" aria-hidden="true"><use href="#i-buddy" /></svg>
+            <div class="chat-header-text">
+              <div class="chat-title"><span id="chat-peer-name"></span> <span class="chat-count" id="chat-peer-status"></span></div>
+              <div class="chat-to" id="chat-peer-message"></div>
+            </div>
           </div>
-        </div>
 
-        <div class="chat-toolbar">
-          <label class="chat-tool" title="Enviar imagem (PNG, JPEG, WebP, GIF até 10 MB)">
-            <input type="file" id="file-input" accept="image/png,image/jpeg,image/webp,image/gif" hidden />
-            <svg><use href="#i-image" /></svg><span>Enviar imagem</span>
-          </label>
-          <button type="button" class="chat-tool" id="chat-nudge" title="Chamar a atenção do contato">
-            <svg><use href="#i-nudge" /></svg><span>Chamar atenção</span>
-          </button>
+          <div class="chat-toolbar">
+            <label class="chat-tool" title="Enviar imagem (PNG, JPEG, WebP, GIF até 10 MB)">
+              <input type="file" id="file-input" accept="image/png,image/jpeg,image/webp,image/gif" hidden />
+              <svg><use href="#i-image" /></svg><span>Enviar imagem</span>
+            </label>
+            <button type="button" class="chat-tool" id="chat-nudge" title="Chamar a atenção do contato">
+              <svg><use href="#i-nudge" /></svg><span>Chamar atenção</span>
+            </button>
+          </div>
         </div>
 
         <div class="chat-main">

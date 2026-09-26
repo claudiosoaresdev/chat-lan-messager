@@ -692,7 +692,7 @@ const WEB_PREFERENCES: Electron.WebPreferences = {
 };
 
 /**
- * Mesmo index.html em todas as janelas; `chat` (id do contato) diz o papel da janela. `mode` e `theme` levam a
+ * Mesmo index.html em todas as janelas; `chat` (id do contato) diz o papel da janela. `mode`, `theme` e `scene` levam a
  * aparência atual para a página pintar já com as cores certas (a confirmação chega depois pela IPC).
  */
 function loadRenderer(w: BrowserWindow, chatWith?: string) {
@@ -700,6 +700,7 @@ function loadRenderer(w: BrowserWindow, chatWith?: string) {
   if (chatWith) params.set('chat', chatWith);
   params.set('mode', effectiveMode());
   params.set('theme', shownAppearance().theme);
+  params.set('scene', JSON.stringify(shownAppearance().scene));
   const query = params.toString();
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     w.loadURL(`${MAIN_WINDOW_VITE_DEV_SERVER_URL}?${query}`);
