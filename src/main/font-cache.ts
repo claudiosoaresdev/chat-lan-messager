@@ -16,6 +16,10 @@ export const MAX_CACHE_BYTES = 300 * 1024 * 1024;
 export const DOWNLOAD_CONCURRENCY = 2;
 /** Depois de uma falha, a família é rejeitada de cara por esse tempo antes de tentar de novo. */
 export const FAILURE_TTL_MS = 10 * 60 * 1000;
+/** Downloads novos causados por mensagens recebidas (não pela escolha do usuário) por hora. */
+export const AUTO_DOWNLOADS_PER_HOUR = 20;
+const HOUR_MS = 60 * 60 * 1000;
+export const AUTO_LIMIT_MESSAGE = 'Limite de downloads automáticos atingido';
 /** Tempo máximo por requisição de rede (CSS ou arquivo). */
 const FETCH_TIMEOUT_MS = 15_000;
 
@@ -43,6 +47,13 @@ export interface FontCacheOptions {
   maxFamilyBytes?: number;
   /** Limite de espaço total das famílias baixadas; passado esse valor, remove as menos usadas (bullet C.6). */
   maxCacheBytes?: number;
+  /** Famílias novas baixadas por causa de mensagens recebidas, por hora (janela móvel). */
+  autoDownloadsPerHour?: number;
+}
+
+export interface EnsureOptions {
+  /** Pedido automático (fonte de uma mensagem recebida): entra no limite por hora. */
+  auto?: boolean;
 }
 
 const FILE_NAME = /^[0-9a-f]{16}\.woff2$/;
@@ -89,6 +100,9 @@ export class FontCache {
   private readonly maxFileBytes: number;
   private readonly maxFamilyBytes: number;
   private readonly maxCacheBytes: number;
+  private readonly autoDownloadsPerHour: number;
+  /** Instantes (via `now()`) dos downloads automáticos da última hora. */
+  private autoDownloads: number[] = [];
 
   private readonly queue: DownloadQueue;
   private readonly inFlight = new Map<string, Promise<FontFaceInfo[]>>();
@@ -112,10 +126,11 @@ export class FontCache {
     this.maxFileBytes = options.maxFileBytes ?? MAX_FILE_BYTES;
     this.maxFamilyBytes = options.maxFamilyBytes ?? MAX_FAMILY_BYTES;
     this.maxCacheBytes = options.maxCacheBytes ?? MAX_CACHE_BYTES;
+    this.autoDownloadsPerHour = options.autoDownloadsPerHour ?? AUTO_DOWNLOADS_PER_HOUR;
     this.queue = new DownloadQueue(this.maxConcurrent);
   }
 
-  ensure(family: string): Promise<FontFaceInfo[]> {
+  ensure(family: string, { auto = false }: EnsureOptions = {}): Promise<FontFaceInfo[]> {
     // Object.hasOwn (não `bundled[family]`): "constructor", "toString" etc. não devem "achar"
     // uma entrada herdada de Object.prototype.
     if (Object.hasOwn(this.bundled, family)) {
@@ -135,7 +150,7 @@ export class FontCache {
 
     const running = this.inFlight.get(family);
     if (running) return running;
-    const job = this.load(family).finally(() => this.inFlight.delete(family));
+    const job = this.load(family, auto).finally(() => this.inFlight.delete(family));
     this.inFlight.set(family, job);
     return job;
   }
@@ -148,7 +163,7 @@ export class FontCache {
     return file.startsWith(this.dir + path.sep) ? file : null;
   }
 
-  private async load(family: string): Promise<FontFaceInfo[]> {
+  private async load(family: string, auto: boolean): Promise<FontFaceInfo[]> {
     const entry = findGoogleFont(family);
     if (!entry) throw new Error(`Fonte desconhecida: ${family}`);
     const slug = fontSlug(family);
@@ -161,6 +176,9 @@ export class FontCache {
       this.touchManifest(slug);
       return saved.map((f) => toInfo(f, `chatfont://cache/${f.file}`));
     }
+
+    // Só downloads de verdade contam (favoritas e cache não). Fora do try: não vira "falha recente".
+    if (auto) this.takeAutoBudget();
 
     try {
       return await this.queue.run(() => this.download(family, entry, slug, folder, manifestFile));
@@ -214,6 +232,14 @@ export class FontCache {
     this.manifestCache.set(family, manifest);
     this.evictIfNeeded(slug);
     return manifest.map((f) => toInfo(f, `chatfont://cache/${f.file}`));
+  }
+
+  /** Uma mensagem recebida não pode fazer o app baixar fontes sem parar: N famílias novas por hora. */
+  private takeAutoBudget() {
+    const now = this.now();
+    this.autoDownloads = this.autoDownloads.filter((t) => now - t < HOUR_MS);
+    if (this.autoDownloads.length >= this.autoDownloadsPerHour) throw new Error(AUTO_LIMIT_MESSAGE);
+    this.autoDownloads.push(now);
   }
 
   /** Marca a família como usada agora (mtime do manifesto), para a política de LRU do bullet C.6. */

@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { googleFontNames } from '../shared/google-fonts';
 import { FontCache, MAX_FILE_BYTES } from './font-cache';
 
 const CSS = (host = 'fonts.gstatic.com') => `
@@ -182,5 +183,50 @@ describe('FontCache', () => {
     // Estourou o limite: a mais antiga (ABeeZee) sai, a recém-baixada (Abel) fica.
     expect(fs.existsSync(path.join(dir, 'abeezee'))).toBe(false);
     expect(fs.existsSync(path.join(dir, 'abel'))).toBe(true);
+  });
+
+  describe('limite de downloads automáticos (mensagens recebidas)', () => {
+    const names = googleFontNames()
+      .filter((n) => n !== 'Roboto')
+      .slice(0, 22);
+
+    it('a 21ª família nova automática na mesma hora é recusada, sem rede', async () => {
+      const fetch = fakeFetch();
+      const cache = new FontCache(dir, {}, fetch, { now: () => 0 });
+      for (const n of names.slice(0, 20)) await cache.ensure(n, { auto: true });
+      const calls = fetch.mock.calls.length;
+      await expect(cache.ensure(names[20], { auto: true })).rejects.toThrow('Limite de downloads automáticos atingido');
+      expect(fetch.mock.calls.length).toBe(calls);
+      // a escolha do usuário não tem limite
+      await expect(cache.ensure(names[20])).resolves.toHaveLength(2);
+    });
+
+    it('favoritas e fontes já baixadas não contam', async () => {
+      const cache = new FontCache(dir, bundled, fakeFetch(), { now: () => 0, autoDownloadsPerHour: 1 });
+      await cache.ensure(names[0]); // escolhida pelo usuário: não conta
+      await cache.ensure(names[0], { auto: true }); // já em memória
+      await new FontCache(dir, bundled, fakeFetch(), { autoDownloadsPerHour: 0 }).ensure(names[0], { auto: true }); // do disco
+      await cache.ensure('Roboto', { auto: true }); // embutida
+      await expect(cache.ensure(names[1], { auto: true })).resolves.toHaveLength(2);
+      await expect(cache.ensure(names[2], { auto: true })).rejects.toThrow(/Limite/);
+    });
+
+    it('depois de uma hora libera de novo (janela móvel)', async () => {
+      let clock = 0;
+      const cache = new FontCache(dir, {}, fakeFetch(), { now: () => clock, autoDownloadsPerHour: 2 });
+      await cache.ensure(names[0], { auto: true });
+      clock = 30 * 60 * 1000;
+      await cache.ensure(names[1], { auto: true });
+      await expect(cache.ensure(names[2], { auto: true })).rejects.toThrow(/Limite/);
+      clock = 60 * 60 * 1000; // o primeiro saiu da janela
+      await expect(cache.ensure(names[2], { auto: true })).resolves.toHaveLength(2);
+      await expect(cache.ensure(names[3], { auto: true })).rejects.toThrow(/Limite/);
+    });
+
+    it('recusa por limite não vira "falha recente": o usuário ainda baixa na hora', async () => {
+      const cache = new FontCache(dir, {}, fakeFetch(), { now: () => 0, autoDownloadsPerHour: 0 });
+      await expect(cache.ensure(names[0], { auto: true })).rejects.toThrow(/Limite/);
+      await expect(cache.ensure(names[0])).resolves.toHaveLength(2);
+    });
   });
 });

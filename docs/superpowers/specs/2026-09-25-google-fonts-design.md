@@ -31,6 +31,7 @@ Data: 2026-09-25
 - Protocolo interno `chatfont://cache/<slug>/<arquivo>` serve só arquivos dentro de `userData/fonts`.
 - CSP ganha `font-src 'self' chatfont:`.
 - IPC `font:ensure` (família do catálogo) → faces.
+- Decisão: downloads causados por mensagens recebidas (`ensure(family, { auto: true })`) são limitados a 20 famílias novas (nem em cache, nem embutidas) por hora móvel, por execução do app; acima disso rejeita com "Limite de downloads automáticos atingido" e a mensagem fica na fonte parecida. Escolhas do usuário no diálogo não têm limite.
 
 ## Renderer
 

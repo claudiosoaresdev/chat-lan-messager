@@ -429,9 +429,10 @@ function registerIpc() {
     return valid;
   });
   // Só famílias do catálogo do Google Fonts (o FontCache rejeita as demais).
-  handle(IPC.ensureFont, (family: unknown) => {
+  // `auto`: pedido por causa de uma mensagem recebida (limitado por hora no FontCache).
+  handle(IPC.ensureFont, (family: unknown, auto: unknown) => {
     if (typeof family !== 'string' || !family || family.length > 80) throw new Error('Fonte inválida');
-    return fonts.ensure(family);
+    return fonts.ensure(family, { auto: auto === true });
   });
 
   handle(IPC.hasGiphyKey, () => !!settings.giphyKey);
@@ -690,7 +691,10 @@ function setupFonts(publicDir: string) {
     if (!file) return new Response('', { status: 404 });
     try {
       const data = await fs.promises.readFile(file);
-      return new Response(data, { headers: { 'Content-Type': 'font/woff2' } });
+      return new Response(data, {
+        // Fontes são públicas; libera o CORS por garantia (FontFace carrega com modo CORS).
+        headers: { 'Content-Type': 'font/woff2', 'Access-Control-Allow-Origin': '*' },
+      });
     } catch {
       return new Response('', { status: 404 });
     }

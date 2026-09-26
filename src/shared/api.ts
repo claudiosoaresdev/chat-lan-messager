@@ -202,8 +202,9 @@ export interface ChatApi {
   // fonte das mensagens ("Alterar fonte")
   getFont(): Promise<MessageFont>;
   setFont(font: MessageFont): Promise<MessageFont>;
-  /** Garante que a fonte do Google está no disco (baixa se preciso) e devolve as faces. */
-  ensureFont(family: string): Promise<FontFaceInfo[]>;
+  /** Garante que a fonte do Google está no disco (baixa se preciso) e devolve as faces.
+   * `auto`: pedido por causa de uma mensagem recebida (limitado a algumas famílias novas por hora). */
+  ensureFont(family: string, auto?: boolean): Promise<FontFaceInfo[]>;
 
   // GIFs do GIPHY (opcional: precisa de internet e de uma chave de API)
   hasGiphyKey(): Promise<boolean>;
