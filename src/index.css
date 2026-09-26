@@ -3395,7 +3395,8 @@ body.is-resizing * {
   border: 0;
 }
 
-/* Faixa de cima: arrasta a janela; aparece com o mouse em cima do vídeo. */
+/* Faixa de cima: título (arrasta a janela), voltar e fechar. Aparece com o mouse sobre a janela (o main avisa,
+   porque sobre o vídeo a página não recebe os eventos) e nos primeiros segundos. */
 .video-bar {
   position: absolute;
   top: 0;
@@ -3404,49 +3405,63 @@ body.is-resizing * {
   z-index: 1;
   display: flex;
   align-items: center;
-  gap: 2px;
-  height: 30px;
-  padding: 0 4px 0 8px;
+  gap: 4px;
+  height: 38px;
+  padding: 0 5px 0 12px;
   /* Quase opaca: cobre os controles de cima do YouTube enquanto aparece (arrastar ali não clica neles). */
-  background: color-mix(in srgb, black 85%, transparent);
+  background: color-mix(in srgb, black 88%, transparent);
   color: white;
   opacity: 0;
+  pointer-events: none;
   transition: opacity 150ms ease;
-  -webkit-app-region: drag;
+  -webkit-app-region: no-drag;
 }
 
 .video-root:hover .video-bar,
+.video-root.show-bar .video-bar,
 .video-bar:focus-within {
   opacity: 1;
+  pointer-events: auto;
+  -webkit-app-region: drag;
 }
 
-.video-grip {
+.video-title {
   flex: 1;
-  font-size: 12px;
-  letter-spacing: -2px;
-  opacity: 0.8;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: grab;
 }
 
 .video-btn {
   display: grid;
+  flex: none;
   place-items: center;
-  width: 26px;
-  height: 22px;
+  width: 34px;
+  height: 30px;
   border: 0;
-  border-radius: 4px;
-  background: none;
+  border-radius: 5px;
+  background: color-mix(in srgb, white 12%, transparent);
   color: inherit;
   cursor: pointer;
   -webkit-app-region: no-drag;
 }
 
-.video-btn:hover {
-  background: color-mix(in srgb, white 22%, transparent);
+.video-btn:hover,
+.video-btn:focus-visible {
+  background: color-mix(in srgb, white 28%, transparent);
+}
+
+.video-btn-close:hover,
+.video-btn-close:focus-visible {
+  background: #e81123; /* cor-fixa: vermelho do fechar do Windows */
 }
 
 .video-btn svg {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.6;

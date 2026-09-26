@@ -51,7 +51,7 @@ export function youtubeCard(preview: LinkPreview, onLoad: () => void, peerId: ()
     if (active?.card !== card) return;
     const at = active.embed.currentTime();
     stopActive();
-    chat().openVideo(id, at, peerId());
+    chat().openVideo(id, at, peerId(), preview.title);
   });
   const close = button('yt-action', 'Fechar player', 'Parar o vídeo');
   close.addEventListener('click', () => {

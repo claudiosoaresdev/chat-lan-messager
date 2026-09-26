@@ -36,6 +36,9 @@ $('help-close').addEventListener('click', () => help.close());
 
 // ---------------------------------------------------------------- papel da janela
 
-if (video) startVideoWindow({ id: video, start: Number(query.get('start')) || 0, peerId: query.get('peer') ?? '' });
+if (video) {
+  const title = query.get('title');
+  startVideoWindow({ id: video, start: Number(query.get('start')) || 0, peerId: query.get('peer') ?? '', ...(title ? { title } : {}) });
+}
 else if (chatWith) void startChatWindow(chatWith);
 else void startMainWindow(openHelp);

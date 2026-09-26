@@ -85,6 +85,8 @@ export interface VideoRequest {
   id: string;
   start: number;
   peerId: string;
+  /** Título do vídeo (da prévia), mostrado na faixa da janela flutuante. */
+  title?: string;
 }
 
 /** Prévia que chegou para a mensagem `ref` da conversa com `peerId`. */
@@ -308,11 +310,13 @@ export interface ChatApi {
 
   // vídeo do YouTube na janela flutuante (sempre por cima, arrastável)
   /** Abre (ou troca) o vídeo na janela flutuante, a partir de `start` segundos. */
-  openVideo(id: string, start: number, peerId: string): void;
+  openVideo(id: string, start: number, peerId: string, title?: string): void;
   /** Janela flutuante: devolve o vídeo à conversa de origem e fecha. */
   videoBack(id: string, start: number, peerId: string): void;
   /** Janela flutuante: outro vídeo foi destacado para ela. */
   onVideoLoad(cb: (video: VideoRequest) => void): Unsubscribe;
+  /** Janela flutuante: o mouse entrou (true) ou saiu (false) dela — vale também em cima do vídeo. */
+  onVideoHover(cb: (inside: boolean) => void): Unsubscribe;
   /** Conversa: o vídeo voltou da janela flutuante. */
   onVideoReturn(cb: (video: VideoRequest) => void): Unsubscribe;
 
@@ -421,6 +425,7 @@ export const IPC = {
   videoBack: 'video:back',
   videoLoad: 'video:load',
   videoReturn: 'video:return',
+  videoHover: 'video:hover',
   getLinkPreviews: 'preview:get',
   setLinkPreviews: 'preview:set',
   linkPreviewsChanged: 'preview:changed',

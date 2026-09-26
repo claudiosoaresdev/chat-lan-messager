@@ -63,9 +63,9 @@ O visual segue o do projeto MSN (`../msn`): janela sem moldura com barra de tít
     desligar, desmarque **Prévia dos links que eu envio** no menu ☰.
 12. **Vídeos do YouTube**: o link vira um cartão com a miniatura e o ▶, que toca o vídeo ali na conversa (tocar
     precisa de internet). **Destacar** leva o vídeo, do mesmo ponto, para uma janela flutuante sempre por cima de
-    tudo (picture-in-picture): arraste pela faixa que aparece em cima, redimensione (fica 16:9) e solte perto da
-    borda da tela para encostar nela. A posição fica lembrada. **Voltar para a conversa** devolve o vídeo à
-    conversa de onde veio.
+    tudo (picture-in-picture). Com o mouse sobre ela aparece a faixa de cima, com o título (arraste por ali),
+    **Voltar para a conversa** e **×**; **Esc** ou Ctrl/Cmd+W também fecham. Redimensione pelas bordas (fica 16:9)
+    e solte perto da borda da tela para encostar nela. A posição fica lembrada.
 13. **O que estou ouvindo** (Spotify), como no WLM: a barra acima da conversa mostra, num letreiro que passa em
     loop, a música que o contato está ouvindo no Spotify (ou a sua, se ele não estiver ouvindo nada); some quando
     nada toca. Clique nela para procurar a música no Spotify. A música é lida do Spotify instalado no computador,

@@ -65,6 +65,7 @@ import {
   MAX_NAME_LENGTH,
   MAX_PERSONAL_MESSAGE_LENGTH,
   MAX_PREVIEW_IMAGE_BYTES,
+  MAX_PREVIEW_TITLE,
   detectImageMime,
   isPresenceStatus,
   isWinkId,
@@ -162,11 +163,15 @@ let videoWindow: BrowserWindow | null = null;
 /** Vídeo devolvido a uma conversa que estava fechada: a janela dela pega ao abrir (getChatInit). */
 const pendingVideoReturn = new Map<string, VideoRequest>();
 
-function parseVideoRequest(id: unknown, start: unknown, peerId: unknown): VideoRequest | null {
+function parseVideoRequest(id: unknown, start: unknown, peerId: unknown, title?: unknown): VideoRequest | null {
   if (!isYoutubeId(id) || typeof peerId !== 'string' || !peerId || peerId.length > 64) return null;
   const s = typeof start === 'number' && Number.isFinite(start) ? Math.min(Math.max(Math.floor(start), 0), 86_400) : 0;
-  return { id, start: s, peerId };
+  const t = typeof title === 'string' ? title.trim().slice(0, MAX_PREVIEW_TITLE) : '';
+  return { id, start: s, peerId, ...(t ? { title: t } : {}) };
 }
+
+/** Intervalo da checagem do mouse sobre a janela flutuante. */
+const VIDEO_HOVER_MS = 120;
 
 function saveVideoBounds(w: BrowserWindow) {
   if (w.isDestroyed() || w.isFullScreen() || w.isMinimized()) return;
@@ -212,7 +217,34 @@ function openVideoWindow(req: VideoRequest) {
     saveVideoBounds(w);
   });
   w.on('resized', () => saveVideoBounds(w));
+
+  // Mouse em cima: a página não percebe quando ele está sobre o vídeo (o iframe do YouTube engole os eventos),
+  // então o main confere a posição do cursor e avisa, para a faixa com os botões aparecer sempre.
+  let inside: boolean | null = null;
+  const hover = setInterval(() => {
+    if (w.isDestroyed()) return;
+    const p = screen.getCursorScreenPoint();
+    const b = w.getBounds();
+    const now = w.isVisible() && p.x >= b.x && p.x < b.x + b.width && p.y >= b.y && p.y < b.y + b.height;
+    if (now === inside) return;
+    inside = now;
+    w.webContents.send(IPC.videoHover, now);
+  }, VIDEO_HOVER_MS);
+  w.webContents.on('did-finish-load', () => {
+    inside = null;
+  });
+
+  // Teclado (vale com o foco dentro do vídeo): Esc ou Ctrl/Cmd+W fecham. Em tela cheia, o Esc só sai dela.
+  w.webContents.on('before-input-event', (e, input) => {
+    if (input.type !== 'keyDown' && input.type !== 'rawKeyDown') return;
+    const closeKey = (input.key === 'Escape' && !w.isFullScreen()) || ((input.control || input.meta) && input.key.toLowerCase() === 'w');
+    if (!closeKey) return;
+    e.preventDefault();
+    w.close();
+  });
+
   w.on('closed', () => {
+    clearInterval(hover);
     if (videoWindow === w) videoWindow = null;
   });
   loadRenderer(w, undefined, req);
@@ -816,8 +848,8 @@ function registerIpc() {
     chats.record(peerId, { kind: 'wink', wink: sent });
     return sent;
   });
-  ipcMain.on(IPC.openVideo, (_e, id: unknown, start: unknown, peerId: unknown) => {
-    const req = parseVideoRequest(id, start, peerId);
+  ipcMain.on(IPC.openVideo, (_e, id: unknown, start: unknown, peerId: unknown, title: unknown) => {
+    const req = parseVideoRequest(id, start, peerId, title);
     if (req) openVideoWindow(req);
   });
   ipcMain.on(IPC.videoBack, (_e, id: unknown, start: unknown, peerId: unknown) => {
@@ -941,6 +973,7 @@ function loadRenderer(w: BrowserWindow, chatWith?: string, video?: VideoRequest)
     params.set('video', video.id);
     params.set('start', String(video.start));
     params.set('peer', video.peerId);
+    if (video.title) params.set('title', video.title);
   }
   params.set('mode', effectiveMode());
   params.set('theme', shownAppearance().theme);

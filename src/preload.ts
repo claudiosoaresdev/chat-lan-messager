@@ -67,9 +67,10 @@ const api: ChatApi = {
   onUnreadChanged: (cb) => subscribe(IPC.unreadChanged, cb),
 
   onChatPreview: (cb) => subscribe(IPC.chatPreview, cb),
-  openVideo: (id, start, peerId) => ipcRenderer.send(IPC.openVideo, id, start, peerId),
+  openVideo: (id, start, peerId, title) => ipcRenderer.send(IPC.openVideo, id, start, peerId, title ?? null),
   videoBack: (id, start, peerId) => ipcRenderer.send(IPC.videoBack, id, start, peerId),
   onVideoLoad: (cb) => subscribe(IPC.videoLoad, cb),
+  onVideoHover: (cb) => subscribe(IPC.videoHover, cb),
   onVideoReturn: (cb) => subscribe(IPC.videoReturn, cb),
   getLinkPreviews: () => call(IPC.getLinkPreviews),
   setLinkPreviews: (on) => call(IPC.setLinkPreviews, on),
