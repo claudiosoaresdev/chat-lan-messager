@@ -1102,7 +1102,8 @@ button {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 14px;
+  /* --header-extra: altura a mais escolhida no divisor do topo (mostra mais da cena abaixo do nome) */
+  padding: 10px 14px calc(10px + var(--header-extra, 0px));
   border-bottom: 1px solid var(--header-line);
   background: var(--header-bg);
 }
@@ -2364,6 +2365,15 @@ a.link-card:focus-visible {
   height: 8px;
   cursor: row-resize;
   touch-action: none;
+}
+
+/* Divisor do topo da conversa: fica na borda de baixo do topo, sem ocupar espaço a mais. */
+.header-splitter {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
 }
 
 /* "Pegador" no meio, como o divisor da janela de conversa do Messenger. */

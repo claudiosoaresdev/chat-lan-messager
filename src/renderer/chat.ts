@@ -33,6 +33,8 @@ const els = {
   emoticonPicker: $('emoticon-picker'),
   emoticonGrid: $('emoticon-grid'),
   splitter: $('chat-splitter'),
+  headerSplitter: $('header-splitter'),
+  sceneTop: document.querySelector<HTMLElement>('.view-chat .scene-top') as HTMLElement,
   fmtWink: $<HTMLButtonElement>('fmt-wink'),
   fmtGif: $<HTMLButtonElement>('fmt-gif'),
   gifPicker: $('gif-picker'),
@@ -499,6 +501,81 @@ window.addEventListener('resize', () => {
   if (els.text.getBoundingClientRect().height > maxComposeHeight()) setComposeHeight(maxComposeHeight(), false);
 });
 
+// ---------------------------------------------------------------- divisor do topo (altura do cabeçalho com a cena)
+
+const HEADER_EXTRA_KEY = 'chatlan:header-extra';
+/** Espaço mínimo que a área das mensagens + caixa de texto mantém abaixo do topo. */
+const BELOW_HEADER_MIN = 300;
+
+let headerExtra = 0;
+
+function maxHeaderExtra() {
+  const natural = els.sceneTop.getBoundingClientRect().height - headerExtra;
+  const titlebar = document.getElementById('titlebar')?.getBoundingClientRect().height ?? 0;
+  return Math.max(0, Math.floor(window.innerHeight - titlebar - natural - BELOW_HEADER_MIN));
+}
+
+function setHeaderExtra(px: number, save = true) {
+  headerExtra = Math.round(Math.min(maxHeaderExtra(), Math.max(0, px)));
+  els.sceneTop.style.setProperty('--header-extra', `${headerExtra}px`);
+  els.headerSplitter.setAttribute('aria-valuenow', String(headerExtra));
+  if (save) {
+    try {
+      localStorage.setItem(HEADER_EXTRA_KEY, String(headerExtra));
+    } catch {
+      // sem armazenamento: vale só nesta sessão
+    }
+  }
+}
+
+function restoreHeaderExtra() {
+  let saved = 0;
+  try {
+    saved = Number(localStorage.getItem(HEADER_EXTRA_KEY)) || 0;
+  } catch {
+    // usa o padrão
+  }
+  setHeaderExtra(saved, false);
+}
+
+els.headerSplitter.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  els.headerSplitter.setPointerCapture(e.pointerId);
+  const startY = e.clientY;
+  const start = headerExtra;
+  const stick = isNearBottom();
+  document.body.classList.add('is-resizing');
+
+  const onMove = (ev: PointerEvent) => {
+    // Arrastar para baixo aumenta o topo; para cima, diminui.
+    setHeaderExtra(start + (ev.clientY - startY), false);
+    if (stick) els.messages.scrollTop = els.messages.scrollHeight;
+  };
+  const onUp = () => {
+    els.headerSplitter.removeEventListener('pointermove', onMove);
+    els.headerSplitter.removeEventListener('pointerup', onUp);
+    els.headerSplitter.removeEventListener('pointercancel', onUp);
+    document.body.classList.remove('is-resizing');
+    setHeaderExtra(headerExtra);
+  };
+  els.headerSplitter.addEventListener('pointermove', onMove);
+  els.headerSplitter.addEventListener('pointerup', onUp);
+  els.headerSplitter.addEventListener('pointercancel', onUp);
+});
+
+els.headerSplitter.addEventListener('dblclick', () => setHeaderExtra(0));
+els.headerSplitter.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowDown') setHeaderExtra(headerExtra + 12);
+  else if (e.key === 'ArrowUp') setHeaderExtra(headerExtra - 12);
+  else return;
+  e.preventDefault();
+});
+
+// Janela menor: o topo não engole a conversa (sem esquecer a altura escolhida).
+window.addEventListener('resize', () => {
+  if (headerExtra > maxHeaderExtra()) setHeaderExtra(maxHeaderExtra(), false);
+});
+
 // ---------------------------------------------------------------- init
 
 /** Cor do status na minha imagem de exibição (muda quando troco o status na janela principal). */
@@ -508,6 +585,7 @@ export function setSelfStatus(status: PresenceStatus) {
 
 export function enterChat() {
   restoreComposeHeight();
+  restoreHeaderExtra();
   setSelfStatus(state.self?.status ?? 'available');
   els.messages.scrollTop = els.messages.scrollHeight;
   if (!els.text.disabled) els.text.focus();
