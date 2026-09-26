@@ -5,6 +5,7 @@
 import { findGoogleFont } from './google-fonts';
 import { imageSize } from './image-size';
 import { MAX_SCENE_BYTES, findBuiltinScene, isSceneSize } from './scenes';
+import { isYoutubeId, normalizeUrl } from './links';
 
 export { MAX_SCENE_BYTES };
 
@@ -17,6 +18,13 @@ export const MAX_NAME_LENGTH = 64;
 export const MAX_FILE_NAME_LENGTH = 255;
 export const MAX_ID_LENGTH = 64;
 export const MAX_PERSONAL_MESSAGE_LENGTH = 128;
+/** Id de mensagem de texto (a prévia do link se refere a ele). */
+export const MAX_MESSAGE_ID_LENGTH = 32;
+/** Prévia de link: limites dos textos e da miniatura. */
+export const MAX_PREVIEW_TITLE = 200;
+export const MAX_PREVIEW_DESCRIPTION = 300;
+export const MAX_PREVIEW_SITE = 100;
+export const MAX_PREVIEW_IMAGE_BYTES = 200 * 1024;
 
 export const PRESENCE_STATUSES = ['available', 'away', 'busy'] as const;
 export type PresenceStatus = (typeof PRESENCE_STATUSES)[number];
@@ -91,6 +99,26 @@ export interface ChatMessage {
   ts: number;
   /** Opcional: fonte de quem enviou. */
   font?: MessageFont;
+  /** Opcional: id da mensagem, para a prévia do link se referir a ela (versões antigas não mandam). */
+  id?: string;
+}
+
+/**
+ * Prévia do link de uma mensagem de texto já enviada (`ref` = id dela), montada por quem enviou. Com `size` > 0,
+ * o próximo frame binário é a miniatura (`mime`); com 0, não há imagem. Versões antigas ignoram.
+ */
+export interface PreviewHeader {
+  type: 'preview';
+  from: string;
+  ref: string;
+  url: string;
+  title: string;
+  description?: string;
+  siteName?: string;
+  /** Id do vídeo, se o link é do YouTube. */
+  youtube?: string;
+  mime: ImageMime | null;
+  size: number;
 }
 
 export interface ImageHeader {
@@ -173,6 +201,7 @@ export type WireMessage =
   | AvatarHeader
   | SceneHeader
   | ListeningMessage
+  | PreviewHeader
   | WinkMessage;
 
 type Json = Record<string, unknown>;
@@ -213,6 +242,8 @@ export const isPresenceStatus = (v: unknown): v is PresenceStatus =>
 
 const isPersonalMessage = (v: unknown): v is string => isBoundedString(v, MAX_PERSONAL_MESSAGE_LENGTH, 0);
 
+export const isMessageId = (v: unknown): v is string => typeof v === 'string' && /^[A-Za-z0-9_-]{1,32}$/.test(v);
+
 export const isImageMime = (v: unknown): v is ImageMime =>
   typeof v === 'string' && (IMAGE_MIME_TYPES as readonly string[]).includes(v);
 
@@ -250,11 +281,42 @@ export function validateMessage(value: unknown): WireMessage | null {
         !isTimestamp(value.ts)
       )
         return null;
-      // Fonte inválida não derruba a mensagem: ela chega sem formatação.
+      // Fonte ou id inválidos não derrubam a mensagem: ela chega sem formatação (ou sem prévia).
       const font = validateFont(value.font);
-      return font
-        ? { type: 'chat', from: value.from, text: value.text, ts: value.ts, font }
-        : { type: 'chat', from: value.from, text: value.text, ts: value.ts };
+      return {
+        type: 'chat',
+        from: value.from,
+        text: value.text,
+        ts: value.ts,
+        ...(font ? { font } : {}),
+        ...(isMessageId(value.id) ? { id: value.id } : {}),
+      };
+    }
+
+    case 'preview': {
+      if (!isBoundedString(value.from, MAX_ID_LENGTH) || !isMessageId(value.ref)) return null;
+      const url = normalizeUrl(value.url);
+      if (!url || !isBoundedString(value.title, MAX_PREVIEW_TITLE)) return null;
+      if (value.description !== undefined && !isBoundedString(value.description, MAX_PREVIEW_DESCRIPTION)) return null;
+      if (value.siteName !== undefined && !isBoundedString(value.siteName, MAX_PREVIEW_SITE)) return null;
+      if (value.youtube !== undefined && !isYoutubeId(value.youtube)) return null;
+      const description = value.description as string | undefined;
+      const siteName = value.siteName as string | undefined;
+      const youtube = value.youtube as string | undefined;
+      if (typeof value.size !== 'number' || !Number.isInteger(value.size)) return null;
+      if (value.size === 0 ? value.mime !== null : !isImageMime(value.mime) || value.size < 0 || value.size > MAX_PREVIEW_IMAGE_BYTES) return null;
+      return {
+        type: 'preview',
+        from: value.from,
+        ref: value.ref,
+        url,
+        title: value.title,
+        ...(description !== undefined ? { description } : {}),
+        ...(siteName !== undefined ? { siteName } : {}),
+        ...(youtube !== undefined ? { youtube } : {}),
+        mime: value.size === 0 ? null : (value.mime as ImageMime),
+        size: value.size,
+      };
     }
 
     case 'avatar': {

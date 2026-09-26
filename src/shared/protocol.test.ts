@@ -214,6 +214,48 @@ describe('parseMessage', () => {
   });
 });
 
+describe('parseMessage chat id e preview', () => {
+  it('chat: id válido passa, inválido some sem derrubar a mensagem', () => {
+    const chat = { type: 'chat', from: 'a', text: 'oi', ts: 1 };
+    expect(parseMessage(JSON.stringify({ ...chat, id: 'abc_123-X' }))).toEqual({ ...chat, id: 'abc_123-X' });
+    expect(parseMessage(JSON.stringify({ ...chat, id: '<script>' }))).toEqual(chat);
+    expect(parseMessage(JSON.stringify({ ...chat, id: 'x'.repeat(33) }))).toEqual(chat);
+  });
+
+  const base = { type: 'preview', from: 'a', ref: 'm1', url: 'https://a.com/x', title: 'Título', mime: null, size: 0 };
+
+  it('prévia sem imagem, com imagem e do YouTube', () => {
+    expect(parseMessage(JSON.stringify({ ...base, extra: 1 }))).toEqual(base);
+    expect(parseMessage(JSON.stringify({ ...base, mime: 'image/jpeg', size: 1000, description: 'd', siteName: 's' }))).toEqual({
+      ...base,
+      mime: 'image/jpeg',
+      size: 1000,
+      description: 'd',
+      siteName: 's',
+    });
+    expect(parseMessage(JSON.stringify({ ...base, youtube: 'dQw4w9WgXcQ' }))).toEqual({ ...base, youtube: 'dQw4w9WgXcQ' });
+  });
+
+  it('recusa campos inválidos', () => {
+    for (const bad of [
+      { url: 'javascript:alert(1)' },
+      { url: 'file:///etc/passwd' },
+      { title: '' },
+      { title: 'x'.repeat(201) },
+      { description: 'x'.repeat(301) },
+      { siteName: 5 },
+      { youtube: 'curto' },
+      { ref: 'a b' },
+      { mime: 'image/jpeg', size: 0 },
+      { mime: null, size: 10 },
+      { mime: 'image/svg+xml', size: 10 },
+      { mime: 'image/png', size: 200 * 1024 + 1 },
+    ]) {
+      expect(parseMessage(JSON.stringify({ ...base, ...bad }))).toBeNull();
+    }
+  });
+});
+
 describe('parseMessage listening', () => {
   const base = { type: 'listening', from: 'a' };
 
