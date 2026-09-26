@@ -148,6 +148,45 @@ function refreshWindowBackgrounds() {
   for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.setBackgroundColor(bg);
 }
 
+/** Janela que começou a prévia (a home com a janela "Aparência") e se já mandou prévia de fonte. */
+let previewOwner: Electron.WebContents | null = null;
+let fontPreviewSent = false;
+
+/**
+ * Encerra a prévia: volta à aparência salva e, se houve prévia de fonte, avisa o fim dela. Chamado pelo Cancelar,
+ * pelo OK e quando a janela dona da prévia recarrega, trava ou é destruída (a prévia não fica presa).
+ */
+function endPreview(broadcastAppearance = true) {
+  const had = previewing !== null || fontPreviewSent;
+  if (previewOwner && !previewOwner.isDestroyed()) {
+    previewOwner.off('did-start-navigation', onOwnerNavigation);
+    previewOwner.off('render-process-gone', onOwnerGone);
+    previewOwner.off('destroyed', onOwnerGone);
+  }
+  previewOwner = null;
+  previewing = null;
+  if (fontPreviewSent) broadcast(IPC.fontPreview, null);
+  fontPreviewSent = false;
+  if (had && broadcastAppearance) showAppearance();
+}
+
+function onOwnerNavigation(details: Electron.Event<Electron.WebContentsDidStartNavigationEventParams>) {
+  if (details.isMainFrame && !details.isSameDocument) endPreview();
+}
+
+function onOwnerGone() {
+  endPreview();
+}
+
+function watchPreviewOwner(owner: Electron.WebContents) {
+  if (previewOwner === owner) return;
+  endPreview(false);
+  previewOwner = owner;
+  owner.on('did-start-navigation', onOwnerNavigation);
+  owner.on('render-process-gone', onOwnerGone);
+  owner.once('destroyed', onOwnerGone);
+}
+
 /** Ajusta nativeTheme e o fundo das janelas e manda a aparência mostrada para todas as janelas. */
 function showAppearance() {
   const shown = shownAppearance();
@@ -351,9 +390,14 @@ type Result<T> = { ok: true; value: T } | { ok: false; error: string };
  * lançar: erro esperado (porta ocupada, IP errado) não vira stack trace no terminal.
  */
 function handle<A extends unknown[], T>(channel: string, fn: (...args: A) => T | Promise<T>) {
-  ipcMain.handle(channel, async (_e: IpcMainInvokeEvent, ...args: unknown[]): Promise<Result<T>> => {
+  handleFrom<A, T>(channel, (_e, ...args) => fn(...args));
+}
+
+/** Como `handle`, mas recebe também o evento (quem chamou). */
+function handleFrom<A extends unknown[], T>(channel: string, fn: (e: IpcMainInvokeEvent, ...args: A) => T | Promise<T>) {
+  ipcMain.handle(channel, async (e: IpcMainInvokeEvent, ...args: unknown[]): Promise<Result<T>> => {
     try {
-      return { ok: true, value: await fn(...(args as A)) };
+      return { ok: true, value: await fn(e, ...(args as A)) };
     } catch (err) {
       return { ok: false, error: err instanceof Error ? err.message : String(err) };
     }
@@ -465,28 +509,35 @@ function registerIpc() {
   });
 
   handle(IPC.getAppearance, () => shownAppearance());
-  handle(IPC.setAppearance, (raw: unknown) => {
+  // OK da janela "Aparência": valida tudo antes e salva aparência e fonte juntas.
+  handle(IPC.setAppearance, (raw: unknown, rawFont: unknown) => {
     const appearance = validateAppearance(raw);
     if (!appearance) throw new Error('Aparência inválida');
-    previewing = null;
-    saveSettings({ ...settings, appearance });
+    const font = rawFont === null || rawFont === undefined ? null : validateFont(rawFont);
+    if (rawFont !== null && rawFont !== undefined && !font) throw new Error('Fonte inválida');
+    endPreview(false);
+    saveSettings({ ...settings, appearance, ...(font ? { font } : {}) });
     showAppearance();
+    if (font) broadcast(IPC.fontChanged, font);
     return appearance;
   });
-  // Prévia da janela "Aparência": vale para todas as janelas, sem salvar. null volta à aparência e à fonte salvas.
-  handle(IPC.previewAppearance, (raw: unknown, rawFont: unknown) => {
+  // Prévia da janela "Aparência": vale para todas as janelas, sem salvar. A fonte em prévia só muda o visual
+  // (caixa de escrever, exemplo, barrinha); o envio continua com a fonte salva. null encerra a prévia.
+  handleFrom(IPC.previewAppearance, (e, raw: unknown, rawFont: unknown) => {
     if (raw === null) {
-      previewing = null;
-      showAppearance();
-      broadcast(IPC.fontChanged, settings.font ?? DEFAULT_FONT);
+      endPreview();
       return;
     }
     const appearance = validateAppearance(raw);
     if (!appearance) throw new Error('Aparência inválida');
+    const font = rawFont === null || rawFont === undefined ? null : validateFont(rawFont);
+    watchPreviewOwner(e.sender);
     previewing = appearance;
     showAppearance();
-    const font = rawFont === null || rawFont === undefined ? null : validateFont(rawFont);
-    if (font) broadcast(IPC.fontChanged, font);
+    if (font) {
+      fontPreviewSent = true;
+      broadcast(IPC.fontPreview, font);
+    }
   });
 
   handle(IPC.hasGiphyKey, () => !!settings.giphyKey);

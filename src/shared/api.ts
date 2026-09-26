@@ -248,7 +248,8 @@ export interface ChatApi {
   // aparência (modo claro/escuro e tema)
   getAppearance(): Promise<Appearance>;
   /** Salva, ajusta as janelas nativas e avisa todas as janelas. */
-  setAppearance(appearance: Appearance): Promise<Appearance>;
+  /** OK da janela "Aparência": salva a aparência e, se vier, a fonte das mensagens (as duas ou nenhuma). */
+  setAppearance(appearance: Appearance, font?: MessageFont): Promise<Appearance>;
   /**
    * Prévia ao vivo em todas as janelas, sem salvar (janela "Aparência"). `font`: fonte sugerida do tema,
    * também só em prévia. `null` volta à aparência e à fonte salvas.
@@ -256,6 +257,8 @@ export interface ChatApi {
   previewAppearance(appearance: Appearance | null, font?: MessageFont): Promise<void>;
   /** Aparência mudou (salva ou em prévia). */
   onAppearanceChanged(cb: (appearance: Appearance) => void): Unsubscribe;
+  /** Prévia da fonte (só visual, não muda a fonte de envio); null = fim da prévia. */
+  onFontPreview(cb: (font: MessageFont | null) => void): Unsubscribe;
 
   // mudanças feitas em outra janela
   onSelfChanged(cb: (self: SelfInfo) => void): Unsubscribe;
@@ -317,6 +320,7 @@ export const IPC = {
   setAppearance: 'appearance:set',
   previewAppearance: 'appearance:preview',
   appearanceChanged: 'appearance:changed',
+  fontPreview: 'font:preview',
   selfChanged: 'session:self-changed',
   fontChanged: 'font:changed',
   myAvatarChanged: 'avatar:mine-changed',

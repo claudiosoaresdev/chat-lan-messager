@@ -39,15 +39,22 @@ const COLORS = [
 ] as const;
 
 let current: MessageFont = { ...DEFAULT_FONT };
+/** Fonte em prévia pela janela "Aparência": só muda o visual (caixa de escrever, exemplo, barrinha). */
+let preview: MessageFont | null = null;
 const listeners: Array<(f: MessageFont) => void> = [];
 
-/** Fundo da conversa no tema e modo atuais. */
-function surfaceColor() {
+/** Fundo da conversa e modo atuais, lidos uma vez por troca de aparência (não a cada mensagem). */
+let background: { surface: string; mode: 'light' | 'dark' } | null = null;
+
+function readBackground() {
+  const root = document.documentElement;
+  let surface = '#ffffff';
   try {
-    return averageColor(getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() || '#fff');
+    surface = averageColor(getComputedStyle(root).getPropertyValue('--surface').trim() || '#fff');
   } catch {
-    return '#ffffff';
+    // mantém o branco
   }
+  return { surface, mode: root.dataset.mode === 'dark' ? ('dark' as const) : ('light' as const) };
 }
 
 /**
@@ -56,9 +63,9 @@ function surfaceColor() {
  * data-font-color para reajustar quando o modo ou o tema mudam.
  */
 export function readableColor(hex: string) {
-  const mode = document.documentElement.dataset.mode === 'dark' ? 'dark' : 'light';
+  background ??= readBackground();
   try {
-    return messageColor(hex, surfaceColor(), mode, 'var(--text)');
+    return messageColor(hex, background.surface, background.mode, 'var(--text)');
   } catch {
     return hex;
   }
@@ -79,7 +86,10 @@ function refreshReadableColors() {
     n.style.backgroundColor = readableColor(n.dataset.fontBar ?? '#000000');
   });
 }
-onAppearanceApplied(refreshReadableColors);
+onAppearanceApplied(() => {
+  background = readBackground();
+  refreshReadableColors();
+});
 
 export interface ApplyFontOptions {
   /** Fonte de mensagem recebida: o download entra no limite de downloads automáticos. */
@@ -106,15 +116,24 @@ export function applyFont(
   if (load) void ensureFontLoaded(font.family, { auto });
 }
 
+/** Fonte salva: a que vai junto das mensagens enviadas (a prévia não muda). */
 export const currentFont = () => current;
+
+/** O que a caixa de escrever mostra: a prévia, se houver, senão a salva. */
+const shownFont = () => preview ?? current;
 
 export function onFontChange(fn: (f: MessageFont) => void) {
   listeners.push(fn);
 }
 
+function notify() {
+  const font = shownFont();
+  listeners.forEach((fn) => fn(font));
+}
+
 function setCurrent(font: MessageFont) {
   current = font;
-  listeners.forEach((fn) => fn(font));
+  notify();
 }
 
 export async function loadFont() {
@@ -128,6 +147,10 @@ export async function loadFont() {
 /** Fonte trocada em outra janela: aplica aqui também. */
 export function watchFontChanges() {
   chat().onFontChanged(setCurrent);
+  chat().onFontPreview((font) => {
+    preview = font;
+    notify();
+  });
 }
 
 // ---------------------------------------------------------------- diálogo

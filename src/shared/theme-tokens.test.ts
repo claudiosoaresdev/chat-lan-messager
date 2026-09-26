@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { CLASSIC_LIGHT, STATUS_COLORS, TOKEN_NAMES } from './theme-tokens';
+import { CLASSIC_DARK, CLASSIC_LIGHT, STATUS_COLORS, TOKEN_NAMES } from './theme-tokens';
 
 const CSS = readFileSync(join(__dirname, '..', 'index.css'), 'utf8');
 const LITERAL = /#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(/;
@@ -22,11 +22,13 @@ function lineAt(text: string, offset: number) {
   return text.slice(0, offset).split('\n').length;
 }
 
-function rootBlock(text: string) {
-  const start = text.indexOf(':root {');
+function rootBlock(text: string, selector = ':root {') {
+  const start = text.indexOf(selector);
   const end = text.indexOf('}', start);
-  return { start, end, body: text.slice(start + ':root {'.length, end) };
+  return { start, end, body: text.slice(start + selector.length, end) };
 }
+
+const DARK_SELECTOR = ':root:not([data-mode]) {';
 
 function declarations(text: string) {
   return [...text.matchAll(/([\w-]+)\s*:\s*([^;{}]+);/g)].map((m) => ({
@@ -53,13 +55,28 @@ describe('tokens de cor', () => {
     expect(declared).toEqual(expected);
   });
 
+  it('o bloco de primeiro desenho no escuro declara os tokens do Azul clássico escuro', () => {
+    const dark = rootBlock(text, DARK_SELECTOR);
+    expect(dark.start).toBeGreaterThan(0);
+    const before = text.slice(0, dark.start);
+    expect(before.slice(before.lastIndexOf('@media')).startsWith('@media (prefers-color-scheme: dark)')).toBe(true);
+    const decls = declarations(dark.body);
+    const declared = Object.fromEntries(
+      decls.filter((d) => d.name.startsWith('--')).map((d) => [d.name.slice(2), squash(d.value)]),
+    );
+    expect(declared).toEqual(Object.fromEntries(TOKEN_NAMES.map((n) => [n, squash(CLASSIC_DARK[n])])));
+    expect(decls.find((d) => d.name === 'color-scheme')?.value.trim()).toBe('dark');
+  });
+
   it('nomes de token são únicos e em kebab-case', () => {
     expect(new Set(TOKEN_NAMES).size).toBe(TOKEN_NAMES.length);
     for (const n of TOKEN_NAMES) expect(n).toMatch(/^[a-z]+(-[a-z]+)*$/);
   });
 
   it('fora do :root não há cor literal (salvo linhas com /* cor-fixa */)', () => {
-    const outside = text.slice(0, root.start) + text.slice(root.start, root.end + 1).replace(/[^\n]/g, ' ') + text.slice(root.end + 1);
+    const blank = (t: string, b: { start: number; end: number }) =>
+      t.slice(0, b.start) + t.slice(b.start, b.end + 1).replace(/[^\n]/g, ' ') + t.slice(b.end + 1);
+    const outside = blank(blank(text, root), rootBlock(text, DARK_SELECTOR));
     const offenders = declarations(outside)
       .filter((d) => LITERAL.test(d.value))
       .filter((d) => {

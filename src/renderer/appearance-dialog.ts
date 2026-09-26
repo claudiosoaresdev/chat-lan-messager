@@ -115,23 +115,35 @@ function pickMode(mode: AppearanceMode) {
 }
 
 function pickTheme(theme: Theme) {
-  if (theme.id === draft.theme && draftFont.family === theme.font) return;
+  if (theme.id === draft.theme) return;
   draft = { ...draft, theme: theme.id };
-  draftFont = withThemeFont(draftFont, theme);
+  // De volta ao tema de quando abriu: volta também a fonte de antes (mesmo se era personalizada).
+  draftFont = theme.id === original.theme ? originalFont : withThemeFont(draftFont, theme);
   preview(draftFont);
 }
 
 // ---------------------------------------------------------------- teclado
 
-/** Setas movem e marcam dentro do radiogroup (na grade, ↑/↓ pulam uma linha). */
+/**
+ * Setas movem e marcam dentro do radiogroup; Home/End vão ao primeiro/último. Na grade, ↑/↓ andam uma linha
+ * e param na borda (sem pular para o lado nem para o último).
+ */
 function radioKeys(group: HTMLElement, columns: () => number) {
   group.addEventListener('keydown', (e) => {
-    const step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -columns(), ArrowDown: columns() }[e.key];
-    if (step === undefined) return;
-    e.preventDefault();
     const radios = [...group.querySelectorAll<HTMLElement>('[role="radio"]')];
     const i = radios.findIndex((r) => r.getAttribute('aria-checked') === 'true');
-    const next = radios[Math.max(0, Math.min(radios.length - 1, i + step))];
+    const cols = columns();
+    const target: Record<string, number> = {
+      ArrowLeft: Math.max(0, i - 1),
+      ArrowRight: Math.min(radios.length - 1, i + 1),
+      ArrowUp: i - cols >= 0 ? i - cols : i,
+      ArrowDown: i + cols < radios.length ? i + cols : i,
+      Home: 0,
+      End: radios.length - 1,
+    };
+    if (!(e.key in target)) return;
+    e.preventDefault();
+    const next = radios[target[e.key]];
     next?.click();
     next?.focus();
   });
@@ -160,8 +172,8 @@ function cancel() {
 
 async function confirm() {
   try {
-    if (!sameFont(draftFont, originalFont)) await chat().setFont(draftFont);
-    await chat().setAppearance(draft);
+    // Uma chamada só: aparência e fonte são validadas e salvas juntas.
+    await chat().setAppearance(draft, sameFont(draftFont, originalFont) ? undefined : draftFont);
     dirty = false;
     els.dialog.close();
   } catch (err) {
