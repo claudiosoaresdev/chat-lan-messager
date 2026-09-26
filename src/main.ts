@@ -333,11 +333,18 @@ async function login(req: LoginRequest): Promise<SelfInfo> {
     status,
     message,
     avatar: avatars.getCurrent()?.data ?? null,
-    scene: announcedScene(),
     port: requestedPort,
     // Só a porta padrão cai para dinâmica; porta escolhida à mão falha de forma visível.
     fallbackToRandomPort: launch.port === undefined && requestedPort === DEFAULT_PORT,
   });
+
+  // Cena recusada (arquivo estragado, dimensões fora do limite) não impede o login: anuncia "nenhuma".
+  try {
+    peers.setScene(announcedScene());
+  } catch (err) {
+    console.warn('[cena] cena salva recusada; anunciando nenhuma', err);
+    peers.setScene({ kind: 'none' });
+  }
 
   let port: number;
   try {

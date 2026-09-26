@@ -241,14 +241,33 @@ export function expectContactScene() {
   contact ??= { known: false, scene: null, seq: 0, broken: '' };
 }
 
+/** Mesma cena (galeria pelo id; imagem pelos bytes): não decodifica de novo. */
+function sameShared(a: SharedScene | null, b: SharedScene | null): boolean {
+  if (!a || !b) return a === b;
+  if (a.kind === 'builtin' && b.kind === 'builtin') return a.id === b.id;
+  if (a.kind === 'image' && b.kind === 'image') {
+    return a.mime === b.mime && a.data.length === b.data.length && a.data.every((x, i) => x === b.data[i]);
+  }
+  return a.kind === b.kind;
+}
+
+/** Trocas seguidas do contato esperam um pouco: só a última é carregada (sem decodificações em paralelo). */
+const CONTACT_DEBOUNCE_MS = 150;
+let contactTimer = 0;
+
 /** Cena do contato desta conversa (null = ele não mandou). Recarrega só se a cena efetiva mudou. */
 export function setContactScene(scene: SharedScene | null) {
   expectContactScene();
   if (!contact) return;
+  const first = !contact.known;
+  if (!first && sameShared(contact.scene, scene)) return;
   contact.known = true;
   contact.scene = scene;
   if (scene?.kind === 'image') contact.seq++;
-  refreshScene();
+  clearTimeout(contactTimer);
+  // A primeira resposta (ao abrir a conversa) vale na hora.
+  if (first) refreshScene();
+  else contactTimer = window.setTimeout(refreshScene, CONTACT_DEBOUNCE_MS);
 }
 
 /**

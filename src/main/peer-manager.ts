@@ -47,6 +47,8 @@ const HEARTBEAT_MS = 10_000;
 export const NUDGE_COOLDOWN_MS = 5_000;
 /** Intervalo mínimo entre winks (enviar e aceitar do mesmo contato). */
 export const WINK_COOLDOWN_MS = 3_000;
+/** Intervalo mínimo entre eventos `scene` do mesmo contato; trocas no meio ficam só com a última. */
+export const SCENE_INTERVAL_MS = 1_500;
 const RECONNECT_MS = 3_000;
 const DIAL_TIMEOUT_MS = 5_000;
 const CLOSE_DUPLICATE = 4000;
@@ -108,6 +110,8 @@ export interface PeerManagerOptions {
   host?: string;
   heartbeatMs?: number;
   reconnectMs?: number;
+  /** Intervalo mínimo entre eventos `scene` por contato (padrão SCENE_INTERVAL_MS). */
+  sceneIntervalMs?: number;
 }
 
 export interface PeerManagerEvents {
@@ -169,6 +173,9 @@ export class PeerManager extends EventEmitter<PeerManagerEvents> {
   private readonly lastNudgeFrom = new Map<string, number>();
   private readonly lastWinkSent = new Map<string, number>();
   private readonly lastWinkFrom = new Map<string, number>();
+  /** Última emissão de `scene` por contato e emissões atrasadas pendentes. */
+  private readonly lastSceneEmit = new Map<string, number>();
+  private readonly sceneTimers = new Map<string, NodeJS.Timeout>();
   private _port = 0;
 
   constructor(opts: PeerManagerOptions) {
@@ -217,21 +224,45 @@ export class PeerManager extends EventEmitter<PeerManagerEvents> {
     }
   }
 
-  getPeerScenes(): PeerScene[] {
-    return [...this.peers.values()].flatMap((p) => (p.scene ? [{ id: p.id, scene: copyScene(p.scene) }] : []));
-  }
-
   getPeerScene(id: string): PeerScene | null {
     const scene = this.peers.get(id)?.scene;
     return scene ? { id, scene: copyScene(scene) } : null;
   }
 
-  /** Guarda a cena recebida e emite `scene` só quando ela muda. */
+  /**
+   * Guarda a cena recebida e emite `scene` só quando ela muda, no máximo uma vez por intervalo por contato: numa
+   * rajada, a primeira sai na hora e a última sai no fim do intervalo (as do meio são descartadas).
+   */
   private receiveScene(peerId: string, scene: SharedScene) {
     const peer = this.peers.get(peerId);
     if (!peer || sameScene(peer.scene, scene)) return;
     peer.scene = scene;
-    this.emit('scene', { id: peer.id, scene: copyScene(scene) });
+    if (this.sceneTimers.has(peerId)) return;
+    const interval = this.opts.sceneIntervalMs ?? SCENE_INTERVAL_MS;
+    const wait = (this.lastSceneEmit.get(peerId) ?? -Infinity) + interval - Date.now();
+    if (wait <= 0) {
+      this.emitScene(peerId);
+      return;
+    }
+    this.sceneTimers.set(
+      peerId,
+      setTimeout(() => {
+        this.sceneTimers.delete(peerId);
+        this.emitScene(peerId);
+      }, wait),
+    );
+  }
+
+  private emitScene(peerId: string) {
+    const scene = this.peers.get(peerId)?.scene;
+    if (!scene) return;
+    this.lastSceneEmit.set(peerId, Date.now());
+    this.emit('scene', { id: peerId, scene: copyScene(scene) });
+  }
+
+  private cancelSceneEmit(peerId: string) {
+    clearTimeout(this.sceneTimers.get(peerId));
+    this.sceneTimers.delete(peerId);
   }
 
   private static toAvatar(data: Uint8Array): Avatar {
@@ -334,6 +365,8 @@ export class PeerManager extends EventEmitter<PeerManagerEvents> {
   async stop(): Promise<void> {
     this.timers.forEach(clearInterval);
     this.timers = [];
+    this.sceneTimers.forEach(clearTimeout);
+    this.sceneTimers.clear();
     this.targets.clear();
     for (const conn of this.conns) conn.ws.terminate();
     // close() espera todas as conexões HTTP acabarem; com limite, uma conexão pendurada não trava o fechamento.
@@ -702,6 +735,9 @@ export class PeerManager extends EventEmitter<PeerManagerEvents> {
     const peer = this.peers.get(conn.remote.id);
     if (peer && peer.conn === conn) {
       peer.conn = null;
+      // A cena é mandada de novo no próximo hello; guardada, ficaria velha (ex.: contato voltou numa versão antiga).
+      peer.scene = null;
+      this.cancelSceneEmit(peer.id);
       this.emit('peer', this.toInfo(peer));
     }
   }

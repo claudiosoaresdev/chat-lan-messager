@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
-import { PeerManager, type PeerManagerEvents } from './peer-manager';
+import { PeerManager, type PeerManagerEvents, type PeerManagerOptions } from './peer-manager';
 import type { PeerInfo } from '../shared/api';
 import { jpegHeader, pngHeader } from '../shared/test-images';
 
@@ -12,8 +12,9 @@ const SCENE_JPEG = Buffer.from(jpegHeader(1600, 900));
 
 let managers: PeerManager[] = [];
 
-async function create(id: string, name = id) {
-  const pm = new PeerManager({ id, name, host: HOST, reconnectMs: 100, heartbeatMs: 60_000 });
+async function create(id: string, name = id, opts: Partial<PeerManagerOptions> = {}) {
+  // Intervalo curto entre cenas nos testes (o limite tem teste próprio).
+  const pm = new PeerManager({ id, name, host: HOST, reconnectMs: 100, heartbeatMs: 60_000, sceneIntervalMs: 20, ...opts });
   await pm.start();
   managers.push(pm);
   return pm;
@@ -186,7 +187,7 @@ describe('PeerManager', () => {
     const none = next(b, 'scene');
     a.setScene({ kind: 'none' });
     expect(await none).toEqual({ id: 'aaa', scene: { kind: 'none' } });
-    expect(b.getPeerScenes()).toEqual([{ id: 'aaa', scene: { kind: 'none' } }]);
+    expect(b.getPeerScene('aaa')).toEqual({ id: 'aaa', scene: { kind: 'none' } });
   });
 
   it('manda a cena definida depois de conectar e não repete cena igual', async () => {
@@ -227,7 +228,7 @@ describe('PeerManager', () => {
     managers = managers.filter((m) => m !== b);
     await offline;
 
-    b = new PeerManager({ id: 'bbb', name: 'bbb', host: HOST, port });
+    b = new PeerManager({ id: 'bbb', name: 'bbb', host: HOST, port, sceneIntervalMs: 20 });
     const again = next(b, 'scene');
     await b.start();
     managers.push(b);
@@ -278,12 +279,115 @@ describe('PeerManager', () => {
     ws.close();
   });
 
+  it('rajada de trocas de cena: uma emissão por intervalo, a última vem no fim', async () => {
+    const a = await create('aaa', 'aaa', { sceneIntervalMs: 200 });
+    const ws = await rawPeer(a);
+    const scenes: unknown[] = [];
+    a.on('scene', (s) => scenes.push(s));
+    const ids = ['ceu', 'folhas', 'petalas', 'aurora', 'por-do-sol', 'ondas', 'brasas', 'pontilhado', 'noite-estrelada', 'montanhas'];
+    for (const id of ids) ws.send(JSON.stringify({ type: 'scene', from: 'zzz-raw', kind: 'builtin', id }));
+    await next(a, 'scene');
+    // A cena guardada já é a última, mesmo antes da emissão atrasada.
+    await sleep(50);
+    expect(a.getPeerScene('zzz-raw')).toEqual({ id: 'zzz-raw', scene: { kind: 'builtin', id: 'montanhas' } });
+    await sleep(350);
+    expect(scenes).toEqual([
+      { id: 'zzz-raw', scene: { kind: 'builtin', id: 'ceu' } },
+      { id: 'zzz-raw', scene: { kind: 'builtin', id: 'montanhas' } },
+    ]);
+    ws.close();
+  });
+
+  it('emissão atrasada é cancelada quando o contato sai ou o gerenciador para', async () => {
+    const a = await create('aaa', 'aaa', { sceneIntervalMs: 200 });
+    const ws = await rawPeer(a);
+    const scenes: unknown[] = [];
+    a.on('scene', (s) => scenes.push(s));
+    ws.send(JSON.stringify({ type: 'scene', from: 'zzz-raw', kind: 'builtin', id: 'ceu' }));
+    await next(a, 'scene');
+    ws.send(JSON.stringify({ type: 'scene', from: 'zzz-raw', kind: 'builtin', id: 'folhas' }));
+    await sleep(30);
+    const offline = next(a, 'peer', (p) => p.id === 'zzz-raw' && !p.online);
+    ws.close();
+    await offline;
+    await sleep(300);
+    expect(scenes).toHaveLength(1);
+
+    const b = await create('bbb', 'bbb', { sceneIntervalMs: 200 });
+    const ws2 = await rawPeer(b);
+    const got: unknown[] = [];
+    b.on('scene', (s) => got.push(s));
+    ws2.send(JSON.stringify({ type: 'scene', from: 'zzz-raw', kind: 'builtin', id: 'ceu' }));
+    await next(b, 'scene');
+    ws2.send(JSON.stringify({ type: 'scene', from: 'zzz-raw', kind: 'builtin', id: 'folhas' }));
+    await sleep(30);
+    await b.stop();
+    await sleep(300);
+    expect(got).toHaveLength(1);
+  });
+
+  it('esquece a cena do contato quando a conexão cai (ele manda de novo no hello)', async () => {
+    const a = await create('aaa');
+    const ws = await rawPeer(a);
+    ws.send(JSON.stringify({ type: 'scene', from: 'zzz-raw', kind: 'builtin', id: 'aurora' }));
+    await next(a, 'scene');
+    expect(a.getPeerScene('zzz-raw')).not.toBeNull();
+    const offline = next(a, 'peer', (p) => p.id === 'zzz-raw' && !p.online);
+    ws.close();
+    await offline;
+    expect(a.getPeerScene('zzz-raw')).toBeNull();
+
+    // Volta (versão antiga, sem cena): continua sem cena.
+    const ws2 = await rawPeer(a);
+    await sleep(50);
+    expect(a.getPeerScene('zzz-raw')).toBeNull();
+    ws2.close();
+  });
+
+  it('cabeçalho de cena builtin/none cancela imagem ou avatar pendente', async () => {
+    const a = await create('aaa');
+    const ws = await rawPeer(a);
+    const got: unknown[] = [];
+    a.on('avatar', (x) => got.push(['avatar', x]));
+    a.on('image', (x) => got.push(['image', x]));
+
+    ws.send(JSON.stringify({ type: 'avatar', from: 'zzz-raw', mime: 'image/png', size: PNG.length }));
+    const none = next(a, 'scene');
+    ws.send(JSON.stringify({ type: 'scene', from: 'zzz-raw', kind: 'none' }));
+    ws.send(PNG); // era do avatar, mas a cena cancelou o pendente
+    expect(await none).toEqual({ id: 'zzz-raw', scene: { kind: 'none' } });
+
+    ws.send(JSON.stringify({ type: 'image', from: 'zzz-raw', name: 'x', mime: 'image/png', size: PNG.length, ts: 1 }));
+    const builtin = next(a, 'scene');
+    ws.send(JSON.stringify({ type: 'scene', from: 'zzz-raw', kind: 'builtin', id: 'ceu' }));
+    ws.send(PNG);
+    expect(await builtin).toEqual({ id: 'zzz-raw', scene: { kind: 'builtin', id: 'ceu' } });
+    await sleep(50);
+    expect(got).toEqual([]);
+    ws.close();
+  });
+
+  it('cabeçalho de cena imagem → mensagem de texto → binário é descartado', async () => {
+    const a = await create('aaa');
+    const ws = await rawPeer(a);
+    const scenes: unknown[] = [];
+    a.on('scene', (s) => scenes.push(s));
+    ws.send(JSON.stringify({ type: 'scene', from: 'zzz-raw', kind: 'image', mime: 'image/png', size: SCENE_PNG.length }));
+    const msg = next(a, 'message');
+    ws.send(JSON.stringify({ type: 'chat', from: 'zzz-raw', text: 'no meio', ts: 1 }));
+    await msg;
+    ws.send(SCENE_PNG);
+    await sleep(50);
+    expect(scenes).toEqual([]);
+    expect(a.getPeerScene('zzz-raw')).toBeNull();
+    ws.close();
+  });
+
   it('contato que não manda cena (versão antiga) fica sem entrada', async () => {
     const a = await create('aaa');
     const ws = await rawPeer(a);
     ws.send(JSON.stringify({ type: 'chat', from: 'zzz-raw', text: 'oi', ts: 1 }));
     await next(a, 'message');
-    expect(a.getPeerScenes()).toEqual([]);
     expect(a.getPeerScene('zzz-raw')).toBeNull();
     ws.close();
   });
