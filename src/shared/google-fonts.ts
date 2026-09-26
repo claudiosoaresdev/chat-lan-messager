@@ -14,19 +14,15 @@ export const fontWeights = (family: string): number[] => weightsOf(byName.get(fa
 export const hasItalic = (family: string): boolean => byName.get(family)?.[3] === 1;
 export const fontCategory = (family: string): FontCategory | undefined => byName.get(family)?.[1];
 
-const fold = (s: string) =>
-  s
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .trim();
+/** Texto sem maiúsculas/acentos, para comparar nomes na busca. */
+export const foldFontName = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 
 /** Nomes do catálogo já sem maiúsculas/acentos, na mesma ordem de `entries` (calculado uma vez). */
-const foldedNames = entries.map((e) => fold(e[0]));
+const foldedNames = entries.map((e) => foldFontName(e[0]));
 
 /** Nomes que contêm o texto (sem maiúsculas/acentos); os que começam com ele vêm primeiro. */
 export function searchFonts(query: string): string[] {
-  const q = fold(query);
+  const q = foldFontName(query);
   const names = googleFontNames();
   if (!q) return names;
   const starts: string[] = [];

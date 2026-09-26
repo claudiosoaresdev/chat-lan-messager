@@ -52,8 +52,6 @@ export const CLASSIC_FONTS = [
   'Trebuchet MS',
   'Verdana',
 ] as const;
-/** @deprecated use `CLASSIC_FONTS` */
-export const FONT_FAMILIES = CLASSIC_FONTS;
 export type ClassicFont = (typeof CLASSIC_FONTS)[number];
 export const MIN_FONT_SIZE = 8;
 export const MAX_FONT_SIZE = 24;

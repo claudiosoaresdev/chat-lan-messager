@@ -1,17 +1,20 @@
 // "Alterar fonte" das mensagens, como no MSN: fonte, estilo, tamanho, sublinhado e cor.
 // A fonte vai junto com cada mensagem e é aplicada só via propriedades de estilo (CSSOM).
-import { DEFAULT_FONT, FONT_FAMILIES, type MessageFont } from '../shared/protocol';
+import { DEFAULT_FONT, type MessageFont } from '../shared/protocol';
 import { $, chat, el, errorMessage } from './dom';
-import { FONT_STACKS, ensureFontLoaded, fontStack } from './font-loader';
+import { ensureFontLoaded, fontStack } from './font-loader';
+import {
+  familyHasItalic,
+  familyRows,
+  familyWeights,
+  isClassicFont,
+  isFavoriteFont,
+  nearestWeight,
+  weightLabel,
+  type FamilyRow,
+} from './font-list';
 
 const SIZES = [9, 10, 11, 12, 13, 14, 16, 18, 20, 22, 24];
-
-const STYLES = [
-  { label: 'Normal', bold: false, italic: false },
-  { label: 'Itálico', bold: false, italic: true },
-  { label: 'Negrito', bold: true, italic: false },
-  { label: 'Negrito itálico', bold: true, italic: true },
-];
 
 /** Paleta no clima do MSN (sem cores claras demais para fundo branco). */
 const COLORS = [
@@ -85,15 +88,18 @@ export function watchFontChanges() {
 
 const els = {
   dialog: $<HTMLDialogElement>('font-dialog'),
+  search: $<HTMLInputElement>('font-search'),
   familyList: $<HTMLUListElement>('font-family-list'),
   familyCurrent: $('font-family-current'),
-  styleList: $<HTMLUListElement>('font-style-list'),
-  styleCurrent: $('font-style-current'),
+  weightList: $<HTMLUListElement>('font-weight-list'),
+  weightCurrent: $('font-weight-current'),
+  italic: $<HTMLInputElement>('font-italic'),
   sizeList: $<HTMLUListElement>('font-size-list'),
   sizeCurrent: $('font-size-current'),
   underline: $<HTMLInputElement>('font-underline'),
   colors: $('font-colors'),
   sample: $('font-sample'),
+  status: $('font-status'),
   defaultBtn: $<HTMLButtonElement>('font-default'),
   ok: $<HTMLButtonElement>('font-ok'),
   cancel: $<HTMLButtonElement>('font-cancel'),
@@ -101,6 +107,10 @@ const els = {
 
 /** Rascunho editado no diálogo; só vira a fonte atual no OK. */
 let draft: MessageFont = { ...DEFAULT_FONT };
+/** Busca + família da última lista de famílias montada (só remonta se mudar). */
+let familyListKey = '';
+/** Fontes do Google que já carregaram (não mostra "Baixando fonte…" de novo). */
+const loaded = new Set<string>();
 
 function listItem(label: string, selected: boolean, onPick: () => void, style?: (li: HTMLLIElement) => void) {
   const li = el('li', `font-option${selected ? ' is-selected' : ''}`, label);
@@ -111,38 +121,76 @@ function listItem(label: string, selected: boolean, onPick: () => void, style?: 
   return li;
 }
 
+function familyItem(row: FamilyRow) {
+  switch (row.kind) {
+    case 'section': {
+      const li = el('li', 'font-section', row.label);
+      li.setAttribute('role', 'presentation');
+      return li;
+    }
+    case 'empty': {
+      const li = el('li', 'font-note', 'Nenhuma fonte encontrada');
+      li.setAttribute('role', 'option');
+      li.setAttribute('aria-disabled', 'true');
+      return li;
+    }
+    case 'more': {
+      const li = el('li', 'font-note', 'Refine a busca para ver mais…');
+      li.setAttribute('role', 'presentation');
+      li.dataset.action = 'refine';
+      li.addEventListener('click', () => els.search.focus());
+      return li;
+    }
+    case 'font':
+      return listItem(
+        row.family,
+        row.family === draft.family,
+        () => pickFamily(row.family),
+        // Favoritas (embutidas, sem rede) e clássicas aparecem na própria fonte; as do Google, na da interface.
+        row.group === 'google'
+          ? undefined
+          : (li) => {
+              li.style.fontFamily = fontStack(row.family);
+              if (row.group === 'favorite') void ensureFontLoaded(row.family);
+            },
+      );
+  }
+}
+
+function renderFamilies() {
+  const key = `${els.search.value}\0${draft.family}`;
+  if (key === familyListKey) return;
+  familyListKey = key;
+  els.familyList.replaceChildren(...familyRows(els.search.value, draft.family).map(familyItem));
+  els.familyList.querySelector('.is-selected')?.scrollIntoView({ block: 'nearest' });
+}
+
 function renderDialog() {
-  const styleLabel = STYLES.find((s) => s.bold === draft.bold && s.italic === draft.italic)?.label ?? 'Normal';
+  const weights = familyWeights(draft.family);
+  const canItalic = familyHasItalic(draft.family);
 
   els.familyCurrent.textContent = draft.family;
-  els.styleCurrent.textContent = styleLabel;
+  els.weightCurrent.textContent = weightLabel(draft.weight);
   els.sizeCurrent.textContent = String(draft.size);
 
-  els.familyList.replaceChildren(
-    ...FONT_FAMILIES.map((family) =>
+  renderFamilies();
+  els.weightList.replaceChildren(
+    ...weights.map((weight) =>
       listItem(
-        family,
-        family === draft.family,
-        () => update({ family }),
-        (li) => (li.style.fontFamily = FONT_STACKS[family]),
-      ),
-    ),
-  );
-  els.styleList.replaceChildren(
-    ...STYLES.map((s) =>
-      listItem(
-        s.label,
-        s.label === styleLabel,
-        () => update({ bold: s.bold, italic: s.italic }),
+        weightLabel(weight),
+        weight === draft.weight,
+        () => update({ weight, bold: weight >= 600 }),
         (li) => {
-          li.style.fontWeight = s.bold ? '700' : '400';
-          li.style.fontStyle = s.italic ? 'italic' : 'normal';
+          li.style.fontFamily = fontStack(draft.family);
+          li.style.fontWeight = String(weight);
         },
       ),
     ),
   );
   els.sizeList.replaceChildren(...SIZES.map((size) => listItem(String(size), size === draft.size, () => update({ size }))));
 
+  els.italic.disabled = !canItalic;
+  els.italic.checked = draft.italic;
   els.underline.checked = draft.underline;
   els.colors.querySelectorAll<HTMLButtonElement>('.swatch').forEach((b) => {
     const on = b.dataset.color === draft.color;
@@ -152,7 +200,7 @@ function renderDialog() {
 
   applyFont(els.sample, draft);
   // Mantém o item escolhido visível nas listas.
-  for (const list of [els.familyList, els.styleList, els.sizeList]) {
+  for (const list of [els.weightList, els.sizeList]) {
     list.querySelector('.is-selected')?.scrollIntoView({ block: 'nearest' });
   }
 }
@@ -162,7 +210,33 @@ function update(patch: Partial<MessageFont>) {
   renderDialog();
 }
 
-// Setas do teclado percorrem cada lista.
+/** "Baixando fonte…" enquanto a fonte do Google não chega; favoritas e clássicas não mostram nada. */
+function trackDownload(family: string) {
+  if (isClassicFont(family) || isFavoriteFont(family) || loaded.has(family)) {
+    els.status.textContent = '';
+    return;
+  }
+  els.status.textContent = 'Baixando fonte…';
+  void ensureFontLoaded(family).then((state) => {
+    if (state === 'ready') loaded.add(family);
+    if (draft.family !== family) return; // já trocou de fonte
+    els.status.textContent = state === 'offline' ? 'Sem internet: a fonte vai aparecer parecida até conseguir baixar.' : '';
+  });
+}
+
+/** Troca a família mantendo o peso mais próximo que ela tem e o itálico só se existir. */
+function pickFamily(family: string) {
+  const weight = nearestWeight(familyWeights(family), draft.weight);
+  update({
+    family,
+    weight,
+    bold: weight >= 600,
+    italic: draft.italic && familyHasItalic(family),
+  });
+  trackDownload(family);
+}
+
+// Setas do teclado percorrem cada lista (cabeçalhos e avisos ficam de fora).
 function keyboardList(list: HTMLUListElement) {
   list.addEventListener('keydown', (e) => {
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
@@ -172,7 +246,19 @@ function keyboardList(list: HTMLUListElement) {
     items[Math.max(0, Math.min(items.length - 1, i + (e.key === 'ArrowDown' ? 1 : -1)))]?.click();
   });
 }
-[els.familyList, els.styleList, els.sizeList].forEach(keyboardList);
+[els.familyList, els.weightList, els.sizeList].forEach(keyboardList);
+
+els.search.addEventListener('input', renderFamilies);
+els.search.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const first = familyRows(els.search.value, draft.family).find((r) => r.kind === 'font');
+    if (first?.kind === 'font') pickFamily(first.family);
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    els.familyList.focus();
+  }
+});
 
 els.colors.replaceChildren(
   ...COLORS.map(([color, name]) => {
@@ -187,8 +273,13 @@ els.colors.replaceChildren(
   }),
 );
 
+els.italic.addEventListener('change', () => update({ italic: els.italic.checked }));
 els.underline.addEventListener('change', () => update({ underline: els.underline.checked }));
-els.defaultBtn.addEventListener('click', () => update({ ...DEFAULT_FONT }));
+els.defaultBtn.addEventListener('click', () => {
+  els.search.value = '';
+  update({ ...DEFAULT_FONT });
+  trackDownload(DEFAULT_FONT.family);
+});
 els.cancel.addEventListener('click', () => els.dialog.close());
 els.ok.addEventListener('click', async () => {
   try {
@@ -202,7 +293,10 @@ els.ok.addEventListener('click', async () => {
 
 export function openFontDialog() {
   draft = { ...current };
+  els.search.value = '';
+  familyListKey = '';
   els.dialog.showModal();
   renderDialog();
+  trackDownload(draft.family);
   els.familyList.focus();
 }

@@ -2041,12 +2041,14 @@ body.is-resizing * {
 }
 
 .font-dialog {
-  width: min(520px, calc(100vw - 24px));
+  width: min(600px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
 }
 
 .font-columns {
   display: grid;
-  grid-template-columns: 1.6fr 1.1fr 0.6fr;
+  grid-template-columns: 2.2fr 1.2fr 0.6fr;
   gap: 10px;
 }
 
@@ -2086,6 +2088,65 @@ body.is-resizing * {
 
 .font-list:focus-visible {
   border-color: var(--btn-focus);
+}
+
+/* Lista de famílias: nomes longos, ~1.800 fontes; rola com altura fixa. */
+.font-family-list {
+  height: 220px;
+}
+
+.font-family-list .font-option {
+  scroll-margin-top: 20px; /* não some atrás do cabeçalho fixo da seção */
+}
+
+.font-search {
+  width: 100%;
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid #abbdd3;
+  border-radius: 2px;
+  background: #fff;
+  color: var(--text);
+  font-size: 12px;
+  outline: none;
+  user-select: text;
+}
+
+.font-search::placeholder {
+  color: #9a9a9a;
+}
+
+.font-search:focus {
+  border-color: var(--btn-focus);
+}
+
+.font-section {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 2px 6px;
+  border-bottom: 1px solid #dbe6f3;
+  background: #eef4fb;
+  color: #6b7785;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: default;
+}
+
+.font-note {
+  padding: 3px 6px;
+  color: #8a8a8a;
+  font-size: 11px;
+  font-style: italic;
+  cursor: default;
+}
+
+.font-note[data-action] {
+  cursor: pointer;
+}
+
+.font-note[data-action]:hover {
+  color: var(--link);
 }
 
 .font-option {
@@ -2156,6 +2217,8 @@ body.is-resizing * {
 
 .font-sample-box {
   display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .font-sample {
@@ -2169,8 +2232,26 @@ body.is-resizing * {
   white-space: nowrap;
 }
 
+.font-status {
+  min-height: 1.3em;
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
 .button-spacer {
   flex: 1;
+}
+
+/* Janela de conversa baixa (mín. 500px): encurta as listas para o diálogo caber. */
+@media (max-height: 620px) {
+  .font-list {
+    height: 110px;
+  }
+
+  .font-family-list {
+    height: 150px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -2184,6 +2265,10 @@ body.is-resizing * {
 
   .font-list {
     height: 110px;
+  }
+
+  .font-family-list {
+    height: 160px;
   }
 
   .font-bottom {

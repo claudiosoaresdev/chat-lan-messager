@@ -406,12 +406,14 @@
           <div class="font-col font-col-family">
             <span class="font-label" id="font-family-label">Fonte:</span>
             <div class="font-current" id="font-family-current"></div>
-            <ul class="font-list" id="font-family-list" role="listbox" aria-labelledby="font-family-label" tabindex="0"></ul>
+            <input type="search" class="font-search" id="font-search" placeholder="Buscar fonte…" aria-label="Buscar fonte" />
+            <ul class="font-list font-family-list" id="font-family-list" role="listbox" aria-labelledby="font-family-label" tabindex="0"></ul>
           </div>
           <div class="font-col">
-            <span class="font-label" id="font-style-label">Estilo da fonte:</span>
-            <div class="font-current" id="font-style-current"></div>
-            <ul class="font-list" id="font-style-list" role="listbox" aria-labelledby="font-style-label" tabindex="0"></ul>
+            <span class="font-label" id="font-weight-label">Peso:</span>
+            <div class="font-current" id="font-weight-current"></div>
+            <ul class="font-list" id="font-weight-list" role="listbox" aria-labelledby="font-weight-label" tabindex="0"></ul>
+            <label class="check"><input type="checkbox" id="font-italic" /><span>Itálico</span></label>
           </div>
           <div class="font-col font-col-size">
             <span class="font-label" id="font-size-label">Tamanho:</span>
@@ -429,6 +431,7 @@
           <fieldset class="font-box font-sample-box">
             <legend>Exemplo</legend>
             <div class="font-sample" id="font-sample">AaBbYyZz</div>
+            <p class="font-status" id="font-status" role="status"></p>
           </fieldset>
         </div>
         <p class="hint">Seus contatos verão as suas mensagens com esta fonte.</p>
