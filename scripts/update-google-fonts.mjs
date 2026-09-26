@@ -11,14 +11,8 @@ const res = await fetch('https://fonts.google.com/metadata/fonts');
 if (!res.ok) throw new Error(`catálogo: HTTP ${res.status}`);
 const meta = JSON.parse((await res.text()).replace(/^\)\]\}'\s*/, ''));
 
-// isBrandFont hoje também marca a família Roboto inteira (era só Noto*/Google Sans* antes);
-// mantemos Roboto* pois é uma fonte comum e o catálogo/testes esperam que ela exista.
 const families = meta.familyMetadataList.filter(
-  (f) =>
-    f.subsets.includes('latin') &&
-    CATEGORY[f.category] &&
-    (!f.isBrandFont || f.family.startsWith('Roboto')) &&
-    Object.keys(f.fonts).length,
+  (f) => f.subsets.includes('latin') && CATEGORY[f.category] && Object.keys(f.fonts).length,
 );
 const entries = families
   .map((f) => {
