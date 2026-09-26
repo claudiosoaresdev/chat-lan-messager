@@ -315,7 +315,7 @@ function handle<A extends unknown[], T>(channel: string, fn: (...args: A) => T |
 const LAYOUTS: Record<WindowLayout, { width: number; height: number; minWidth: number; minHeight: number }> = {
   login: { width: 820, height: 600, minWidth: 700, minHeight: 520 },
   app: { width: 440, height: 700, minWidth: 380, minHeight: 560 },
-  chat: { width: 660, height: 580, minWidth: 520, minHeight: 460 },
+  chat: { width: 900, height: 640, minWidth: 620, minHeight: 500 },
 };
 const currentLayout = new WeakMap<BrowserWindow, WindowLayout>();
 

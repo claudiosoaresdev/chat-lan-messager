@@ -1049,9 +1049,9 @@ button {
 .chat-main {
   flex: 1;
   display: flex;
-  gap: 10px;
+  gap: 16px;
   min-height: 0;
-  padding: 10px;
+  padding: 12px 32px;
   background: linear-gradient(180deg, #ffffff, #edf4fb);
 }
 
@@ -1061,20 +1061,20 @@ button {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  width: 100px;
+  width: 150px;
 }
 
 .avatar-chat {
-  width: 100px;
-  height: 100px;
-  padding: 5px;
-  border-radius: 9px;
+  width: 150px;
+  height: 150px;
+  padding: 7px;
+  border-radius: 12px;
 }
 
 .avatar-chat svg {
-  width: 84px;
-  height: 84px;
-  margin-bottom: -4px;
+  width: 126px;
+  height: 126px;
+  margin-bottom: -6px;
 }
 
 .chat-panel {
