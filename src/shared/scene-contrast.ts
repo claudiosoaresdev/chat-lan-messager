@@ -18,6 +18,12 @@ type Mode = 'light' | 'dark';
  */
 export const SCENE_VEIL: Record<Mode, number> = { light: 88, dark: 94 };
 
+/**
+ * Véu sobre a cena de um contato (fase 3): mais forte, porque a imagem foi escolhida por outra pessoa e pode ser
+ * qualquer coisa. As cores continuam conferidas contra o pior trecho sob este véu (messageBackground).
+ */
+export const CONTACT_SCENE_VEIL: Record<Mode, number> = { light: 92, dark: 96 };
+
 /** Opacidade (%) da faixa atrás do texto do topo quando a cena é agitada: 4,5:1 garantido sobre qualquer pixel. */
 export const SCENE_PLATE = 78;
 
@@ -31,9 +37,14 @@ export const worstSceneColor = (colors: SceneColors, mode: Mode) => (mode === 'l
  * Fundo efetivo das mensagens para conferir contraste: --surface com o véu sobre o pior trecho da cena
  * (worstSceneColor); sem cena, a própria superfície.
  */
-export function messageBackground(surface: string, colors: SceneColors | null, mode: Mode): string {
+export function messageBackground(
+  surface: string,
+  colors: SceneColors | null,
+  mode: Mode,
+  veil: Record<Mode, number> = SCENE_VEIL,
+): string {
   const s = averageColor(surface);
-  return colors ? mixColors(s, worstSceneColor(colors, mode), SCENE_VEIL[mode] / 100) : s;
+  return colors ? mixColors(s, worstSceneColor(colors, mode), veil[mode] / 100) : s;
 }
 
 export interface SceneSecondaryColors {

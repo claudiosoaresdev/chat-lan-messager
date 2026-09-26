@@ -7,6 +7,7 @@ import { addImage, addNudge, addSystem, addText, addWink, enterChat, setPeer, se
 import { showView, state } from './state';
 import { shouldPlayMessageSound } from './message-alert';
 import { playMessageSound } from './sound';
+import { setContactScene } from './scene';
 
 /** Wink ou nudge que chegou há menos disso toca ao abrir: foi ele que abriu a janela. */
 const REPLAY_MS = 10_000;
@@ -57,6 +58,14 @@ const unknownPeer = (id: string): PeerInfo => ({
 export async function startChatWindow(peerId: string) {
   state.peerId = peerId;
   showView('chat');
+  // Cena do contato: assina antes de perguntar; sem resposta, fica a minha.
+  chat().onPeerScene((s) => {
+    if (s.id === peerId) setContactScene(s.scene);
+  });
+  void chat()
+    .getPeerScene(peerId)
+    .then((s) => setContactScene(s?.scene ?? null))
+    .catch(() => setContactScene(null));
   initAvatars(() => state.self?.status ?? 'available');
   watchFontChanges();
   watchMyAvatar();

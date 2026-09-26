@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { averageColor, contrast, isDarkNeutral, luminance, messageColor, mixColors } from './color';
 import { SCENE_COLORS, type SceneColors } from './scene-averages';
-import { SCENE_PLATE, SCENE_TOOL_PLATE, SCENE_VEIL, messageBackground, sceneSecondaryColors } from './scene-contrast';
+import {
+  CONTACT_SCENE_VEIL,
+  SCENE_PLATE,
+  SCENE_TOOL_PLATE,
+  SCENE_VEIL,
+  messageBackground,
+  sceneSecondaryColors,
+} from './scene-contrast';
 import { BUILTIN_SCENES } from './scenes';
 import { CLASSIC_DARK, CLASSIC_LIGHT } from './theme-tokens';
 import { THEMES, themeTokens, type ThemeMode } from './themes';
@@ -34,6 +41,14 @@ describe('tabela de cores médias', () => {
 
   it('sem cena, o fundo das mensagens é a própria superfície', () => {
     expect(messageBackground('#20262f', null, 'dark')).toBe('#20262f');
+  });
+
+  it('cena de contato: véu mais forte, e o fundo conferido usa esse véu', () => {
+    for (const mode of ['light', 'dark'] as const) expect(CONTACT_SCENE_VEIL[mode]).toBeGreaterThan(SCENE_VEIL[mode]);
+    const colors = { average: '#808080', dark: '#000000', light: '#ffffff' };
+    expect(messageBackground('#ffffff', colors, 'light', CONTACT_SCENE_VEIL)).toBe(
+      mixColors('#ffffff', '#000000', CONTACT_SCENE_VEIL.light / 100),
+    );
   });
 
   it('véu mais forte que o do plano original (88/82) onde precisou', () => {

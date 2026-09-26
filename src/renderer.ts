@@ -2,9 +2,14 @@
 // e as janelas de conversa (?chat=<id do contato>). Sem acesso ao Node: tudo passa por window.chat.
 import { $, chat } from './renderer/dom';
 import { initAppearance } from './renderer/appearance';
+import { expectContactScene } from './renderer/scene';
 import { startChatWindow } from './renderer/chat-window';
 import { startMainWindow } from './renderer/main-window';
 
+const chatWith = new URLSearchParams(location.search).get('chat');
+
+// Conversa: a cena pode ser a do contato; espera por ela em vez de piscar a minha.
+if (chatWith) expectContactScene();
 // Cores do tema antes de qualquer tela.
 initAppearance();
 
@@ -28,6 +33,5 @@ $('help-close').addEventListener('click', () => help.close());
 
 // ---------------------------------------------------------------- papel da janela
 
-const chatWith = new URLSearchParams(location.search).get('chat');
 if (chatWith) void startChatWindow(chatWith);
 else void startMainWindow(openHelp);
