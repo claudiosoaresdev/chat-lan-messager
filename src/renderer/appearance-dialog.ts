@@ -20,6 +20,7 @@ const els = {
   sceneBrowse: $<HTMLButtonElement>('appearance-scene-browse'),
   sceneFile: $<HTMLInputElement>('appearance-scene-file'),
   sceneError: $('appearance-scene-error'),
+  contactScenes: $<HTMLInputElement>('appearance-contact-scenes'),
   restore: $<HTMLButtonElement>('appearance-restore'),
   ok: $<HTMLButtonElement>('appearance-ok'),
   cancel: $<HTMLButtonElement>('appearance-cancel'),
@@ -189,6 +190,8 @@ function render() {
     const badge = b.querySelector<HTMLElement>('.scene-badge');
     if (badge) badge.hidden = b.dataset.scene !== `builtin:${theme.scene}`;
   });
+  els.contactScenes.checked = draft.showContactScenes;
+  // "Personalizado" é só fonte e cena; a opção de cenas dos contatos não conta.
   els.custom.hidden = draftFont.family === theme.font && normalizeScene(draft.scene, theme) === null;
 }
 
@@ -224,6 +227,12 @@ function pickScene(choice: SceneChoice) {
   if (sameScene(scene, normalizeScene(draft.scene, draftTheme()))) return;
   els.sceneError.textContent = '';
   draft = { ...draft, scene };
+  preview();
+}
+
+function pickContactScenes(on: boolean) {
+  if (on === draft.showContactScenes) return;
+  draft = { ...draft, showContactScenes: on };
   preview();
 }
 
@@ -307,6 +316,8 @@ els.sceneFile.addEventListener('change', () => {
   els.sceneFile.value = '';
   if (file) void addCustom(file);
 });
+
+els.contactScenes.addEventListener('change', () => pickContactScenes(els.contactScenes.checked));
 
 els.modes.querySelectorAll<HTMLButtonElement>('.mode-option').forEach((b) =>
   b.addEventListener('click', () => pickMode(b.dataset.mode as AppearanceMode)),

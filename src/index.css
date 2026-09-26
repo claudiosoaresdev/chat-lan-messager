@@ -2982,6 +2982,11 @@ body.is-resizing * {
   gap: 4px 10px;
 }
 
+.appearance-contact-scenes {
+  align-self: flex-start;
+  margin-top: 2px;
+}
+
 .appearance-custom {
   display: flex;
   flex-wrap: wrap;
