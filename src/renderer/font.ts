@@ -1,23 +1,8 @@
 // "Alterar fonte" das mensagens, como no MSN: fonte, estilo, tamanho, sublinhado e cor.
 // A fonte vai junto com cada mensagem e é aplicada só via propriedades de estilo (CSSOM).
-import { DEFAULT_FONT, FONT_FAMILIES, type FontFamily, type MessageFont } from '../shared/protocol';
+import { DEFAULT_FONT, FONT_FAMILIES, type MessageFont } from '../shared/protocol';
 import { $, chat, el, errorMessage } from './dom';
-
-/** Pilhas de fallback, para a fonte ter equivalente parecido no Mac e no Windows. */
-const FONT_STACKS: Record<FontFamily, string> = {
-  'Segoe UI': "'Segoe UI', Tahoma, 'Helvetica Neue', sans-serif",
-  Arial: 'Arial, Helvetica, sans-serif',
-  Calibri: "Calibri, Carlito, 'Helvetica Neue', sans-serif",
-  'Comic Sans MS': "'Comic Sans MS', 'Comic Neue', 'Chalkboard SE', cursive",
-  'Courier New': "'Courier New', Courier, monospace",
-  Georgia: 'Georgia, serif',
-  Impact: "Impact, 'Arial Black', sans-serif",
-  'Lucida Console': "'Lucida Console', Monaco, Menlo, monospace",
-  Tahoma: 'Tahoma, Verdana, sans-serif',
-  'Times New Roman': "'Times New Roman', Times, serif",
-  'Trebuchet MS': "'Trebuchet MS', 'Lucida Grande', sans-serif",
-  Verdana: 'Verdana, Geneva, sans-serif',
-};
+import { FONT_STACKS, ensureFontLoaded, fontStack } from './font-loader';
 
 const SIZES = [9, 10, 11, 12, 13, 14, 16, 18, 20, 22, 24];
 
@@ -62,12 +47,14 @@ function readableColor(hex: string) {
 /** Aplica a fonte num elemento (mensagem, caixa de texto, exemplo). */
 export function applyFont(node: HTMLElement, font: MessageFont | undefined) {
   if (!font) return;
-  node.style.fontFamily = FONT_STACKS[font.family] ?? '';
+  node.style.fontFamily = fontStack(font.family);
   node.style.fontSize = `${font.size}px`;
-  node.style.fontWeight = font.bold ? '700' : '400';
+  node.style.fontWeight = String(font.weight ?? (font.bold ? 700 : 400));
   node.style.fontStyle = font.italic ? 'italic' : 'normal';
   node.style.textDecoration = font.underline ? 'underline' : 'none';
   node.style.color = readableColor(font.color);
+  // Fonte do Google: registra e o texto troca sozinho quando ela carregar.
+  void ensureFontLoaded(font.family);
 }
 
 export const currentFont = () => current;
