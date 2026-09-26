@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { FAVORITE_FONTS, googleFontNames } from '../shared/google-fonts';
-import { CLASSIC_FONTS } from '../shared/protocol';
+import { CLASSIC_FONTS, DEFAULT_FONT } from '../shared/protocol';
 import {
   GOOGLE_LIMIT,
   familyHasItalic,
+  fitToFamily,
   familyRows,
   familyWeights,
   nearestWeight,
@@ -30,9 +31,10 @@ describe('familyRows', () => {
   });
 
   it('a família escolhida aparece mesmo fora do recorte', () => {
-    const last = googleFontNames()
-      .filter((n) => !FAVORITE_FONTS.includes(n))
-      .at(-1) ?? '';
+    const last =
+      googleFontNames()
+        .filter((n) => !FAVORITE_FONTS.includes(n))
+        .at(-1) ?? '';
     const rows = familyRows('', last);
     expect(fonts(rows)).toContain(last);
     expect(rows.at(-1)).toEqual({ kind: 'more' });
@@ -81,5 +83,17 @@ describe('peso e itálico', () => {
   it('rótulo do peso', () => {
     expect(weightLabel(700)).toBe('Negrito 700');
     expect(weightLabel(100)).toBe('Fina 100');
+  });
+
+  it('ajusta a fonte à família: peso mais próximo, negrito e itálico', () => {
+    const noItalic = googleFontNames().find((n) => !familyHasItalic(n) && familyWeights(n).length === 1) ?? '';
+    const w = familyWeights(noItalic)[0];
+    const fit = fitToFamily({ ...DEFAULT_FONT, weight: 900, bold: true, italic: true }, noItalic);
+    expect(fit).toMatchObject({ family: noItalic, weight: w, bold: w >= 600, italic: false });
+    expect(fitToFamily({ ...DEFAULT_FONT, weight: 600, italic: true }, 'Arial')).toMatchObject({
+      weight: 700,
+      bold: true,
+      italic: true,
+    });
   });
 });

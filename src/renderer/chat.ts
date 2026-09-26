@@ -108,8 +108,8 @@ export function addText(msg: UiChatMessage) {
   // Atalhos como :) e (Y) viram emoticons (só nós de texto e ícones, nunca HTML).
   renderRichText(line, msg.text);
   line.title = timeFmt.format(msg.ts);
-  // Cada um vê a mensagem na fonte de quem enviou, como no MSN.
-  applyFont(line, msg.font);
+  // Cada um vê a mensagem na fonte de quem enviou, como no MSN. Recebida: download automático (com limite).
+  applyFont(line, msg.font, { auto: !msg.self });
   li.append(line);
   append(li, msg.self);
 }

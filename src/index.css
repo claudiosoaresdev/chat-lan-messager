@@ -2093,6 +2093,7 @@ body.is-resizing * {
 /* Lista de famílias: nomes longos, ~1.800 fontes; rola com altura fixa. */
 .font-family-list {
   height: 220px;
+  padding: 0; /* sem folga acima do cabeçalho fixo: nada aparece por cima dele */
 }
 
 .font-family-list .font-option {
@@ -2126,7 +2127,7 @@ body.is-resizing * {
   z-index: 1;
   padding: 2px 6px;
   border-bottom: 1px solid #dbe6f3;
-  background: #eef4fb;
+  background: #eef4fb; /* opaco: os itens passam por baixo sem aparecer */
   color: #6b7785;
   font-size: 10px;
   font-weight: 700;

@@ -8,7 +8,7 @@ import {
   hasItalic,
   searchFonts,
 } from '../shared/google-fonts';
-import { CLASSIC_FONTS } from '../shared/protocol';
+import { CLASSIC_FONTS, type MessageFont } from '../shared/protocol';
 
 /** Máximo de fontes do Google mostradas de uma vez (a lista inteira tem ~1.800). */
 export const GOOGLE_LIMIT = 400;
@@ -109,4 +109,10 @@ export function nearestWeight(weights: readonly number[], weight: number): numbe
   let best = weights[0] ?? 400;
   for (const w of weights) if (Math.abs(w - weight) < Math.abs(best - weight)) best = w;
   return best;
+}
+
+/** A fonte ajustada à família: peso disponível mais próximo e itálico só se existir. */
+export function fitToFamily(font: MessageFont, family: string): MessageFont {
+  const weight = nearestWeight(familyWeights(family), font.weight);
+  return { ...font, family, weight, bold: weight >= 600, italic: font.italic && familyHasItalic(family) };
 }

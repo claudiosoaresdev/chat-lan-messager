@@ -39,16 +39,28 @@ export function fontStack(family: string): string {
 }
 
 export type FontLoadState = 'ready' | 'loading' | 'offline';
-const loads = new Map<string, Promise<FontLoadState>>();
+/** Carregamento por família; `auto` = pedido por mensagem recebida (pode ser recusado pelo limite por hora). */
+const loads = new Map<string, { job: Promise<FontLoadState>; auto: boolean }>();
+/** Famílias cujas faces já foram registradas em document.fonts (não registra duas vezes). */
+const registered = new Set<string>();
 
-/** Registra a família do Google (uma vez). Resolve 'offline' se não deu para baixar. */
-export function ensureFontLoaded(family: string): Promise<FontLoadState> {
+export interface EnsureFontOptions {
+  /** Fonte de uma mensagem recebida: o main limita quantas famílias novas baixa por hora. */
+  auto?: boolean;
+}
+
+/** Registra a família do Google (uma vez) e espera ela carregar de fato. Resolve 'offline' se não deu. */
+export function ensureFontLoaded(family: string, { auto = false }: EnsureFontOptions = {}): Promise<FontLoadState> {
   if (isClassic(family) || !fontCategory(family)) return Promise.resolve('ready');
-  let job = loads.get(family);
-  if (!job) {
-    job = chat()
-      .ensureFont(family)
-      .then((faces) => {
+  const known = loads.get(family);
+  if (known && (auto || !known.auto)) return known.job;
+  // Automático em andamento e agora o usuário pediu: se ele for recusado, tenta de novo sem limite.
+  if (known) return known.job.then((state) => (state === 'offline' ? ensureFontLoaded(family) : state));
+
+  const job = chat()
+    .ensureFont(family, auto)
+    .then(async (faces) => {
+      if (!registered.has(family)) {
         for (const f of faces) {
           const face = new FontFace(family, `url("${f.url}")`, {
             weight: String(f.weight),
@@ -57,14 +69,18 @@ export function ensureFontLoaded(family: string): Promise<FontLoadState> {
           });
           document.fonts.add(face);
         }
-        return 'ready' as const;
-      })
-      .catch((err: unknown) => {
-        console.warn('[fontes]', family, err instanceof Error ? err.message : err);
-        loads.delete(family); // tenta de novo na próxima vez (ex.: voltou a internet)
-        return 'offline' as const;
-      });
-    loads.set(family, job);
-  }
+        registered.add(family);
+      }
+      // 'ready' só quando a fonte carregou de verdade (arquivo lido e válido).
+      const done = await document.fonts.load(`400 16px "${family.replace(/["\\]/g, '')}"`);
+      if (!done.length) throw new Error('fonte não carregou');
+      return 'ready' as const;
+    })
+    .catch((err: unknown) => {
+      console.warn('[fontes]', family, err instanceof Error ? err.message : err);
+      loads.delete(family); // tenta de novo na próxima vez (ex.: voltou a internet)
+      return 'offline' as const;
+    });
+  loads.set(family, { job, auto });
   return job;
 }

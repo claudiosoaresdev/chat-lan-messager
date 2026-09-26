@@ -7,9 +7,9 @@ import {
   familyHasItalic,
   familyRows,
   familyWeights,
+  fitToFamily,
   isClassicFont,
   isFavoriteFont,
-  nearestWeight,
   weightLabel,
   type FamilyRow,
 } from './font-list';
@@ -47,8 +47,19 @@ function readableColor(hex: string) {
   return luminance > 0.85 ? '#7a7a7a' : hex;
 }
 
+export interface ApplyFontOptions {
+  /** Fonte de mensagem recebida: o download entra no limite de downloads automáticos. */
+  auto?: boolean;
+  /** false: só aplica o estilo, sem baixar (o diálogo baixa depois que a escolha assenta). */
+  load?: boolean;
+}
+
 /** Aplica a fonte num elemento (mensagem, caixa de texto, exemplo). */
-export function applyFont(node: HTMLElement, font: MessageFont | undefined) {
+export function applyFont(
+  node: HTMLElement,
+  font: MessageFont | undefined,
+  { auto = false, load = true }: ApplyFontOptions = {},
+) {
   if (!font) return;
   node.style.fontFamily = fontStack(font.family);
   node.style.fontSize = `${font.size}px`;
@@ -57,7 +68,7 @@ export function applyFont(node: HTMLElement, font: MessageFont | undefined) {
   node.style.textDecoration = font.underline ? 'underline' : 'none';
   node.style.color = readableColor(font.color);
   // Fonte do Google: registra e o texto troca sozinho quando ela carregar.
-  void ensureFontLoaded(font.family);
+  if (load) void ensureFontLoaded(font.family, { auto });
 }
 
 export const currentFont = () => current;
@@ -111,6 +122,9 @@ let draft: MessageFont = { ...DEFAULT_FONT };
 let familyListKey = '';
 /** Fontes do Google que já carregaram (não mostra "Baixando fonte…" de novo). */
 const loaded = new Set<string>();
+/** Espera a escolha assentar antes de baixar (quem passa pela lista com as setas não baixa tudo). */
+const DOWNLOAD_DELAY_MS = 350;
+let downloadTimer: ReturnType<typeof setTimeout> | undefined;
 
 function listItem(label: string, selected: boolean, onPick: () => void, style?: (li: HTMLLIElement) => void) {
   const li = el('li', `font-option${selected ? ' is-selected' : ''}`, label);
@@ -136,7 +150,8 @@ function familyItem(row: FamilyRow) {
     }
     case 'more': {
       const li = el('li', 'font-note', 'Refine a busca para ver mais…');
-      li.setAttribute('role', 'presentation');
+      li.setAttribute('role', 'option');
+      li.setAttribute('aria-disabled', 'true');
       li.dataset.action = 'refine';
       li.addEventListener('click', () => els.search.focus());
       return li;
@@ -198,7 +213,7 @@ function renderDialog() {
     b.setAttribute('aria-checked', String(on));
   });
 
-  applyFont(els.sample, draft);
+  applyFont(els.sample, draft, { load: false });
   // Mantém o item escolhido visível nas listas.
   for (const list of [els.weightList, els.sizeList]) {
     list.querySelector('.is-selected')?.scrollIntoView({ block: 'nearest' });
@@ -224,16 +239,28 @@ function trackDownload(family: string) {
   });
 }
 
+/** Baixa a família escolhida só depois de DOWNLOAD_DELAY_MS sem outra troca; favoritas e clássicas na hora. */
+function scheduleDownload(family: string) {
+  clearTimeout(downloadTimer);
+  downloadTimer = undefined;
+  if (isClassicFont(family) || isFavoriteFont(family) || loaded.has(family)) {
+    trackDownload(family);
+    void ensureFontLoaded(family);
+    return;
+  }
+  els.status.textContent = '';
+  downloadTimer = setTimeout(() => {
+    downloadTimer = undefined;
+    if (draft.family === family) trackDownload(family);
+  }, DOWNLOAD_DELAY_MS);
+}
+
 /** Troca a família mantendo o peso mais próximo que ela tem e o itálico só se existir. */
 function pickFamily(family: string) {
-  const weight = nearestWeight(familyWeights(family), draft.weight);
-  update({
-    family,
-    weight,
-    bold: weight >= 600,
-    italic: draft.italic && familyHasItalic(family),
-  });
-  trackDownload(family);
+  if (family === draft.family) return;
+  draft = fitToFamily(draft, family);
+  renderDialog();
+  scheduleDownload(family);
 }
 
 // Setas do teclado percorrem cada lista (cabeçalhos e avisos ficam de fora).
@@ -278,9 +305,10 @@ els.underline.addEventListener('change', () => update({ underline: els.underline
 els.defaultBtn.addEventListener('click', () => {
   els.search.value = '';
   update({ ...DEFAULT_FONT });
-  trackDownload(DEFAULT_FONT.family);
+  scheduleDownload(DEFAULT_FONT.family);
 });
 els.cancel.addEventListener('click', () => els.dialog.close());
+els.dialog.addEventListener('close', () => clearTimeout(downloadTimer));
 els.ok.addEventListener('click', async () => {
   try {
     setCurrent(await chat().setFont(draft));
@@ -292,11 +320,12 @@ els.ok.addEventListener('click', async () => {
 });
 
 export function openFontDialog() {
-  draft = { ...current };
+  // Normaliza a fonte guardada (peso/itálico que a família não tem).
+  draft = fitToFamily({ ...current }, current.family);
   els.search.value = '';
   familyListKey = '';
   els.dialog.showModal();
   renderDialog();
-  trackDownload(draft.family);
+  scheduleDownload(draft.family);
   els.familyList.focus();
 }
