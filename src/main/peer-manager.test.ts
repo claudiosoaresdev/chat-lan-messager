@@ -158,6 +158,126 @@ describe('PeerManager', () => {
     expect(() => a.setAvatar(big)).toThrow(/256 KB/);
   });
 
+  it('envia a cena ao conectar, ao trocar e quando vira nenhuma', async () => {
+    const a = new PeerManager({ id: 'aaa', name: 'A', host: HOST, scene: { kind: 'builtin', id: 'aurora' } });
+    await a.start();
+    managers.push(a);
+    const b = await create('bbb');
+
+    // Ao conectar, o contato recebe a cena atual.
+    const first = next(b, 'scene');
+    await a.connect(HOST, b.port);
+    expect(await first).toEqual({ id: 'aaa', scene: { kind: 'builtin', id: 'aurora' } });
+    expect(b.getPeerScene('aaa')).toEqual({ id: 'aaa', scene: { kind: 'builtin', id: 'aurora' } });
+
+    // Troca para imagem própria (cabeçalho + frame binário).
+    const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]);
+    const image = next(b, 'scene');
+    a.setScene({ kind: 'image', data: new Uint8Array(jpeg) });
+    const got = await image;
+    expect(got).toMatchObject({ id: 'aaa', scene: { kind: 'image', mime: 'image/jpeg' } });
+    expect(Buffer.from((got.scene as { data: Uint8Array }).data)).toEqual(jpeg);
+
+    // Nenhuma
+    const none = next(b, 'scene');
+    a.setScene({ kind: 'none' });
+    expect(await none).toEqual({ id: 'aaa', scene: { kind: 'none' } });
+    expect(b.getPeerScenes()).toEqual([{ id: 'aaa', scene: { kind: 'none' } }]);
+  });
+
+  it('manda a cena definida depois de conectar e não repete cena igual', async () => {
+    const a = await create('aaa');
+    const b = await create('bbb');
+    const events: unknown[] = [];
+    b.on('scene', (s) => events.push(s));
+    const ready = next(b, 'peer', onlineWith('aaa'));
+    await a.connect(HOST, b.port);
+    await ready;
+    await sleep(50);
+    // Sem cena definida, nada é enviado.
+    expect(events).toHaveLength(0);
+    expect(b.getPeerScene('aaa')).toBeNull();
+
+    const first = next(b, 'scene');
+    a.setScene({ kind: 'builtin', id: 'ceu' });
+    await first;
+    a.setScene({ kind: 'builtin', id: 'ceu' });
+    const second = next(b, 'scene');
+    a.setScene({ kind: 'builtin', id: 'folhas' });
+    await second;
+    expect(events).toEqual([
+      { id: 'aaa', scene: { kind: 'builtin', id: 'ceu' } },
+      { id: 'aaa', scene: { kind: 'builtin', id: 'folhas' } },
+    ]);
+  });
+
+  it('manda a cena de novo quando o contato reconecta', async () => {
+    const a = await create('aaa');
+    let b = await create('bbb');
+    const port = b.port;
+    a.setScene({ kind: 'builtin', id: 'montanhas' });
+    await a.connect(HOST, port);
+
+    const offline = next(a, 'peer', (p) => p.id === 'bbb' && !p.online);
+    await b.stop();
+    managers = managers.filter((m) => m !== b);
+    await offline;
+
+    b = new PeerManager({ id: 'bbb', name: 'bbb', host: HOST, port });
+    const again = next(b, 'scene');
+    await b.start();
+    managers.push(b);
+    expect(await again).toEqual({ id: 'aaa', scene: { kind: 'builtin', id: 'montanhas' } });
+  });
+
+  it('recusa cena própria inválida', async () => {
+    const a = await create('aaa');
+    expect(() => a.setScene({ kind: 'builtin', id: 'nao-existe' })).toThrow(/desconhecida/);
+    expect(() => a.setScene({ kind: 'image', data: new TextEncoder().encode('<svg/>') })).toThrow(/Formato/);
+    expect(() => a.setScene({ kind: 'image', data: new TextEncoder().encode('GIF89a....') })).toThrow(/Formato/);
+    const big = new Uint8Array(400 * 1024 + 1);
+    big.set(PNG);
+    expect(() => a.setScene({ kind: 'image', data: big })).toThrow(/400 KB/);
+  });
+
+  it('descarta cena recebida inválida e binário sem cabeçalho', async () => {
+    const a = await create('aaa');
+    const ws = await rawPeer(a);
+    const scenes: unknown[] = [];
+    a.on('scene', (s) => scenes.push(s));
+
+    ws.send(PNG); // binário sem cabeçalho não vira cena
+    ws.send(JSON.stringify({ type: 'scene', from: 'zzz-raw', kind: 'builtin', id: 'nao-existe' }));
+    ws.send(JSON.stringify({ type: 'scene', from: 'outro-id', kind: 'none' })); // remetente falso
+    ws.send(JSON.stringify({ type: 'scene', from: 'zzz-raw', kind: 'image', mime: 'image/jpeg', size: PNG.length }));
+    ws.send(PNG); // assinatura não bate com o mime
+    ws.send(JSON.stringify({ type: 'scene', from: 'zzz-raw', kind: 'image', mime: 'image/png', size: 999 }));
+    ws.send(PNG); // tamanho não bate
+    const svg = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"/>');
+    ws.send(JSON.stringify({ type: 'scene', from: 'zzz-raw', kind: 'image', mime: 'image/png', size: svg.length }));
+    ws.send(svg);
+    await sleep(50);
+    expect(scenes).toHaveLength(0);
+    expect(a.getPeerScene('zzz-raw')).toBeNull();
+
+    // Uma válida passa.
+    const ok = next(a, 'scene');
+    ws.send(JSON.stringify({ type: 'scene', from: 'zzz-raw', kind: 'image', mime: 'image/png', size: PNG.length }));
+    ws.send(PNG);
+    expect(await ok).toMatchObject({ id: 'zzz-raw', scene: { kind: 'image', mime: 'image/png' } });
+    ws.close();
+  });
+
+  it('contato que não manda cena (versão antiga) fica sem entrada', async () => {
+    const a = await create('aaa');
+    const ws = await rawPeer(a);
+    ws.send(JSON.stringify({ type: 'chat', from: 'zzz-raw', text: 'oi', ts: 1 }));
+    await next(a, 'message');
+    expect(a.getPeerScenes()).toEqual([]);
+    expect(a.getPeerScene('zzz-raw')).toBeNull();
+    ws.close();
+  });
+
   it('chama atenção com limite de frequência', async () => {
     const a = await create('aaa', 'Ana');
     const b = await create('bbb');

@@ -8,25 +8,32 @@ import {
   MAX_AVATAR_BYTES,
   MAX_NAME_LENGTH,
   MAX_PERSONAL_MESSAGE_LENGTH,
+  MAX_SCENE_BYTES,
   MAX_TEXT_LENGTH,
   detectImageMime,
   encodeMessage,
   parseMessage,
   shouldInitiate,
+  isSceneMime,
   validateImageBytes,
+  validateSceneBytes,
   type AvatarHeader,
   type HelloMessage,
   type ImageHeader,
   type ImageMime,
   type MessageFont,
   type PresenceStatus,
+  type SceneHeader,
   type WinkId,
   isWinkId,
 } from '../shared/protocol';
+import { findBuiltinScene } from '../shared/scenes';
 import type {
   OutgoingImage,
   PeerAvatar,
   PeerInfo,
+  PeerScene,
+  SharedScene,
   PresenceUpdate,
   UiChatMessage,
   UiImageMessage,
@@ -54,7 +61,11 @@ interface Conn {
   targetKey?: string;
   remote: { id: string } | null;
   /** Cabeçalho aguardando o próximo frame binário. */
-  pending: { kind: 'image'; header: ImageHeader } | { kind: 'avatar'; header: AvatarHeader } | null;
+  pending:
+    | { kind: 'image'; header: ImageHeader }
+    | { kind: 'avatar'; header: AvatarHeader }
+    | { kind: 'scene'; header: Extract<SceneHeader, { kind: 'image' }> }
+    | null;
   alive: boolean;
   onHello?: (peerId: string) => void;
 }
@@ -70,6 +81,8 @@ interface PeerState {
   status: PresenceStatus;
   message: string;
   avatar: Avatar | null;
+  /** Cena anunciada pelo contato; null = ainda não mandou (versão antiga ou antes do primeiro envio). */
+  scene: SharedScene | null;
   address: string;
   conn: Conn | null;
 }
@@ -86,6 +99,8 @@ export interface PeerManagerOptions {
   status?: PresenceStatus;
   message?: string;
   avatar?: Uint8Array | null;
+  /** Cena anunciada aos contatos; ausente = nenhuma mensagem de cena até `setScene`. */
+  scene?: OwnScene | null;
   /** Porta do servidor; 0 = porta livre dinâmica. */
   port?: number;
   /** Se a porta preferida estiver ocupada, cai para uma porta dinâmica. */
@@ -102,7 +117,25 @@ export interface PeerManagerEvents {
   nudge: [UiNudge];
   wink: [UiWink];
   avatar: [PeerAvatar];
+  scene: [PeerScene];
 }
+
+/** Cena própria a anunciar: da galeria, bytes JPEG/PNG (mime pela assinatura) ou nenhuma. */
+export type OwnScene = { kind: 'builtin'; id: string } | { kind: 'image'; data: Uint8Array } | { kind: 'none' };
+
+const sameBytes = (a: Uint8Array, b: Uint8Array) => a.length === b.length && Buffer.compare(a, b) === 0;
+
+/** Duas cenas iguais não geram evento. */
+function sameScene(a: SharedScene | null, b: SharedScene): boolean {
+  if (!a || a.kind !== b.kind) return false;
+  if (a.kind === 'builtin' && b.kind === 'builtin') return a.id === b.id;
+  if (a.kind === 'image' && b.kind === 'image') return a.mime === b.mime && sameBytes(a.data, b.data);
+  return true;
+}
+
+/** Cópia para entregar fora do PeerManager (quem recebe pode transferir o buffer). */
+const copyScene = (s: SharedScene): SharedScene =>
+  s.kind === 'image' ? { kind: 'image', mime: s.mime, data: new Uint8Array(s.data) } : { ...s };
 
 const ignore = (): void => undefined;
 
@@ -124,6 +157,7 @@ export class PeerManager extends EventEmitter<PeerManagerEvents> {
   private _status: PresenceStatus;
   private _message: string;
   private _avatar: Avatar | null = null;
+  private _scene: SharedScene | null = null;
   private readonly opts: PeerManagerOptions;
   private wss: WebSocketServer | null = null;
   private readonly peers = new Map<string, PeerState>();
@@ -145,6 +179,58 @@ export class PeerManager extends EventEmitter<PeerManagerEvents> {
     this._status = opts.status ?? 'available';
     this._message = opts.message ?? '';
     if (opts.avatar) this._avatar = PeerManager.toAvatar(opts.avatar);
+    if (opts.scene) this._scene = PeerManager.toScene(opts.scene);
+  }
+
+  private static toScene(scene: OwnScene): SharedScene {
+    if (scene.kind === 'none') return { kind: 'none' };
+    if (scene.kind === 'builtin') {
+      if (!findBuiltinScene(scene.id)) throw new Error('Cena desconhecida');
+      return { kind: 'builtin', id: scene.id };
+    }
+    const data = Buffer.from(scene.data.buffer, scene.data.byteOffset, scene.data.byteLength);
+    if (data.length === 0 || data.length > MAX_SCENE_BYTES) throw new Error('Cena maior que 400 KB');
+    const mime = detectImageMime(data);
+    if (!isSceneMime(mime)) throw new Error('Formato de cena não suportado (use JPEG ou PNG)');
+    return { kind: 'image', mime, data: new Uint8Array(data) };
+  }
+
+  /** Define a cena anunciada e avisa todos os peers conectados. */
+  setScene(scene: OwnScene) {
+    const next = PeerManager.toScene(scene);
+    if (sameScene(this._scene, next)) return;
+    this._scene = next;
+    for (const ws of this.openSockets()) this.sendScene(ws);
+  }
+
+  private sendScene(ws: WebSocket) {
+    const s = this._scene;
+    if (!s) return;
+    if (s.kind === 'image') {
+      ws.send(encodeMessage({ type: 'scene', from: this.id, kind: 'image', mime: s.mime, size: s.data.length }));
+      ws.send(s.data, { binary: true });
+    } else if (s.kind === 'builtin') {
+      ws.send(encodeMessage({ type: 'scene', from: this.id, kind: 'builtin', id: s.id }));
+    } else {
+      ws.send(encodeMessage({ type: 'scene', from: this.id, kind: 'none' }));
+    }
+  }
+
+  getPeerScenes(): PeerScene[] {
+    return [...this.peers.values()].flatMap((p) => (p.scene ? [{ id: p.id, scene: copyScene(p.scene) }] : []));
+  }
+
+  getPeerScene(id: string): PeerScene | null {
+    const scene = this.peers.get(id)?.scene;
+    return scene ? { id, scene: copyScene(scene) } : null;
+  }
+
+  /** Guarda a cena recebida e emite `scene` só quando ela muda. */
+  private receiveScene(peerId: string, scene: SharedScene) {
+    const peer = this.peers.get(peerId);
+    if (!peer || sameScene(peer.scene, scene)) return;
+    peer.scene = scene;
+    this.emit('scene', { id: peer.id, scene: copyScene(scene) });
   }
 
   private static toAvatar(data: Uint8Array): Avatar {
@@ -449,6 +535,13 @@ export class PeerManager extends EventEmitter<PeerManagerEvents> {
       // Frame binário sem cabeçalho pendente é descartado.
       if (!pending || !conn.remote) return;
 
+      if (pending.kind === 'scene') {
+        const { header } = pending;
+        if (!validateSceneBytes(buf, header.mime, header.size)) return;
+        this.receiveScene(conn.remote.id, { kind: 'image', mime: header.mime, data: new Uint8Array(buf) });
+        return;
+      }
+
       if (pending.kind === 'avatar') {
         const { header } = pending;
         const peer = this.peers.get(conn.remote.id);
@@ -515,6 +608,13 @@ export class PeerManager extends EventEmitter<PeerManagerEvents> {
       if (!peer || !peer.avatar) return;
       peer.avatar = null;
       this.emit('avatar', { id: peer.id, mime: null, data: null });
+    } else if (msg.type === 'scene') {
+      if (msg.kind === 'image') {
+        conn.pending = { kind: 'scene', header: msg };
+        return;
+      }
+      conn.pending = null;
+      this.receiveScene(msg.from, msg.kind === 'builtin' ? { kind: 'builtin', id: msg.id } : { kind: 'none' });
     } else if (msg.type === 'wink') {
       const now = Date.now();
       if (now - (this.lastWinkFrom.get(msg.from) ?? 0) < WINK_COOLDOWN_MS) return;
@@ -562,6 +662,7 @@ export class PeerManager extends EventEmitter<PeerManagerEvents> {
         status: hello.status,
         message: hello.message,
         avatar: null,
+        scene: null,
         address: conn.address,
         conn: null,
       };
@@ -590,6 +691,8 @@ export class PeerManager extends EventEmitter<PeerManagerEvents> {
     this.emit('peer', this.toInfo(peer));
     // Conexão aceita: manda a imagem de exibição para o novo contato.
     if (peer.conn === conn && this._avatar) this.sendAvatar(conn.ws);
+    // E a cena atual (se já foi definida).
+    if (peer.conn === conn) this.sendScene(conn.ws);
   }
 
   private onClose(conn: Conn) {

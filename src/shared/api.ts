@@ -1,5 +1,5 @@
 // Tipos compartilhados entre main, preload e renderer (API window.chat).
-import type { ImageMime, MessageFont, PresenceStatus, WinkId } from './protocol';
+import type { ImageMime, MessageFont, PresenceStatus, SceneMime, WinkId } from './protocol';
 import type { Appearance } from './themes';
 
 export type { Appearance, AppearanceMode } from './themes';
@@ -137,6 +137,18 @@ export interface PeerAvatar {
   id: string;
   mime: ImageMime | null;
   data: Uint8Array | null;
+}
+
+/** Cena anunciada a um contato ou recebida dele: da galeria, imagem (JPEG/PNG até 400 KB) ou nenhuma. */
+export type SharedScene =
+  | { kind: 'builtin'; id: string }
+  | { kind: 'image'; mime: SceneMime; data: Uint8Array }
+  | { kind: 'none' };
+
+/** Cena de um contato (a que ele usa nas conversas). */
+export interface PeerScene {
+  id: string;
+  scene: SharedScene;
 }
 
 /** Cena própria (JPEG 1600×900 até 400 KB) guardada em userData/scenes. */
