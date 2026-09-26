@@ -32,9 +32,8 @@ import { ChatWindows, type ChatWindowEvents, type ChatWindowHandle } from './mai
 import { createTray } from './main/tray';
 import { NowPlayingWatcher, readerFor, type Exec } from './main/now-playing';
 import { LinkPreviewer, type MakeThumbnail } from './main/link-preview';
-import { findLinks } from './shared/links';
 import { imageSize } from './shared/image-size';
-import { isYoutubeId } from './shared/links';
+import { findLinks, isYoutubeId } from './shared/links';
 import { defaultBounds, restoreBounds, snapToEdge, VIDEO_MIN } from './main/video-window';
 import { trayTooltip } from './main/tray-text';
 import {
