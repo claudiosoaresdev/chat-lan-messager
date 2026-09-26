@@ -66,6 +66,13 @@ const api: ChatApi = {
   onPeerScene: (cb) => subscribe(IPC.peerScene, cb),
   onUnreadChanged: (cb) => subscribe(IPC.unreadChanged, cb),
 
+  getListening: (peerId) => call(IPC.getListening, peerId ?? null),
+  onMyListening: (cb) => subscribe(IPC.myListening, cb),
+  onPeerListening: (cb) => subscribe(IPC.peerListening, cb),
+  getShareListening: () => call(IPC.getShareListening),
+  setShareListening: (on) => call(IPC.setShareListening, on),
+  onShareListeningChanged: (cb) => subscribe(IPC.shareListeningChanged, cb),
+
   getSounds: () => call(IPC.getSounds),
   setSounds: (on) => call(IPC.setSounds, on),
   onSoundsChanged: (cb) => subscribe(IPC.soundsChanged, cb),

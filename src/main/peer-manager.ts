@@ -6,6 +6,7 @@ import { WebSocket, WebSocketServer, type RawData } from 'ws';
 import {
   MAX_IMAGE_BYTES,
   MAX_AVATAR_BYTES,
+  MAX_LISTENING_LENGTH,
   MAX_NAME_LENGTH,
   MAX_PERSONAL_MESSAGE_LENGTH,
   MAX_SCENE_BYTES,
@@ -29,9 +30,11 @@ import {
 } from '../shared/protocol';
 import { findBuiltinScene } from '../shared/scenes';
 import type {
+  Listening,
   OutgoingImage,
   PeerAvatar,
   PeerInfo,
+  PeerListening,
   PeerScene,
   SharedScene,
   PresenceUpdate,
@@ -85,6 +88,8 @@ interface PeerState {
   avatar: Avatar | null;
   /** Cena anunciada pelo contato; null = ainda não mandou (versão antiga ou antes do primeiro envio). */
   scene: SharedScene | null;
+  /** O que o contato está ouvindo (null = nada ou não mandou). */
+  listening: Listening | null;
   address: string;
   conn: Conn | null;
 }
@@ -122,6 +127,7 @@ export interface PeerManagerEvents {
   wink: [UiWink];
   avatar: [PeerAvatar];
   scene: [PeerScene];
+  listening: [PeerListening];
 }
 
 /** Cena própria a anunciar: da galeria, bytes JPEG/PNG (mime pela assinatura) ou nenhuma. */
@@ -140,6 +146,9 @@ function sameScene(a: SharedScene | null, b: SharedScene): boolean {
 /** Cópia para entregar fora do PeerManager (quem recebe pode transferir o buffer). */
 const copyScene = (s: SharedScene): SharedScene =>
   s.kind === 'image' ? { kind: 'image', mime: s.mime, data: new Uint8Array(s.data) } : { ...s };
+
+const sameListening = (a: Listening | null, b: Listening | null) =>
+  a === b || (!!a && !!b && a.artist === b.artist && a.title === b.title);
 
 const ignore = (): void => undefined;
 
@@ -162,6 +171,7 @@ export class PeerManager extends EventEmitter<PeerManagerEvents> {
   private _message: string;
   private _avatar: Avatar | null = null;
   private _scene: SharedScene | null = null;
+  private _listening: Listening | null = null;
   private readonly opts: PeerManagerOptions;
   private wss: WebSocketServer | null = null;
   private readonly peers = new Map<string, PeerState>();
@@ -263,6 +273,38 @@ export class PeerManager extends EventEmitter<PeerManagerEvents> {
   private cancelSceneEmit(peerId: string) {
     clearTimeout(this.sceneTimers.get(peerId));
     this.sceneTimers.delete(peerId);
+  }
+
+  /** Define o que estou ouvindo (null = nada) e avisa todos os peers conectados, só quando muda. */
+  setListening(listening: Listening | null) {
+    const next = listening
+      ? { artist: listening.artist.trim().slice(0, MAX_LISTENING_LENGTH), title: listening.title.trim().slice(0, MAX_LISTENING_LENGTH) }
+      : null;
+    const valid = next && next.title ? next : null;
+    if (sameListening(this._listening, valid)) return;
+    this._listening = valid;
+    for (const ws of this.openSockets()) this.sendListening(ws);
+  }
+
+  get listening(): Listening | null {
+    return this._listening ? { ...this._listening } : null;
+  }
+
+  private sendListening(ws: WebSocket) {
+    const l = this._listening;
+    ws.send(encodeMessage({ type: 'listening', from: this.id, artist: l?.artist ?? null, title: l?.title ?? null }));
+  }
+
+  getPeerListening(id: string): Listening | null {
+    const l = this.peers.get(id)?.listening;
+    return l ? { ...l } : null;
+  }
+
+  private receiveListening(peerId: string, listening: Listening | null) {
+    const peer = this.peers.get(peerId);
+    if (!peer || sameListening(peer.listening, listening)) return;
+    peer.listening = listening;
+    this.emit('listening', { id: peerId, listening: listening ? { ...listening } : null });
   }
 
   private static toAvatar(data: Uint8Array): Avatar {
@@ -649,6 +691,9 @@ export class PeerManager extends EventEmitter<PeerManagerEvents> {
       }
       conn.pending = null;
       this.receiveScene(msg.from, msg.kind === 'builtin' ? { kind: 'builtin', id: msg.id } : { kind: 'none' });
+    } else if (msg.type === 'listening') {
+      conn.pending = null;
+      this.receiveListening(msg.from, msg.title === null ? null : { artist: msg.artist ?? '', title: msg.title });
     } else if (msg.type === 'wink') {
       const now = Date.now();
       if (now - (this.lastWinkFrom.get(msg.from) ?? 0) < WINK_COOLDOWN_MS) return;
@@ -697,6 +742,7 @@ export class PeerManager extends EventEmitter<PeerManagerEvents> {
         message: hello.message,
         avatar: null,
         scene: null,
+        listening: null,
         address: conn.address,
         conn: null,
       };
@@ -727,6 +773,8 @@ export class PeerManager extends EventEmitter<PeerManagerEvents> {
     if (peer.conn === conn && this._avatar) this.sendAvatar(conn.ws);
     // E a cena atual (se já foi definida).
     if (peer.conn === conn) this.sendScene(conn.ws);
+    // E o que estou ouvindo (nada tocando não precisa avisar: o contato começa sem música).
+    if (peer.conn === conn && this._listening) this.sendListening(conn.ws);
   }
 
   private onClose(conn: Conn) {
@@ -739,6 +787,8 @@ export class PeerManager extends EventEmitter<PeerManagerEvents> {
       peer.scene = null;
       this.cancelSceneEmit(peer.id);
       this.emit('peer', this.toInfo(peer));
+      // Offline não está ouvindo nada; volta com o próximo hello.
+      this.receiveListening(peer.id, null);
     }
   }
 

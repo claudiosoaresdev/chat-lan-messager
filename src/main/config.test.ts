@@ -76,6 +76,8 @@ describe('SettingsStore', () => {
       giphyKey: 'abcDEF1234567890abcd',
       sounds: false,
       appearance: { mode: 'dark', theme: 'roxo', scene: { kind: 'builtin', id: 'montanhas' }, showContactScenes: false },
+      shareListening: false,
+      linkPreviews: false,
     });
     expect(store.load()).toEqual({
       manualPeers: [{ host: '10.0.0.2', port: 47800 }],
@@ -84,6 +86,8 @@ describe('SettingsStore', () => {
       giphyKey: 'abcDEF1234567890abcd',
       sounds: false,
       appearance: { mode: 'dark', theme: 'roxo', scene: { kind: 'builtin', id: 'montanhas' }, showContactScenes: false },
+      shareListening: false,
+      linkPreviews: false,
     });
 
     fs.writeFileSync(path.join(dir, 'settings.json'), '{ lixo');
@@ -97,14 +101,19 @@ describe('SettingsStore', () => {
       giphyKey: null,
       sounds: true,
       appearance: { mode: 'system', theme: 'azul-classico', scene: null, showContactScenes: true },
+      shareListening: true,
+      linkPreviews: true,
     });
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
-  it('sons ficam ligados por padrão em arquivo antigo', () => {
+  it('sons, música e prévias ficam ligados por padrão em arquivo antigo', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlan-'));
     fs.writeFileSync(path.join(dir, 'settings.json'), JSON.stringify({ manualPeers: [] }));
-    expect(new SettingsStore(dir).load().sounds).toBe(true);
+    const loaded = new SettingsStore(dir).load();
+    expect(loaded.sounds).toBe(true);
+    expect(loaded.shareListening).toBe(true);
+    expect(loaded.linkPreviews).toBe(true);
     fs.rmSync(dir, { recursive: true, force: true });
   });
 });

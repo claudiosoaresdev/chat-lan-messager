@@ -235,6 +235,48 @@ describe('PeerManager', () => {
     expect(await again).toEqual({ id: 'aaa', scene: { kind: 'builtin', id: 'montanhas' } });
   });
 
+  it('"o que estou ouvindo": ao conectar, ao trocar, nada tocando e ao desconectar', async () => {
+    const a = await create('aaa');
+    a.setListening({ artist: 'Queen', title: 'Bicycle Race' });
+    const b = await create('bbb');
+
+    const first = next(b, 'listening');
+    await a.connect(HOST, b.port);
+    expect(await first).toEqual({ id: 'aaa', listening: { artist: 'Queen', title: 'Bicycle Race' } });
+    expect(b.getPeerListening('aaa')).toEqual({ artist: 'Queen', title: 'Bicycle Race' });
+
+    const events: unknown[] = [];
+    b.on('listening', (l) => events.push(l));
+    // Igual não reenvia; título vazio vale como nada tocando.
+    a.setListening({ artist: 'Queen', title: 'Bicycle Race' });
+    const changed = next(b, 'listening');
+    a.setListening({ artist: '', title: 'Podcast' });
+    expect(await changed).toEqual({ id: 'aaa', listening: { artist: '', title: 'Podcast' } });
+    const stopped = next(b, 'listening');
+    a.setListening({ artist: 'x', title: '  ' });
+    expect(await stopped).toEqual({ id: 'aaa', listening: null });
+    expect(events).toHaveLength(2);
+
+    a.setListening({ artist: 'Queen', title: 'Innuendo' });
+    await next(b, 'listening');
+    const gone = next(b, 'listening');
+    await a.stop();
+    expect(await gone).toEqual({ id: 'aaa', listening: null });
+    expect(b.getPeerListening('aaa')).toBeNull();
+  });
+
+  it('descarta "listening" com remetente falso', async () => {
+    const b = await create('bbb');
+    const ws = await rawPeer(b);
+    const events: unknown[] = [];
+    b.on('listening', (l) => events.push(l));
+    ws.send(JSON.stringify({ type: 'listening', from: 'outro', artist: 'A', title: 'B' }));
+    ws.send(JSON.stringify({ type: 'listening', from: 'zzz-raw', artist: 'A', title: 'x'.repeat(500) }));
+    await sleep(50);
+    expect(events).toHaveLength(0);
+    ws.close();
+  });
+
   it('recusa cena própria inválida', async () => {
     const a = await create('aaa');
     expect(() => a.setScene({ kind: 'builtin', id: 'nao-existe' })).toThrow(/desconhecida/);

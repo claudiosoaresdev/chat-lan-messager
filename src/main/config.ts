@@ -36,6 +36,10 @@ export interface Settings {
   sounds: boolean;
   /** Modo (sistema/claro/escuro) e tema de cor. */
   appearance: Appearance;
+  /** Mostra aos contatos a música tocando no Spotify (menu ☰ da home). Padrão: ligado. */
+  shareListening: boolean;
+  /** Busca a prévia (título, imagem) dos links que eu envio (menu ☰ da home). Padrão: ligado. */
+  linkPreviews: boolean;
 }
 
 const isPort = (n: unknown): n is number => typeof n === 'number' && Number.isInteger(n) && n >= 1 && n <= 65535;
@@ -108,6 +112,8 @@ export const defaultSettings = (): Settings => ({
   giphyKey: null,
   sounds: true,
   appearance: { ...DEFAULT_APPEARANCE },
+  shareListening: true,
+  linkPreviews: true,
 });
 
 export class SettingsStore {
@@ -136,6 +142,8 @@ export class SettingsStore {
         giphyKey,
         sounds: raw?.sounds !== false,
         appearance: validateAppearance(raw?.appearance) ?? { ...DEFAULT_APPEARANCE },
+        shareListening: raw?.shareListening !== false,
+        linkPreviews: raw?.linkPreviews !== false,
       };
     } catch {
       return defaultSettings();

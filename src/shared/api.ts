@@ -151,6 +151,18 @@ export interface PeerScene {
   scene: SharedScene;
 }
 
+/** Música tocando no Spotify ("O que estou ouvindo"). `artist` pode ser vazio (podcast, arquivo local). */
+export interface Listening {
+  artist: string;
+  title: string;
+}
+
+/** O que um contato está ouvindo; null = nada (ou ele não compartilha). */
+export interface PeerListening {
+  id: string;
+  listening: Listening | null;
+}
+
 /** Cena própria (JPEG 1600×900 até 400 KB) guardada em userData/scenes. */
 export interface CustomScene {
   id: string;
@@ -263,6 +275,16 @@ export interface ChatApi {
   onPeerScene(cb: (scene: PeerScene) => void): Unsubscribe;
   onUnreadChanged(cb: (change: { peerId: string; unread: boolean }) => void): Unsubscribe;
 
+  // "O que estou ouvindo" (Spotify)
+  /** A minha música e a do contato (`peerId`), para o letreiro da conversa. */
+  getListening(peerId?: string): Promise<{ mine: Listening | null; peer: Listening | null }>;
+  onMyListening(cb: (listening: Listening | null) => void): Unsubscribe;
+  /** O contato desta janela trocou de música. */
+  onPeerListening(cb: (listening: PeerListening) => void): Unsubscribe;
+  getShareListening(): Promise<boolean>;
+  setShareListening(on: boolean): Promise<boolean>;
+  onShareListeningChanged(cb: (on: boolean) => void): Unsubscribe;
+
   // som de nova mensagem (menu ☰ da home)
   getSounds(): Promise<boolean>;
   setSounds(on: boolean): Promise<boolean>;
@@ -348,6 +370,12 @@ export const IPC = {
   getPeerScene: 'scene:peer-get',
   peerScene: 'scene:peer',
   unreadChanged: 'chat:unread-changed',
+  getListening: 'listening:get',
+  myListening: 'listening:mine',
+  peerListening: 'listening:peer',
+  getShareListening: 'listening:share-get',
+  setShareListening: 'listening:share-set',
+  shareListeningChanged: 'listening:share-changed',
   getSounds: 'sound:get',
   setSounds: 'sound:set',
   soundsChanged: 'sound:changed',

@@ -46,6 +46,7 @@ let selectedId: string | null = null;
 /** Contatos com mensagem não vista: piscam em laranja, como no MSN. */
 const unread = new Set<string>();
 let soundsOn = true;
+let shareListening = true;
 
 export function setUnread(peerId: string, isUnread: boolean) {
   if (isUnread) unread.add(peerId);
@@ -62,6 +63,10 @@ export function resetUnread(ids: string[]) {
 
 export function setSoundsOn(on: boolean) {
   soundsOn = on;
+}
+
+export function setShareListening(on: boolean) {
+  shareListening = on;
 }
 
 // ---------------------------------------------------------------- eu
@@ -230,6 +235,14 @@ els.menuBtn.addEventListener('click', () =>
         void chat()
           .setSounds(!soundsOn)
           .then(setSoundsOn)
+          .catch((err) => console.warn(errorMessage(err))),
+    },
+    {
+      label: `${shareListening ? '✓ ' : ''}Mostrar o que estou ouvindo (Spotify)`,
+      onSelect: () =>
+        void chat()
+          .setShareListening(!shareListening)
+          .then(setShareListening)
           .catch((err) => console.warn(errorMessage(err))),
     },
     { label: 'Ajuda de rede', onSelect: () => handlers.help() },

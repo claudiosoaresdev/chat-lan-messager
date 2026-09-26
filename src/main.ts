@@ -12,7 +12,7 @@ import {
   type IpcMainInvokeEvent,
   type Tray,
 } from 'electron';
-import { execFileSync } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -28,6 +28,7 @@ import { Updater, feedUrl } from './main/updater';
 import { Conversations } from './main/conversations';
 import { ChatWindows, type ChatWindowEvents, type ChatWindowHandle } from './main/chat-windows';
 import { createTray } from './main/tray';
+import { NowPlayingWatcher, readerFor, type Exec } from './main/now-playing';
 import { trayTooltip } from './main/tray-text';
 import {
   DEFAULT_PORT,
@@ -107,6 +108,8 @@ let updater: Updater | null = null;
 const conversations = new Conversations();
 let chats: ChatWindows;
 let tray: Tray | null = null;
+/** Música do Spotify ("O que estou ouvindo"); null = sistema sem leitor. */
+let listening: NowPlayingWatcher | null = null;
 /** Saindo de verdade: o "X" da home para de esconder na bandeja. */
 let quitting = false;
 let trayHintShown = false;
@@ -338,6 +341,8 @@ async function login(req: LoginRequest): Promise<SelfInfo> {
     fallbackToRandomPort: launch.port === undefined && requestedPort === DEFAULT_PORT,
   });
 
+  peers.setListening(listening?.current ?? null);
+
   // Cena recusada (arquivo estragado, dimensões fora do limite) não impede o login: anuncia "nenhuma".
   try {
     peers.setScene(announcedScene());
@@ -366,6 +371,8 @@ async function login(req: LoginRequest): Promise<SelfInfo> {
   peers.on('avatar', (avatar) => broadcast(IPC.peerAvatar, avatar));
   // Cena do contato: só para a janela de conversa com ele.
   peers.on('scene', (scene) => chats.get(scene.id)?.send(IPC.peerScene, scene));
+  // Música do contato: só para a janela de conversa com ele.
+  peers.on('listening', (l) => chats.get(l.id)?.send(IPC.peerListening, l));
   peers.on('message', (msg) => {
     chats.receive(msg.from, { kind: 'text', message: msg });
     notifyChat(msg.from, `${msg.fromName} diz:`, msg.text);
@@ -678,6 +685,18 @@ function registerIpc() {
   });
   handle(IPC.getPeerScene, (peerId: unknown) => session?.peers.getPeerScene(requirePeerId(peerId)) ?? null);
   handle(IPC.getUnread, () => chats.unreadIds());
+  handle(IPC.getListening, (peerId: unknown) => ({
+    mine: listening?.current ?? null,
+    peer: typeof peerId === 'string' && peerId ? session?.peers.getPeerListening(peerId) ?? null : null,
+  }));
+  handle(IPC.getShareListening, () => settings.shareListening);
+  handle(IPC.setShareListening, (on: unknown) => {
+    if (typeof on !== 'boolean') throw new Error('Valor inválido');
+    saveSettings({ ...settings, shareListening: on });
+    applyShareListening();
+    broadcast(IPC.shareListeningChanged, on);
+    return on;
+  });
   handle(IPC.getSounds, () => settings.sounds);
   handle(IPC.setSounds, (on: unknown) => {
     if (typeof on !== 'boolean') throw new Error('Valor inválido');
@@ -699,6 +718,29 @@ function registerIpc() {
     saveSettings({ ...settings, manualPeers: settings.manualPeers.filter((t) => !sameTarget(t, target)) });
     return settings.manualPeers;
   });
+}
+
+const execQuiet: Exec = (file, args) =>
+  new Promise((resolve, reject) => {
+    execFile(file, args, { timeout: 2000, windowsHide: true, encoding: 'utf8' }, (err, stdout) => (err ? reject(err) : resolve(stdout)));
+  });
+
+/** Liga ou desliga a leitura do Spotify conforme a opção; desligada, os contatos recebem "nada tocando". */
+function applyShareListening() {
+  if (!listening) return;
+  if (settings.shareListening) listening.start();
+  else listening.stop();
+}
+
+function startListening() {
+  const reader = readerFor(process.platform, execQuiet);
+  if (!reader) return;
+  listening = new NowPlayingWatcher(reader);
+  listening.on('change', (np) => {
+    session?.peers.setListening(np);
+    broadcast(IPC.myListening, np);
+  });
+  applyShareListening();
 }
 
 /**
@@ -909,6 +951,7 @@ app.on('ready', () => {
   tray = createTray(path.join(publicDir, 'tray'), { open: showMainWindow, quit: () => app.quit() });
   refreshTray();
   startUpdater();
+  startListening();
 });
 
 let shuttingDown = false;
@@ -920,6 +963,7 @@ app.on('before-quit', (e) => {
   // Limpa a rede (avisa a saída via mDNS) e encerra. app.exit direto: um segundo
   // app.quit() depois de um quit adiado pode ficar parado (visto com SIGTERM).
   const force = setTimeout(() => app.exit(0), 3000);
+  listening?.stop();
   logout().finally(() => {
     clearTimeout(force);
     app.exit(0);
